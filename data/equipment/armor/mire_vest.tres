@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"mire_vest"
+display_name = "Mire Vest"
+description = "Raíces húmedas y ceniza viva cierran lentamente las heridas."
+slot = 1
+rarity = 1
+tier = 2
+required_level = 4
+icon_id = &"armor"
+defense_bonus = 2
+max_health_bonus = 10
+healing_power_bonus = 0.15
+passive_effect_id = &"mire_regeneration"
+passive_trigger = 1
+affinity = 3
+biome_tags = Array[StringName]([&"ember_marsh"])
+element_type = &"tide"
+tags = Array[StringName]([&"healing", &"regen"])
+visual_id = &"mire_vest_visual"

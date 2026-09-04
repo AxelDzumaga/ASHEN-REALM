@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BossPhaseData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boss_phase_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/enemy_ai_profiles/warden_phase_3.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+phase_id = &"ashen_judgment"
+display_name = "Ashen Judgment"
+hp_threshold_percent = 35
+ai_profile_override = ExtResource("2")
+attack_multiplier = 1.25
+defense_bonus = -2
+visual_accent = Color(0.95, 0.31, 0.16, 1)
+transition_message = "DEFENSA -2 · DAÑO +25%"
+tags = Array[StringName]([&"aggressive", &"enraged"])
+

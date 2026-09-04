@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CompanionData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/companion_data.gd" id="1_companion"]
+[ext_resource type="Resource" path="res://data/visuals/companions/ember_hound.tres" id="2_visual"]
+
+[resource]
+script = ExtResource("1_companion")
+companion_id = &"ember_hound"
+display_name = "Ember Hound"
+description = "Sabueso de carbón vivo que sigue la presa marcada por su vínculo de brasa."
+max_hp = 48
+attack = 9
+defense = 3
+visual_data = ExtResource("2_visual")
+passive_id = &"ember_hunter"
+passive_name = "Ember Hunter"
+passive_description = "+15% de daño del Companion contra objetivos con Quemadura."
+passive_damage_multiplier = 1.15
+ability_id = &"ember_bite"
+ability_name = "Ember Bite"
+ability_description = "Cada tercera acción muerde al objetivo y aplica Quemadura ×1."
+ability_every_actions = 3
+ability_status_id = &"burn"
+ability_status_stacks = 1
+unlocked_by_default = true
+tags = Array[StringName]([&"ember", &"burn", &"beast", &"melee"])

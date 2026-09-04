@@ -1,0 +1,237 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/run_result.gd" id="1_result"]
+
+[node name="RunResult" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_result")
+
+[node name="Background" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.055, 0.047, 0.075, 1)
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 56.0
+offset_right = -40.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+scroll_deadzone = 24
+follow_focus = true
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer/Layout/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="GameTitle" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 40
+text = "ASHEN REALM"
+horizontal_alignment = 1
+
+[node name="ResultTitle" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 56
+text = "VICTORIA"
+horizontal_alignment = 1
+
+[node name="OutcomeLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 25
+text = "PARTIDA COMPLETADA"
+horizontal_alignment = 1
+
+[node name="RegionLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.63, 0.24, 1)
+theme_override_font_sizes/font_size = 19
+text = "REGIÓN  ·  THE ASHEN WASTES"
+horizontal_alignment = 1
+
+[node name="ResultMessage" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.68, 0.75, 1)
+theme_override_font_sizes/font_size = 22
+text = "El guardián de la región ha caído."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="PlayerArt" type="TextureRect" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 190)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PlayerArtFallback" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_font_sizes/font_size = 32
+text = "ASH"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="AshEarnedLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_font_sizes/font_size = 28
+text = "Ceniza obtenida: 0"
+horizontal_alignment = 1
+
+[node name="PlayerXpPanel" type="PanelContainer" parent="MarginContainer/Layout/ScrollContainer/Content"]
+theme_type_variation = &"CardPanel"
+custom_minimum_size = Vector2(0, 82)
+layout_mode = 2
+
+[node name="PlayerXpContent" type="VBoxContainer" parent="MarginContainer/Layout/ScrollContainer/Content/PlayerXpPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PlayerXpLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content/PlayerXpPanel/PlayerXpContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.68, 0.95, 1)
+theme_override_font_sizes/font_size = 18
+text = "EXP PERMANENTE +0 · NIVEL 1\nPROGRESO 0 / 100"
+horizontal_alignment = 1
+
+[node name="PlayerXpBar" type="ProgressBar" parent="MarginContainer/Layout/ScrollContainer/Content/PlayerXpPanel/PlayerXpContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+max_value = 100.0
+show_percentage = false
+
+[node name="BossRewardLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_font_sizes/font_size = 19
+text = "RECOMPENSA DE JEFE\nAshen Bounty\n+55 de Ceniza"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="MilestoneProgressLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 18
+text = "ASHEN RANK 1\nPRÓXIMO OBJETIVO"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="LootPanel" type="PanelContainer" parent="MarginContainer/Layout/ScrollContainer/Content"]
+unique_name_in_owner = true
+theme_type_variation = &"EmberPanel"
+custom_minimum_size = Vector2(0, 242)
+layout_mode = 2
+
+[node name="LootMargin" type="MarginContainer" parent="MarginContainer/Layout/ScrollContainer/Content/LootPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 12
+
+[node name="LootContent" type="VBoxContainer" parent="MarginContainer/Layout/ScrollContainer/Content/LootPanel/LootMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LootTitle" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content/LootPanel/LootMargin/LootContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 22
+text = "BOTÍN"
+horizontal_alignment = 1
+
+[node name="LootCardHost" type="VBoxContainer" parent="MarginContainer/Layout/ScrollContainer/Content/LootPanel/LootMargin/LootContent"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LootRarityLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content/LootPanel/LootMargin/LootContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Raro"
+horizontal_alignment = 1
+
+[node name="LootNameLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content/LootPanel/LootMargin/LootContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "Ember Fang"
+horizontal_alignment = 1
+
+[node name="LootStatsLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content/LootPanel/LootMargin/LootContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+5 de Ataque"
+horizontal_alignment = 1
+
+[node name="SummaryPanel" type="PanelContainer" parent="MarginContainer/Layout/ScrollContainer/Content"]
+theme_type_variation = &"CardPanel"
+custom_minimum_size = Vector2(0, 138)
+layout_mode = 2
+
+[node name="SummaryMargin" type="MarginContainer" parent="MarginContainer/Layout/ScrollContainer/Content/SummaryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 18
+
+[node name="SummaryLabel" type="Label" parent="MarginContainer/Layout/ScrollContainer/Content/SummaryPanel/SummaryMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 24
+text = "Resumen de partida"
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ReturnButton" type="Button" parent="MarginContainer/Layout"]
+unique_name_in_owner = true
+theme_type_variation = &"PrimaryButton"
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "VOLVER AL REFUGIO"
+autowrap_mode = 2

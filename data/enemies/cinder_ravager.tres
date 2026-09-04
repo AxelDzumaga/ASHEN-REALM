@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/visuals/enemies/cinder_ravager.tres" id="2_visual"]
+[ext_resource type="Resource" path="res://data/enemy_ai_profiles/brute_cinder_ravager.tres" id="3_ai"]
+
+[resource]
+script = ExtResource("1")
+visual = ExtResource("2_visual")
+ai_profile = ExtResource("3_ai")
+id = &"cinder_ravager"
+display_name = "Cinder Ravager"
+max_health = 74
+attack = 14
+defense = 2
+encounter_cost = 3
+primary_damage_type = &"ember"
+resistance_tags = Array[StringName]([&"ember"])
+

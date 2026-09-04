@@ -1,0 +1,27 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+/build/
+
+# Python bytecode cache (tools/ scripts)
+__pycache__/
+*.pyc
+
+# Claude Code local runtime state (session-specific, not shared config)
+.claude/*.lock
+
+# OS noise
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# IDE noise
+.vs/
+.vscode/
+.idea/
+
+# Editor/tool temp output
+*.tmp
+*.bak

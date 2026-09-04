@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/visuals/bosses/sunken_pyre.tres" id="2_visual"]
+[ext_resource type="Resource" path="res://data/enemy_ai_profiles/boss_random.tres" id="3_ai"]
+[ext_resource type="Resource" path="res://data/boss_encounters/sunken_pyre.tres" id="4_boss"]
+
+[resource]
+script = ExtResource("1")
+visual = ExtResource("2_visual")
+ai_profile = ExtResource("3_ai")
+boss_encounter = ExtResource("4_boss")
+id = &"sunken_pyre"
+display_name = "The Sunken Pyre"
+max_health = 135
+attack = 20
+defense = 5
+primary_damage_type = &"tide"
+resistance_tags = Array[StringName]([&"tide"])
+weakness_tags = Array[StringName]([])

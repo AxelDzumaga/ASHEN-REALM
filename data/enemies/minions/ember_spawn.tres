@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/visuals/minions/ember_spawn.tres" id="2"]
+[ext_resource type="Resource" path="res://data/enemy_ai_profiles/ember_spawn_primary.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = &"ember_spawn"
+display_name = "Ember Spawn"
+visual = ExtResource("2")
+ai_profile = ExtResource("3")
+max_health = 22
+attack = 8
+defense = 1
+primary_damage_type = &"tide"
+resistance_tags = Array[StringName]([&"tide"])
+

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"broken_altar"
+title = "Broken Altar"
+description = "Un altar quebrado por el fuego susurra promesas de fuerza."
+difficulty_tier = 2
+risk_summary = "Poder elevado a cambio de Vida máxima"
+option_a_text = "ACEPTAR"
+option_a_effect_text = "+6 de Ataque · -20 de Vida máxima"
+option_a_max_health_delta = -20
+option_a_attack_delta = 6
+option_b_text = "RECHAZAR"
+option_b_effect_text = "Sin efecto"

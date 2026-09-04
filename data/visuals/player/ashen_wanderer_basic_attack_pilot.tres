@@ -1,0 +1,36 @@
+[gd_resource type="SpriteFrames" load_steps=11 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/art/player/player_ashen_wanderer_59b.png" id="1_idle"]
+[ext_resource type="Texture2D" path="res://assets/art/player/animations/player_ashen_wanderer_basic_attack_60d.png" id="2_attack"]
+
+[sub_resource type="AtlasTexture" id="Idle"]
+atlas = ExtResource("1_idle")
+region = Rect2(0, 0, 1292, 1218)
+
+[sub_resource type="AtlasTexture" id="Attack1"]
+atlas = ExtResource("2_attack")
+region = Rect2(0, 0, 444, 444)
+[sub_resource type="AtlasTexture" id="Attack2"]
+atlas = ExtResource("2_attack")
+region = Rect2(444, 0, 443, 444)
+[sub_resource type="AtlasTexture" id="Attack3"]
+atlas = ExtResource("2_attack")
+region = Rect2(887, 0, 444, 444)
+[sub_resource type="AtlasTexture" id="Attack4"]
+atlas = ExtResource("2_attack")
+region = Rect2(1331, 0, 443, 444)
+[sub_resource type="AtlasTexture" id="Attack5"]
+atlas = ExtResource("2_attack")
+region = Rect2(0, 444, 444, 443)
+[sub_resource type="AtlasTexture" id="Attack6"]
+atlas = ExtResource("2_attack")
+region = Rect2(444, 444, 443, 443)
+[sub_resource type="AtlasTexture" id="Attack7"]
+atlas = ExtResource("2_attack")
+region = Rect2(887, 444, 444, 443)
+[sub_resource type="AtlasTexture" id="Attack8"]
+atlas = ExtResource("2_attack")
+region = Rect2(1331, 444, 443, 443)
+
+[resource]
+animations = [{"frames": [{"duration": 1.0, "texture": SubResource("Idle")}], "loop": true, "name": &"idle", "speed": 8.0}, {"frames": [{"duration": 1.0, "texture": SubResource("Attack1")}, {"duration": 1.0, "texture": SubResource("Attack2")}, {"duration": 1.0, "texture": SubResource("Attack3")}, {"duration": 1.0, "texture": SubResource("Attack4")}, {"duration": 1.0, "texture": SubResource("Attack5")}, {"duration": 1.0, "texture": SubResource("Attack6")}, {"duration": 1.0, "texture": SubResource("Attack7")}, {"duration": 1.0, "texture": SubResource("Attack8")}], "loop": false, "name": &"attack", "speed": 14.0}, {"frames": [{"duration": 1.0, "texture": SubResource("Idle")}], "loop": false, "name": &"hit", "speed": 10.0}, {"frames": [{"duration": 1.0, "texture": SubResource("Idle")}], "loop": false, "name": &"death", "speed": 8.0}]

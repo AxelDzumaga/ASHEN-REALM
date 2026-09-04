@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="BiomeData" load_steps=20 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/biome_data.gd" id="1_biome"]
+[ext_resource type="Resource" path="res://data/enemies/ember_wretch.tres" id="2_wretch"]
+[ext_resource type="Resource" path="res://data/enemies/ash_crawler.tres" id="3_crawler"]
+[ext_resource type="Resource" path="res://data/enemies/hollow_guard.tres" id="4_guard"]
+[ext_resource type="Resource" path="res://data/enemies/charred_hound.tres" id="5_hound"]
+[ext_resource type="Resource" path="res://data/enemies/ember_acolyte.tres" id="6_acolyte"]
+[ext_resource type="Resource" path="res://data/enemies/ash_stalker.tres" id="7_stalker"]
+[ext_resource type="Resource" path="res://data/enemies/elites/cinder_knight.tres" id="8_knight"]
+[ext_resource type="Resource" path="res://data/enemies/elites/ashbound_brute.tres" id="9_brute"]
+[ext_resource type="Resource" path="res://data/enemies/bosses/ashen_warden.tres" id="10_boss"]
+[ext_resource type="Resource" path="res://data/events/ashen_shrine.tres" id="11_shrine"]
+[ext_resource type="Resource" path="res://data/events/lost_wanderer.tres" id="12_wanderer"]
+[ext_resource type="Resource" path="res://data/events/ember_well.tres" id="13_well"]
+[ext_resource type="Resource" path="res://data/events/broken_altar.tres" id="14_altar"]
+[ext_resource type="Resource" path="res://data/biome_modifiers/ashen_surge.tres" id="15_surge"]
+[ext_resource type="Resource" path="res://data/biome_modifiers/scorched_recovery.tres" id="16_recovery"]
+[ext_resource type="Resource" path="res://data/enemies/cinder_ravager.tres" id="17_ravager"]
+[ext_resource type="Resource" path="res://data/enemies/pyre_skirmisher.tres" id="18_skirmisher"]
+[ext_resource type="Resource" path="res://data/events/wanderer_return.tres" id="19_wanderer_return"]
+
+[resource]
+script = ExtResource("1_biome")
+id = &"ashen_wastes"
+build_affinity_tag = &"ember"
+display_name = "The Ashen Wastes"
+material_name = "Esquirla de Hueso"
+subtitle = "Un reino sepultado bajo la ceniza."
+description = "Caminos en ruinas atraviesan tierras consumidas por un fuego ancestral, donde perduran las brasas y criaturas corruptas cazan entre altares destruidos."
+board_length = 30
+progression_order = 1
+difficulty_tier = 0
+recommended_level = 1
+danger_rating = 1
+difficulty_summary = "Ruta inicial equilibrada · más descansos y tesoros · élites variables antes del jefe final."
+background_color = Color(0.063, 0.051, 0.086, 1)
+panel_color = Color(0.129, 0.11, 0.161, 1)
+accent_color = Color(0.902, 0.635, 0.235, 1)
+theme_family = &"ashen_badlands"
+environment_profile = &"dry_ruins"
+map_style = &"fractured_wastes"
+ambient_profile = &"ash_wind"
+background_hook = &"ashen_wastes"
+entry_audio_pitch = 1.0
+board_thumbnail_path = "res://assets/art/biomes/ashen_wastes/thumbnail.png"
+environment_texture_path = "res://assets/art/biomes/ashen_wastes/background.png"
+combat_background_path = "res://assets/art/biomes/ashen_wastes/59a/combat_backdrop_59b.png"
+foreground_texture_path = "res://assets/art/biomes/ashen_wastes/foreground.png"
+ambient_tint = Color(0.94, 0.89, 0.8, 0.96)
+board_overlay_color = Color(0.035, 0.025, 0.025, 0.64)
+combat_overlay_color = Color(0.02, 0.018, 0.04, 0.08)
+boss_overlay_color = Color(0.075, 0.015, 0.025, 0.2)
+modifiers = Array[ExtResource("15_surge")]([ExtResource("15_surge"), ExtResource("16_recovery")])
+normal_enemy_pool = Array[ExtResource("2_wretch")]([ExtResource("2_wretch"), ExtResource("3_crawler"), ExtResource("4_guard"), ExtResource("5_hound"), ExtResource("6_acolyte"), ExtResource("7_stalker"), ExtResource("17_ravager"), ExtResource("18_skirmisher")])
+elite_enemy_pool = Array[ExtResource("8_knight")]([ExtResource("8_knight"), ExtResource("9_brute")])
+boss = ExtResource("10_boss")
+event_pool = Array[ExtResource("11_shrine")]([ExtResource("11_shrine"), ExtResource("12_wanderer"), ExtResource("13_well"), ExtResource("14_altar"), ExtResource("19_wanderer_return")])
+empty_min = 6
+empty_max = 9
+combat_min = 7
+combat_max = 9
+event_min = 3
+event_max = 5
+treasure_min = 2
+treasure_max = 3
+heal_min = 2
+heal_max = 3
+elite_min = 1
+elite_max = 2

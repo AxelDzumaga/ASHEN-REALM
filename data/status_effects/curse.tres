@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_effect_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = &"curse"
+display_name = "Maldición"
+description = "Aumenta el daño recibido de todas las fuentes, no solo de Ceniza."
+icon_id = &"curse"
+category = 1
+stack_mode = 2
+max_stacks = 3
+duration_type = 0
+base_duration = 2
+trigger = 1
+magnitude_per_stack = 15
+tags = Array[StringName]([&"damage_taken_increase", &"ash"])

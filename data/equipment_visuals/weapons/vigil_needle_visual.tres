@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EquipmentVisualData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/equipment_visual_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+visual_id = &"vigil_needle_visual"
+display_name = "Vigil Needle Trace"
+slot = 0
+display_mode = 2
+procedural_style = 2
+icon_id = &"weapon"
+attachment_anchor = Vector2(0.35, 0.57)
+attachment_scale = 0.62
+attachment_rotation_degrees = -12.0
+accent = Color(0.82, 0.74, 0.48, 1)
+secondary_accent = Color(0.36, 0.38, 0.43, 1)
+fallback_style = 2

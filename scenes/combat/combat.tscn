@@ -1,0 +1,652 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/combat.gd" id="1_combat"]
+[ext_resource type="Script" path="res://scripts/combat/combat_vfx_controller.gd" id="2_vfx"]
+[ext_resource type="Script" path="res://scripts/combat/combat_character_view.gd" id="3_character_view"]
+[ext_resource type="Script" path="res://scripts/combat/combat_stage.gd" id="4_stage"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_icon.gd" id="5_icon"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_badge.gd" id="6_badge"]
+[ext_resource type="Script" path="res://scripts/combat/combat_choreography_controller.gd" id="7_choreography"]
+
+[node name="Combat" type="Control"]
+process_mode = 1
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_combat")
+
+[node name="Background" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.035, 0.025, 0.03, 1)
+mouse_filter = 2
+
+[node name="CombatFrame" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -640.0
+offset_right = 360.0
+offset_bottom = 640.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BiomeRulesLabel" type="Label" parent="CombatFrame"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_left = 0.12
+anchor_top = 0.018
+anchor_right = 0.88
+anchor_bottom = 0.055
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.78, 0.72, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+text = "BRASA +15% · CURACIÓN -10%"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+mouse_filter = 2
+
+[node name="CombatStage" type="Control" parent="CombatFrame"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 58.0
+offset_bottom = -150.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_stage")
+
+[node name="StageShade" type="ColorRect" parent="CombatFrame/CombatStage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.015, 0.02, 0.16)
+mouse_filter = 2
+
+[node name="EnemyFormation" type="Control" parent="CombatFrame/CombatStage"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchor_left = 0.035
+anchor_top = 0.035
+anchor_right = 0.965
+anchor_bottom = 0.49
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EnemyCharacterView" type="Control" parent="CombatFrame/CombatStage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_left = 0.11
+anchor_top = 0.035
+anchor_right = 0.89
+anchor_bottom = 0.525
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_character_view")
+
+[node name="StaticArt" type="TextureRect" parent="CombatFrame/CombatStage/EnemyCharacterView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FallbackLabel" type="Label" parent="CombatFrame/CombatStage/EnemyCharacterView"]
+layout_mode = 1
+anchor_left = 0.25
+anchor_top = 0.67
+anchor_right = 0.75
+anchor_bottom = 0.86
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.78, 0.31, 0.27, 1)
+theme_override_colors/font_shadow_color = Color(0.02, 0.012, 0.018, 1)
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 15
+text = "ENEMIGO"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="PlayerCharacterView" type="Control" parent="CombatFrame/CombatStage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_left = 0.04
+anchor_top = 0.485
+anchor_right = 0.68
+anchor_bottom = 0.925
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_character_view")
+
+[node name="StaticArt" type="TextureRect" parent="CombatFrame/CombatStage/PlayerCharacterView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FallbackLabel" type="Label" parent="CombatFrame/CombatStage/PlayerCharacterView"]
+layout_mode = 1
+anchor_left = 0.28
+anchor_top = 0.68
+anchor_right = 0.72
+anchor_bottom = 0.88
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_colors/font_shadow_color = Color(0.02, 0.012, 0.018, 1)
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 15
+text = "ASH"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="CompanionCharacterView" type="Control" parent="CombatFrame/CombatStage"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchor_left = 0.63
+anchor_top = 0.575
+anchor_right = 0.97
+anchor_bottom = 0.92
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_character_view")
+
+[node name="StaticArt" type="TextureRect" parent="CombatFrame/CombatStage/CompanionCharacterView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FallbackLabel" type="Label" parent="CombatFrame/CombatStage/CompanionCharacterView"]
+layout_mode = 1
+anchor_left = 0.12
+anchor_top = 0.72
+anchor_right = 0.88
+anchor_bottom = 0.92
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.96, 0.42, 0.16, 1)
+theme_override_colors/font_shadow_color = Color(0.02, 0.012, 0.018, 1)
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 13
+text = "COMPAÑERO"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="StageForeground" type="Control" parent="CombatFrame/CombatStage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_stage")
+foreground_only = true
+
+[node name="EnemyPanel" type="PanelContainer" parent="CombatFrame/CombatStage"]
+unique_name_in_owner = true
+z_index = 4
+layout_mode = 1
+anchor_left = 0.035
+anchor_top = 0.01
+anchor_right = 0.81
+anchor_bottom = 0.105
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="EnemyHUD" type="HBoxContainer" parent="CombatFrame/CombatStage/EnemyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="EnemyIdentity" type="VBoxContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="EncounterLabel" type="Label" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.44, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+text = "ENEMIGO"
+
+[node name="EnemyNameLabel" type="Label" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Enemigo"
+autowrap_mode = 2
+
+[node name="EnemyStatusRow" type="HBoxContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="EnemyVitals" type="VBoxContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="EnemyHealthLabel" type="PanelContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyVitals"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_badge")
+
+[node name="EnemyHealthBar" type="ProgressBar" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyVitals"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="EnemyStatsLabel" type="HBoxContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyVitals"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 6
+
+[node name="EnemyAttackBadge" type="PanelContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyVitals/EnemyStatsLabel"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_badge")
+
+[node name="EnemyDefenseBadge" type="PanelContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyVitals/EnemyStatsLabel"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_badge")
+
+[node name="EnemyIntentBadge" type="PanelContainer" parent="CombatFrame/CombatStage/EnemyPanel/EnemyHUD/EnemyVitals/EnemyStatsLabel"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_badge")
+
+[node name="PlayerPanel" type="PanelContainer" parent="CombatFrame/CombatStage"]
+unique_name_in_owner = true
+z_index = 4
+layout_mode = 1
+anchor_left = 0.035
+anchor_top = 0.91
+anchor_right = 0.62
+anchor_bottom = 0.985
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CompanionPanel" type="PanelContainer" parent="CombatFrame/CombatStage"]
+unique_name_in_owner = true
+visible = false
+z_index = 5
+layout_mode = 1
+anchor_left = 0.645
+anchor_top = 0.91
+anchor_right = 0.975
+anchor_bottom = 0.985
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CompanionMargin" type="MarginContainer" parent="CombatFrame/CombatStage/CompanionPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 4
+
+[node name="CompanionHUD" type="VBoxContainer" parent="CombatFrame/CombatStage/CompanionPanel/CompanionMargin"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="CompanionNameLabel" type="Label" parent="CombatFrame/CombatStage/CompanionPanel/CompanionMargin/CompanionHUD"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.53, 0.23, 1)
+theme_override_font_sizes/font_size = 13
+text = "EMBER HOUND"
+horizontal_alignment = 1
+
+[node name="CompanionHealthBar" type="ProgressBar" parent="CombatFrame/CombatStage/CompanionPanel/CompanionMargin/CompanionHUD"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+value = 48.0
+show_percentage = false
+
+[node name="CompanionStatsLabel" type="Label" parent="CombatFrame/CombatStage/CompanionPanel/CompanionMargin/CompanionHUD"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.76, 0.71, 0.72, 1)
+theme_override_font_sizes/font_size = 12
+text = "VIDA 48/48 · ATQ 9 · DEF 3"
+horizontal_alignment = 1
+
+[node name="CompanionStatusRow" type="HBoxContainer" parent="CombatFrame/CombatStage/CompanionPanel/CompanionMargin/CompanionHUD"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 3
+
+[node name="PlayerHUD" type="HBoxContainer" parent="CombatFrame/CombatStage/PlayerPanel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="PlayerIdentity" type="VBoxContainer" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD"]
+custom_minimum_size = Vector2(148, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="PlayerCaption" type="Label" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD/PlayerIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.62, 0.28, 1)
+theme_override_font_sizes/font_size = 14
+text = "ASHEN WANDERER"
+
+[node name="PlayerNameLabel" type="Label" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD/PlayerIdentity"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "Ashen Wanderer"
+autowrap_mode = 2
+
+[node name="PlayerVitals" type="VBoxContainer" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="PlayerHealthLabel" type="PanelContainer" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD/PlayerVitals"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_badge")
+
+[node name="PlayerHealthBar" type="ProgressBar" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD/PlayerVitals"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+value = 80.0
+show_percentage = false
+
+[node name="PlayerStatsLabel" type="HBoxContainer" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD/PlayerVitals"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 6
+
+[node name="PlayerAttackBadge" type="PanelContainer" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD/PlayerVitals/PlayerStatsLabel"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_badge")
+
+[node name="PlayerDefenseBadge" type="PanelContainer" parent="CombatFrame/CombatStage/PlayerPanel/PlayerHUD/PlayerVitals/PlayerStatsLabel"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_badge")
+
+[node name="FeedbackLayer" type="VBoxContainer" parent="CombatFrame/CombatStage"]
+z_index = 4
+layout_mode = 1
+anchor_left = 0.14
+anchor_top = 0.455
+anchor_right = 0.86
+anchor_bottom = 0.535
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 3
+
+[node name="TurnLabel" type="Label" parent="CombatFrame/CombatStage/FeedbackLayer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_font_sizes/font_size = 15
+text = "PREPARATE"
+horizontal_alignment = 1
+
+[node name="ActionBadge" type="PanelContainer" parent="CombatFrame/CombatStage/FeedbackLayer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+script = ExtResource("6_badge")
+
+[node name="ActionPanel" type="PanelContainer" parent="CombatFrame/CombatStage/FeedbackLayer"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+
+[node name="ActionLabel" type="Label" parent="CombatFrame/CombatStage/FeedbackLayer/ActionPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 24
+text = "Prepará tu acción."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ActiveEffectsLabel" type="HBoxContainer" parent="CombatFrame/CombatStage/FeedbackLayer"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 5
+
+[node name="SkillPanel" type="PanelContainer" parent="CombatFrame"]
+unique_name_in_owner = true
+z_index = 10
+layout_mode = 1
+anchors_preset = 12
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -142.0
+offset_right = -16.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="SkillMargin" type="MarginContainer" parent="CombatFrame/SkillPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 7
+
+[node name="SkillContent" type="VBoxContainer" parent="CombatFrame/SkillPanel/SkillMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SkillHeaderRow" type="HBoxContainer" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+visible = false
+layout_mode = 2
+
+[node name="SkillIcon" type="Control" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillHeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="SkillHeader" type="Label" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillHeaderRow"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_font_sizes/font_size = 15
+text = "DETALLE DE HABILIDAD"
+
+[node name="SkillNameLabel" type="Label" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillHeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "EMBER SLASH"
+horizontal_alignment = 2
+
+[node name="SkillDescriptionLabel" type="Label" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.68, 0.75, 1)
+theme_override_font_sizes/font_size = 12
+text = "Desatá un golpe poderoso alimentado por la Brasa acumulada."
+horizontal_alignment = 1
+autowrap_mode = 2
+max_lines_visible = 2
+
+[node name="SkillAugmentsLabel" type="Label" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.58, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "AUMENTOS"
+horizontal_alignment = 1
+autowrap_mode = 2
+max_lines_visible = 2
+
+[node name="EnergyBar" type="ProgressBar" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+max_value = 100.0
+show_percentage = false
+
+[node name="SkillInfo" type="HBoxContainer" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="EnergyIcon" type="Control" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillInfo"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="EnergyCaption" type="Label" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillInfo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "BRASA / RECURSO"
+tooltip_text = "La Brasa alimenta tus habilidades activas."
+
+[node name="EnergyLabel" type="Label" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.949, 0.741, 0.333, 1)
+theme_override_font_sizes/font_size = 13
+text = "0 / 100"
+
+[node name="SkillStatusLabel" type="PanelContainer" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+script = ExtResource("6_badge")
+
+[node name="ActionBar" type="HBoxContainer" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AttackButton" type="Button" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/ActionBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(112, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"AttackButton"
+disabled = true
+text = "ATAQUE"
+
+[node name="AttackIcon" type="Control" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/ActionBar/AttackButton"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 14.0
+offset_top = -12.0
+offset_right = 38.0
+offset_bottom = 12.0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="SkillDebugPanel" type="HBoxContainer" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="DebugFillEnergyButton" type="Button" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillDebugPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 54)
+layout_mode = 2
+text = "DEBUG: FILL ENERGY"
+
+[node name="DebugResetCooldownButton" type="Button" parent="CombatFrame/SkillPanel/SkillMargin/SkillContent/SkillDebugPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(210, 54)
+layout_mode = 2
+text = "DEBUG: RESET COOLDOWN"
+
+[node name="CombatVFX" type="Control" parent="CombatFrame"]
+unique_name_in_owner = true
+z_index = 5
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_vfx")
+
+[node name="CombatChoreography" type="Node" parent="CombatFrame"]
+unique_name_in_owner = true
+script = ExtResource("7_choreography")

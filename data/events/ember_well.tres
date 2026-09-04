@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ember_well"
+title = "Ember Well"
+description = "Un tenue resplandor naranja emerge de un pozo abandonado."
+difficulty_tier = 0
+risk_summary = "Dos beneficios sin coste directo"
+option_a_text = "BEBER"
+option_a_effect_text = "Recuperás 25 de Vida"
+option_a_health_delta = 25
+option_b_text = "TOMAR LA BRASA"
+option_b_effect_text = "+12 de Vida máxima · La Vida actual no cambia"
+option_b_max_health_delta = 12

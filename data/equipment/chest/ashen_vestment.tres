@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ashen_vestment"
+display_name = "Ashen Vestment"
+description = "Tela reforzada con placas de ceniza compactada. Contenido piloto Equipment 2.0 Fase 1 — INITIAL TUNING."
+slot = 1
+rarity = 0
+defense_bonus = 2
+max_health_bonus = 14
+tier = 1
+required_level = 1
+icon_id = &"armor"
+visual_id = &"ashen_vestment_visual"
+tags = Array[StringName]([&"balanced"])

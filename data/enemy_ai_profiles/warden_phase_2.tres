@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyAIData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_ai_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/enemy_actions/basic_attack.tres" id="2"]
+[ext_resource type="Resource" path="res://data/enemy_actions/sunder.tres" id="3"]
+[ext_resource type="Resource" path="res://data/enemy_actions/guard_stance.tres" id="4"]
+[ext_resource type="Resource" path="res://data/enemy_actions/warden_rebuke.tres" id="5"]
+
+[resource]
+script = ExtResource("1")
+ai_id = &"warden_phase_2"
+display_name = "Broken Vigil"
+role = 4
+default_target_policy = 0
+actions = Array[ExtResource("2")]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5")])
+tags = Array[StringName]([&"boss", &"defensive", &"counter", &"armor_break"])
+

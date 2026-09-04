@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"lost_wanderer"
+title = "Lost Wanderer"
+description = "Un viajero herido extiende la mano hacia vos entre el humo."
+difficulty_tier = 1
+risk_summary = "Coste inmediato con recompensa futura o recuperación segura"
+option_a_text = "AYUDAR"
+option_a_effect_text = "Perdés 18 de Vida · Ganás +2 de Defensa"
+option_a_health_delta = -18
+option_a_defense_delta = 2
+option_a_set_flag_ids = Array[StringName]([&"helped_lost_wanderer"])
+option_a_tags = Array[StringName]([&"future", &"build"])
+option_b_text = "IGNORAR"
+option_b_effect_text = "Recuperás 12 de Vida"
+option_b_health_delta = 12
+option_b_set_flag_ids = Array[StringName]([&"ignored_lost_wanderer"])

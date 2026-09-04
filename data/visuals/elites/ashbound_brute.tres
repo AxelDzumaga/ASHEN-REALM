@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CharacterVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_visual_data.gd" id="1_visual"]
+
+[resource]
+script = ExtResource("1_visual")
+portrait_path = "res://assets/art/elites/elite_ashbound_brute_59b.png"
+combat_texture_path = "res://assets/art/elites/elite_ashbound_brute_59b.png"
+sprite_frames_path = ""
+combat_scale = 1.02
+combat_offset = Vector2(0, 0)
+accent = Color(0.25, 0.62, 0.65, 1)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"fallen_guardians_shroud"
+display_name = "Fallen Guardian's Shroud"
+description = "Lo último que quedó de una guardia que no cedió. Contenido piloto Equipment 2.0 Fase 1 (slot CAPE, nuevo) — INITIAL TUNING."
+slot = 3
+rarity = 2
+defense_bonus = 3
+skill_damage_bonus = 0.12
+tier = 4
+required_level = 16
+icon_id = &"defense_affinity"
+visual_id = &"fallen_guardians_shroud_visual"
+resistance_affinity_id = &"ash"
+resistance_bonus = 0.2
+tags = Array[StringName]([&"skill", &"defense"])

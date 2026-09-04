@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EnemyActionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_action_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+action_id = &"warden_rebuke"
+display_name = "Warden's Rebuke"
+action_type = 2
+cooldown = 2
+weight = 35
+presentation_type = 2

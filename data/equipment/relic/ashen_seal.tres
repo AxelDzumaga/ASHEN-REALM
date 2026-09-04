@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ashen_seal"
+display_name = "Ashen Seal"
+description = "Un sello sin nombre, ceniciento por dentro. Contenido piloto Equipment 2.0 Fase 1 (slot RELIC, nuevo, sin representación visual por diseño) — INITIAL TUNING."
+slot = 4
+rarity = 1
+crit_damage_bonus = 0.1
+healing_power_bonus = 0.05
+tier = 2
+required_level = 9
+icon_id = &"boon"
+tags = Array[StringName]([&"crit", &"heal"])

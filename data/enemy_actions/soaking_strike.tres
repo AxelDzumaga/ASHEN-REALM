@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EnemyActionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_action_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+action_id = &"soaking_strike"
+display_name = "Golpe empapado"
+action_type = 1
+power_multiplier = 0.85
+status_id = &"wet"
+status_stacks = 1
+status_duration = 2
+cooldown = 2
+weight = 30

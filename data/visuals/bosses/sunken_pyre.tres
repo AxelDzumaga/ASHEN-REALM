@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CharacterVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_visual_data.gd" id="1_visual"]
+
+[resource]
+script = ExtResource("1_visual")
+portrait_path = "res://assets/art/bosses/boss_sunken_pyre.png"
+combat_texture_path = "res://assets/art/bosses/boss_sunken_pyre.png"
+sprite_frames_path = "res://data/visuals/bosses/sunken_pyre_animations.tres"
+combat_scale = 1.15
+combat_offset = Vector2(0, -5)
+accent = Color(0.8745, 0.3137, 0.2196, 1)

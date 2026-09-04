@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"vigil_helm"
+display_name = "Vigil Helm"
+description = "Visera estrecha, visión clara. Contenido piloto Equipment 2.0 Fase 1 (slot HEAD, nuevo) — INITIAL TUNING."
+slot = 2
+rarity = 1
+defense_bonus = 3
+max_health_bonus = 14
+crit_chance = 0.03
+tier = 2
+required_level = 7
+icon_id = &"block"
+visual_id = &"vigil_helm_visual"
+tags = Array[StringName]([&"crit"])

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"iron_vigil"
+display_name = "IRON VIGIL"
+description = "Capas independientes de Guardia estabilizan al Wanderer después del impacto."
+icon_id = &"guard"
+category = &"defense"
+required_tags = Array[StringName]([&"guard", &"defense"])
+required_counts = Array[int]([3, 3])
+minimum_distinct_sources = 3
+requirements_text = "3 fuentes GUARD + 3 fuentes DEFENSE, desde al menos 3 fuentes distintas."
+effect_id = &"iron_vigil"
+effect_value = 3.0
+effect_text = "La primera Guardia consumida de cada combate recupera 3 de Vida base."
+tags = Array[StringName]([&"guard", &"defense", &"heal"])

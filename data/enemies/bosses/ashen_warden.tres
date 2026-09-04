@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_enemy"]
+[ext_resource type="Resource" path="res://data/visuals/bosses/ashen_warden.tres" id="2_visual"]
+[ext_resource type="Resource" path="res://data/enemy_ai_profiles/boss_primary.tres" id="3_ai"]
+[ext_resource type="Resource" path="res://data/boss_encounters/ashen_warden.tres" id="4_boss"]
+
+[resource]
+script = ExtResource("1_enemy")
+visual = ExtResource("2_visual")
+ai_profile = ExtResource("3_ai")
+boss_encounter = ExtResource("4_boss")
+id = &"ashen_warden"
+display_name = "Ashen Warden"
+max_health = 145
+attack = 15
+defense = 11
+primary_damage_type = &"ember"
+resistance_tags = Array[StringName]([&"ember"])
+weakness_tags = Array[StringName]([&"tide"])

@@ -1,0 +1,57 @@
+extends Node
+
+var current_run: RunState
+
+
+func start_new_run(requested_seed: int = BoardGenerator.NO_SEED) -> RunState:
+	current_run = RunState.new()
+	if DebugConfig.DEBUG_TOOLS_ENABLED:
+		current_run.upgrade_rerolls = maxi(0, DebugConfig.DEBUG_UPGRADE_REROLLS)
+	current_run.apply_permanent_upgrades(SaveManager.profile)
+	current_run.starting_option_id = MetaUnlockCatalog.sanitize_selected_id(
+		SaveManager.profile.selected_starting_option_id,
+		SaveManager.profile.owned_meta_unlock_ids,
+	)
+	for equipment_id: Variant in SaveManager.profile.owned_equipment:
+		if int(SaveManager.profile.owned_equipment[equipment_id]) > 0:
+			current_run.owned_equipment_ids_at_start.append(String(equipment_id))
+	current_run.equipped_skill_ids = ActiveSkillCatalog.sanitize_loadout(
+		SaveManager.profile.equipped_skill_ids,
+		SaveManager.profile.unlocked_skill_ids,
+	)
+	current_run.equipped_companion_id = CompanionCatalog.sanitize_equipped_id(
+		SaveManager.profile.equipped_companion_id,
+		SaveManager.profile.unlocked_companion_ids,
+	)
+	current_run.active_skill_id = ActiveSkillCatalog.DEFAULT_SKILL_ID
+	for equipped_skill_id: StringName in current_run.equipped_skill_ids:
+		if not equipped_skill_id.is_empty():
+			current_run.active_skill_id = equipped_skill_id
+			break
+	if DebugConfig.DEBUG_TOOLS_ENABLED:
+		for augment_id: StringName in DebugConfig.DEBUG_SKILL_AUGMENT_GRANTS:
+			current_run.add_skill_augment(augment_id, DebugConfig.DEBUG_SKILL_AUGMENT_GRANTS[augment_id])
+	var biome: BiomeData = BiomeCatalog.get_available_or_default(
+		SaveManager.profile.selected_biome_id,
+		SaveManager.profile.completed_milestone_ids,
+	)
+	current_run.biome_data = biome
+	current_run.biome_id = biome.id
+	var seed_to_use: int = requested_seed
+	if seed_to_use == BoardGenerator.NO_SEED and DebugConfig.DEBUG_TOOLS_ENABLED:
+		seed_to_use = DebugConfig.FORCED_BOARD_SEED
+	BoardGenerator.generate_for_run(current_run, biome, seed_to_use)
+	current_run.recalculate_synergies()
+	DiscoveryTracker.discover_active_synergies(current_run)
+	TelemetryManager.track_run_started(current_run)
+	return current_run
+
+
+func end_run() -> void:
+	if current_run != null and not current_run.telemetry_finished:
+		TelemetryManager.track_run_abandoned(current_run)
+	current_run = null
+
+
+func has_active_run() -> bool:
+	return current_run != null

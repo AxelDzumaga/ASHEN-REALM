@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_effect_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = &"decay"
+display_name = "Decadencia"
+description = "Recibe daño al comienzo de su turno y su curación recibida se reduce. Se acumula hasta 3 veces."
+icon_id = &"decay"
+category = 3
+stack_mode = 2
+max_stacks = 3
+duration_type = 0
+base_duration = 2
+trigger = 1
+magnitude_per_stack = 2
+secondary_magnitude_per_stack = 15
+tags = Array[StringName]([&"damage_over_time", &"miasma", &"healing_reduction"])

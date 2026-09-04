@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_effect_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = &"weaken"
+display_name = "Debilitado"
+description = "Reduce temporalmente el Ataque efectivo."
+icon_id = &"weaken"
+category = 1
+stack_mode = 1
+max_stacks = 1
+duration_type = 0
+base_duration = 2
+trigger = 1
+magnitude_per_stack = 20
+tags = Array[StringName]([&"attack_modifier"])
+

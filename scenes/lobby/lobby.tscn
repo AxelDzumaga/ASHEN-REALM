@@ -1,0 +1,707 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/lobby.gd" id="1_lobby"]
+[ext_resource type="Script" path="res://scripts/ui/refuge_stage.gd" id="2_stage"]
+[ext_resource type="Script" path="res://scripts/combat/combat_character_view.gd" id="3_character"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_badge.gd" id="4_badge"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_icon.gd" id="5_icon"]
+
+[node name="Lobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lobby")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.025, 0.018, 0.022, 1)
+mouse_filter = 2
+
+[node name="LobbyFrame" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -640.0
+offset_right = 360.0
+offset_bottom = 640.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Stage" type="Control" parent="LobbyFrame"]
+layout_mode = 0
+offset_top = 94.0
+offset_right = 720.0
+offset_bottom = 908.0
+mouse_filter = 2
+script = ExtResource("2_stage")
+
+[node name="TopShade" type="ColorRect" parent="LobbyFrame/Stage"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 120.0
+grow_horizontal = 2
+color = Color(0.02, 0.015, 0.018, 0.62)
+mouse_filter = 2
+
+[node name="RefugeCharacterView" type="Control" parent="LobbyFrame/Stage"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 148.0
+offset_top = 92.0
+offset_right = 572.0
+offset_bottom = 710.0
+mouse_filter = 2
+script = ExtResource("3_character")
+
+[node name="StaticArt" type="TextureRect" parent="LobbyFrame/Stage/RefugeCharacterView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FallbackLabel" type="Label" parent="LobbyFrame/Stage/RefugeCharacterView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.91, 0.64, 0.24, 1)
+theme_override_font_sizes/font_size = 54
+text = "ASH"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="RefugeCompanionView" type="Control" parent="LobbyFrame/Stage"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 458.0
+offset_top = 432.0
+offset_right = 654.0
+offset_bottom = 692.0
+mouse_filter = 2
+script = ExtResource("3_character")
+
+[node name="StaticArt" type="TextureRect" parent="LobbyFrame/Stage/RefugeCompanionView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FallbackLabel" type="Label" parent="LobbyFrame/Stage/RefugeCompanionView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.96, 0.43, 0.16, 1)
+theme_override_font_sizes/font_size = 13
+text = "COMPAÑERO"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="GroundShadow" type="ColorRect" parent="LobbyFrame/Stage"]
+layout_mode = 0
+offset_left = 206.0
+offset_top = 678.0
+offset_right = 514.0
+offset_bottom = 704.0
+color = Color(0.015, 0.01, 0.015, 0.78)
+mouse_filter = 2
+
+[node name="CompanionShadow" type="ColorRect" parent="LobbyFrame/Stage"]
+layout_mode = 0
+offset_left = 468.0
+offset_top = 672.0
+offset_right = 632.0
+offset_bottom = 690.0
+color = Color(0.015, 0.01, 0.015, 0.7)
+mouse_filter = 2
+
+[node name="Foreground" type="Control" parent="LobbyFrame/Stage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_stage")
+foreground_only = true
+
+[node name="MainMenuButton" type="Button" parent="LobbyFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 120.0
+offset_bottom = 76.0
+theme_type_variation = &"SecondaryButton"
+text = "MENÚ"
+
+[node name="Title" type="Label" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 150.0
+offset_top = 18.0
+offset_right = 570.0
+offset_bottom = 58.0
+theme_override_colors/font_color = Color(0.94, 0.86, 0.73, 1)
+theme_override_font_sizes/font_size = 31
+text = "REFUGIO"
+horizontal_alignment = 1
+
+[node name="ProfileStatsLabel" type="Label" parent="LobbyFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 126.0
+offset_top = 58.0
+offset_right = 594.0
+offset_bottom = 104.0
+theme_override_colors/font_color = Color(0.7, 0.65, 0.61, 1)
+theme_override_font_sizes/font_size = 12
+text = "RANGO DE CENIZA 1\nPRÓXIMA EXPEDICIÓN: THE ASHEN WASTES"
+horizontal_alignment = 1
+
+[node name="AshLabel" type="PanelContainer" parent="LobbyFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 580.0
+offset_top = 20.0
+offset_right = 700.0
+offset_bottom = 76.0
+script = ExtResource("4_badge")
+
+[node name="LeftMenu" type="VBoxContainer" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 246.0
+offset_right = 166.0
+offset_bottom = 580.0
+theme_override_constants/separation = 8
+
+[node name="EquipmentButton" type="Button" parent="LobbyFrame/LeftMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavLeftButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "EQUIPO"
+alignment = 2
+
+[node name="IconSlot" type="Control" parent="LobbyFrame/LeftMenu/EquipmentButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EquipmentIcon" type="Control" parent="LobbyFrame/LeftMenu/EquipmentButton/IconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 24.0
+offset_right = 52.0
+offset_bottom = 64.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="CodexButton" type="Button" parent="LobbyFrame/LeftMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavLeftButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "ARCHIVO"
+alignment = 2
+
+[node name="IconSlot" type="Control" parent="LobbyFrame/LeftMenu/CodexButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CodexIcon" type="Control" parent="LobbyFrame/LeftMenu/CodexButton/IconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 24.0
+offset_right = 52.0
+offset_bottom = 64.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="HowToPlayButton" type="Button" parent="LobbyFrame/LeftMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavLeftButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "CÓMO JUGAR"
+alignment = 2
+
+[node name="IconSlot" type="Control" parent="LobbyFrame/LeftMenu/HowToPlayButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HelpIcon" type="Control" parent="LobbyFrame/LeftMenu/HowToPlayButton/IconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 10.0
+offset_top = 24.0
+offset_right = 50.0
+offset_bottom = 64.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="ShopButton" type="Button" parent="LobbyFrame/LeftMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavLeftButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "TIENDA"
+alignment = 2
+
+[node name="ShopIcon" type="Control" parent="LobbyFrame/LeftMenu/ShopButton"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 15.0
+offset_right = 52.0
+offset_bottom = 55.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="RightMenu" type="VBoxContainer" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 554.0
+offset_top = 246.0
+offset_right = 702.0
+offset_bottom = 580.0
+theme_override_constants/separation = 8
+
+[node name="PermanentUpgradesButton" type="Button" parent="LobbyFrame/RightMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavRightButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "MEJORAS"
+alignment = 2
+
+[node name="IconSlot" type="Control" parent="LobbyFrame/RightMenu/PermanentUpgradesButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="UpgradesIcon" type="Control" parent="LobbyFrame/RightMenu/PermanentUpgradesButton/IconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 24.0
+offset_right = 52.0
+offset_bottom = 64.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="CompanionButton" type="Button" parent="LobbyFrame/RightMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavRightButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "COMPAÑERO"
+alignment = 2
+
+[node name="IconSlot" type="Control" parent="LobbyFrame/RightMenu/CompanionButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CompanionIcon" type="Control" parent="LobbyFrame/RightMenu/CompanionButton/IconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 24.0
+offset_right = 52.0
+offset_bottom = 64.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="SettingsButton" type="Button" parent="LobbyFrame/RightMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavRightButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "AJUSTES"
+alignment = 2
+
+[node name="IconSlot" type="Control" parent="LobbyFrame/RightMenu/SettingsButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SettingsIcon" type="Control" parent="LobbyFrame/RightMenu/SettingsButton/IconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 24.0
+offset_right = 52.0
+offset_bottom = 64.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="RefinementButton" type="Button" parent="LobbyFrame/RightMenu"]
+unique_name_in_owner = true
+theme_type_variation = &"RefugeNavRightButton"
+custom_minimum_size = Vector2(148, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "FORJA"
+alignment = 2
+
+[node name="RefinementIcon" type="Control" parent="LobbyFrame/RightMenu/RefinementButton"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 15.0
+offset_right = 52.0
+offset_bottom = 55.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="CharacterName" type="Label" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 166.0
+offset_top = 708.0
+offset_right = 554.0
+offset_bottom = 746.0
+theme_override_colors/font_color = Color(0.93, 0.83, 0.69, 1)
+theme_override_font_sizes/font_size = 23
+text = "ASHEN WANDERER"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="PlayerProgressPanel" type="PanelContainer" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 176.0
+offset_top = 746.0
+offset_right = 544.0
+offset_bottom = 794.0
+theme_type_variation = &"XpPanel"
+mouse_filter = 2
+
+[node name="PlayerLevelLabel" type="Label" parent="LobbyFrame/PlayerProgressPanel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 4.0
+offset_bottom = 24.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.78, 0.68, 0.95, 1)
+theme_override_font_sizes/font_size = 13
+text = "NIVEL DEL VIAJERO 1 · EXP 0 / 100"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="PlayerXpBar" type="ProgressBar" parent="LobbyFrame/PlayerProgressPanel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 14.0
+offset_top = 28.0
+offset_right = -14.0
+offset_bottom = 41.0
+grow_horizontal = 2
+max_value = 100.0
+show_percentage = false
+mouse_filter = 2
+
+[node name="StatsRow" type="HBoxContainer" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 142.0
+offset_top = 804.0
+offset_right = 578.0
+offset_bottom = 840.0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="HealthBadge" type="PanelContainer" parent="LobbyFrame/StatsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 32)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="AttackBadge" type="PanelContainer" parent="LobbyFrame/StatsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="DefenseBadge" type="PanelContainer" parent="LobbyFrame/StatsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="SelectedRegionPreview" type="PanelContainer" parent="LobbyFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 112.0
+offset_top = 852.0
+offset_right = 608.0
+offset_bottom = 934.0
+mouse_filter = 2
+
+[node name="SelectedRegionThumbnail" type="TextureRect" parent="LobbyFrame/SelectedRegionPreview"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+modulate = Color(0.58, 0.5, 0.5, 0.25)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="RegionButton" type="Button" parent="LobbyFrame/SelectedRegionPreview"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = ""
+
+[node name="RegionIconSlot" type="Control" parent="LobbyFrame/SelectedRegionPreview"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RegionIcon" type="Control" parent="LobbyFrame/SelectedRegionPreview/RegionIconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 18.0
+offset_top = 17.0
+offset_right = 66.0
+offset_bottom = 65.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="RegionLabel" type="Label" parent="LobbyFrame/SelectedRegionPreview"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 78.0
+offset_top = 10.0
+offset_right = 478.0
+offset_bottom = 68.0
+theme_override_font_sizes/font_size = 17
+text = "PRÓXIMA EXPEDICIÓN\nTHE ASHEN WASTES"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="SkillPanel" type="PanelContainer" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 178.0
+offset_top = 944.0
+offset_right = 542.0
+offset_bottom = 1002.0
+theme_type_variation = &"EnergyPanel"
+
+[node name="SkillButton" type="Button" parent="LobbyFrame/SkillPanel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = ""
+
+[node name="SkillIconSlot" type="Control" parent="LobbyFrame/SkillPanel"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SkillIcon" type="Control" parent="LobbyFrame/SkillPanel/SkillIconSlot"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 14.0
+offset_top = 15.0
+offset_right = 38.0
+offset_bottom = 39.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="SkillLabel" type="Label" parent="LobbyFrame/SkillPanel"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 48.0
+offset_top = 8.0
+offset_right = 350.0
+offset_bottom = 50.0
+theme_override_font_sizes/font_size = 14
+text = "HABILIDADES · CONFIGURAR"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+mouse_filter = 2
+
+[node name="SkillSlots" type="HBoxContainer" parent="LobbyFrame/SkillPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+alignment = 1
+mouse_filter = 2
+
+[node name="SkillBadgeOne" type="PanelContainer" parent="LobbyFrame/SkillPanel/SkillSlots"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(104, 36)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="SkillBadgeTwo" type="PanelContainer" parent="LobbyFrame/SkillPanel/SkillSlots"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(104, 36)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="SkillBadgeThree" type="PanelContainer" parent="LobbyFrame/SkillPanel/SkillSlots"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(104, 36)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="RefugeMessage" type="Label" parent="LobbyFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 106.0
+offset_top = 1012.0
+offset_right = 644.0
+offset_bottom = 1062.0
+theme_override_colors/font_color = Color(0.65, 0.6, 0.58, 1)
+theme_override_font_sizes/font_size = 13
+text = "ENTRE RUINAS, LA BRASA TODAVÍA RESISTE."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+mouse_filter = 2
+
+[node name="ObjectiveIcon" type="Control" parent="LobbyFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 74.0
+offset_top = 1021.0
+offset_right = 98.0
+offset_bottom = 1045.0
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="StartArea" type="MarginContainer" parent="LobbyFrame"]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 1082.0
+offset_right = 672.0
+offset_bottom = 1250.0
+theme_override_constants/margin_left = 2
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 2
+theme_override_constants/margin_bottom = 8
+
+[node name="StartRunButton" type="Button" parent="LobbyFrame/StartArea"]
+unique_name_in_owner = true
+theme_type_variation = &"PrimaryButton"
+custom_minimum_size = Vector2(0, 144)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.91, 0.72, 1)
+theme_override_font_sizes/font_size = 25
+text = "INICIAR EXPEDICIÓN\nADENTRARSE EN THE ASHEN WASTES"
+autowrap_mode = 2
+
+[node name="StartIcon" type="Control" parent="LobbyFrame/StartArea/StartRunButton"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 62.0
+offset_top = -22.0
+offset_right = 106.0
+offset_bottom = 22.0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("5_icon")

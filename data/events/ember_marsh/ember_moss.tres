@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ember_moss"
+title = "Ember Moss"
+description = "Musgo brillante cubre un árbol carbonizado y palpita bajo la niebla del pantano."
+difficulty_tier = 1
+risk_summary = "Curación segura o defensa a cambio de Vida"
+option_a_text = "CONSUMIR"
+option_a_effect_text = "Recuperás 22 de Vida"
+option_a_health_delta = 22
+option_b_text = "QUEMARLO"
+option_b_effect_text = "+2 de Defensa · Perdés 15 de Vida"
+option_b_health_delta = -15
+option_b_defense_delta = 2

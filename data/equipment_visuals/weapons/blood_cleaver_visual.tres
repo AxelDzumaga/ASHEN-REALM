@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EquipmentVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_visual_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+visual_id = &"blood_cleaver_visual"
+display_name = "Blood Fracture"
+slot = 0
+display_mode = 2
+procedural_style = 6
+icon_id = &"weapon"
+attachment_anchor = Vector2(0.34, 0.59)
+attachment_scale = 0.78
+attachment_rotation_degrees = 5.0
+accent = Color(0.6588, 0.2627, 0.2471, 1)
+secondary_accent = Color(0.2863, 0.1137, 0.1333, 1)
+fallback_style = 6

@@ -1,0 +1,396 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/board/board.gd" id="1_board"]
+[ext_resource type="Script" path="res://scripts/ui/path_lines.gd" id="3_path_lines"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_badge.gd" id="4_badge"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_icon.gd" id="5_icon"]
+
+[node name="Board" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_board")
+
+[node name="Background" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.045, 0.035, 0.045, 0.72)
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="MarginContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 28
+text = "TRAVESÍA"
+horizontal_alignment = 1
+
+[node name="BiomeLabel" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.63, 0.7, 1)
+theme_override_font_sizes/font_size = 20
+text = "THE ASHEN WASTES"
+horizontal_alignment = 1
+
+[node name="BiomeRulesLabel" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.72, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+text = "BRASA +15% · CURACIÓN -10%"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="SynergyLabel" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.63, 0.28, 1)
+theme_override_font_sizes/font_size = 14
+text = "SINERGIAS · 0"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="SeedLabel" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.52, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "Semilla: 0"
+horizontal_alignment = 1
+
+[node name="Stats" type="HBoxContainer" parent="MarginContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 7
+alignment = 1
+
+[node name="HealthLabel" type="PanelContainer" parent="MarginContainer/Content/Stats"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(132, 28)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="AttackLabel" type="PanelContainer" parent="MarginContainer/Content/Stats"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(86, 28)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="DefenseLabel" type="PanelContainer" parent="MarginContainer/Content/Stats"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(78, 28)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="RunAshLabel" type="PanelContainer" parent="MarginContainer/Content/Stats"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(92, 28)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="PositionLabel" type="PanelContainer" parent="MarginContainer/Content/Stats"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(124, 28)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="ProgressBar" type="ProgressBar" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+max_value = 30.0
+value = 1.0
+show_percentage = false
+
+[node name="RunLevelRow" type="HBoxContainer" parent="MarginContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="RunLevelLabel" type="PanelContainer" parent="MarginContainer/Content/RunLevelRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(116, 28)
+layout_mode = 2
+script = ExtResource("4_badge")
+
+[node name="RunXpBar" type="ProgressBar" parent="MarginContainer/Content/RunLevelRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(250, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+show_percentage = false
+
+[node name="RunXpLabel" type="Label" parent="MarginContainer/Content/RunLevelRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(112, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.72, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+text = "0 / 50 XP"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="BoardPanel" type="PanelContainer" parent="MarginContainer/Content"]
+theme_type_variation = &"ArchivePanel"
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BoardScroll" type="ScrollContainer" parent="MarginContainer/Content/BoardPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="BoardContent" type="Control" parent="MarginContainer/Content/BoardPanel/BoardScroll"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 442)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PathLines" type="Control" parent="MarginContainer/Content/BoardPanel/BoardScroll/BoardContent"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_path_lines")
+
+[node name="BoardMargin" type="MarginContainer" parent="MarginContainer/Content/BoardPanel/BoardScroll/BoardContent"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="PathRows" type="VBoxContainer" parent="MarginContainer/Content/BoardPanel/BoardScroll/BoardContent/BoardMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="PlayerMarker" type="PanelContainer" parent="MarginContainer/Content/BoardPanel/BoardScroll/BoardContent"]
+unique_name_in_owner = true
+visible = false
+z_index = 10
+custom_minimum_size = Vector2(52, 52)
+offset_right = 52.0
+offset_bottom = 52.0
+mouse_filter = 2
+
+[node name="PlayerMarkerIcon" type="Control" parent="MarginContainer/Content/BoardPanel/BoardScroll/BoardContent/PlayerMarker"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("5_icon")
+
+[node name="BiomeBanner" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 30
+theme_type_variation = &"EmberPanel"
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -290.0
+offset_top = -100.0
+offset_right = 290.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BannerContent" type="VBoxContainer" parent="BiomeBanner"]
+layout_mode = 2
+alignment = 1
+
+[node name="BiomeThumbnail" type="TextureRect" parent="BiomeBanner/BannerContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BiomeBannerTitle" type="Label" parent="BiomeBanner/BannerContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.78, 0.4, 1)
+theme_override_font_sizes/font_size = 34
+text = "THE ASHEN WASTES"
+horizontal_alignment = 1
+
+[node name="BiomeBannerSubtitle" type="Label" parent="BiomeBanner/BannerContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.71, 0.77, 1)
+theme_override_font_sizes/font_size = 20
+text = "Un reino sepultado bajo la ceniza."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="EventLabel" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 19
+text = "Tirá el dado para comenzar."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="DiceResultLabel" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.72, 0.2, 1)
+theme_override_font_sizes/font_size = 48
+text = "TIRÁ EL DADO"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RollButton" type="Button" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+theme_type_variation = &"PrimaryButton"
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "TIRAR DADO"
+
+[node name="ReturnButton" type="Button" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+theme_type_variation = &"SecondaryButton"
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "PAUSA"
+
+[node name="DebugPanel" type="PanelContainer" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="DebugMargin" type="MarginContainer" parent="MarginContainer/Content/DebugPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="DebugContent" type="VBoxContainer" parent="MarginContainer/Content/DebugPanel/DebugMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DebugTitle" type="Label" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.5, 0.25, 1)
+theme_override_font_sizes/font_size = 18
+text = "DEVELOPMENT TOOLS"
+horizontal_alignment = 1
+
+[node name="DebugDiceOption" type="OptionButton" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+
+[node name="DebugActions" type="GridContainer" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="DebugForceCombatButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next: Combat"
+
+[node name="DebugGoBossButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Go to Boss"
+
+[node name="DebugDamageButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "HP -30"
+
+[node name="DebugHealButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Heal 30"
+
+[node name="DebugAttackButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Attack +10"
+
+[node name="DebugForceEventButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next: Event"
+
+[node name="DebugForceTreasureButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next: Treasure"
+
+[node name="DebugForceEliteButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next: Elite"
+
+[node name="DebugGrantBoonButton" type="Button" parent="MarginContainer/Content/DebugPanel/DebugMargin/DebugContent/DebugActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Grant Configured Boons"

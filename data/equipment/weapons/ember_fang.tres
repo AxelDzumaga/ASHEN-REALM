@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ember_fang"
+display_name = "Ember Fang"
+description = "Su filo conserva el calor de una llama agonizante."
+slot = 0
+rarity = 1
+attack_bonus = 5
+tier = 2
+required_level = 4
+icon_id = &"weapon"
+crit_chance = 0.04
+ember_gain_bonus = 0.1
+passive_effect_id = &"burning_edge"
+passive_trigger = 2
+affinity = 2
+biome_tags = Array[StringName]([&"ashen_wastes"])
+element_type = &"ember"
+tags = Array[StringName]([&"burn", &"energy"])
+visual_id = &"ember_fang_visual"

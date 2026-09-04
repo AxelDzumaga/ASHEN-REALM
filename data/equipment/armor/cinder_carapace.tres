@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"cinder_carapace"
+display_name = "Cinder Carapace"
+description = "Capas de carbón endurecido protegen un núcleo todavía cálido."
+slot = 1
+rarity = 0
+tier = 1
+required_level = 2
+icon_id = &"armor"
+defense_bonus = 1
+max_health_bonus = 16
+affinity = 2
+tags = Array[StringName]([&"health"])
+visual_id = &"cinder_carapace_visual"

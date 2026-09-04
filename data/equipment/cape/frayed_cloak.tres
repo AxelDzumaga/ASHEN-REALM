@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"frayed_cloak"
+display_name = "Frayed Cloak"
+description = "Deshilachada pero abrigada. Contenido piloto Equipment 2.0 Fase 1 (slot CAPE, nuevo) — INITIAL TUNING."
+slot = 3
+rarity = 0
+max_health_bonus = 10
+tier = 1
+required_level = 1
+icon_id = &"defense_affinity"
+visual_id = &"frayed_cloak_visual"
+tags = Array[StringName]([&"health"])

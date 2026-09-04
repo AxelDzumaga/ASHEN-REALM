@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/upgrade_data.gd" id="1_upgrade"]
+
+[resource]
+script = ExtResource("1_upgrade")
+id = &"burning_resolve"
+tags = Array[StringName]([&"attack", &"low_hp"])
+display_name = "Resolución Ardiente"
+description = "Entregá sangre a cambio de una oleada de fuerza implacable."
+effect_type = 4
+rarity = 1
+affinity = 1
+primary_value = 10
+secondary_value = 10

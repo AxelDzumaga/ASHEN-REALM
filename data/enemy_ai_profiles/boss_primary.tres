@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EnemyAIData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_ai_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/enemy_actions/basic_attack.tres" id="2"]
+[ext_resource type="Resource" path="res://data/enemy_actions/heavy_strike.tres" id="3"]
+[ext_resource type="Resource" path="res://data/enemy_actions/sunder.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+ai_id = &"boss_primary"
+display_name = "Dominio frontal"
+role = 4
+default_target_policy = 0
+actions = Array[ExtResource("2")]([ExtResource("2"), ExtResource("3"), ExtResource("4")])
+tags = Array[StringName]([&"boss", &"heavy", &"armor_break"])

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="CharacterVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_visual_data.gd" id="1_visual"]
+
+[resource]
+script = ExtResource("1_visual")
+portrait_path = "res://assets/art/elites/elite_mire_knight.png"
+combat_texture_path = "res://assets/art/elites/elite_mire_knight.png"
+sprite_frames_path = "res://data/visuals/elites/mire_knight_animations.tres"
+combat_scale = 1.06
+accent = Color(0.4431, 0.5020, 0.4157, 1)

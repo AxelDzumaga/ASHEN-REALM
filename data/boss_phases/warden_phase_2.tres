@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BossPhaseData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boss_phase_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/enemy_ai_profiles/warden_phase_2.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+phase_id = &"broken_vigil"
+display_name = "Broken Vigil"
+hp_threshold_percent = 70
+ai_profile_override = ExtResource("2")
+defense_bonus = 4
+visual_accent = Color(0.76, 0.53, 0.28, 1)
+transition_message = "DEFENSA +4 · WARDEN'S REBUKE DISPONIBLE"
+tags = Array[StringName]([&"defensive", &"counter"])

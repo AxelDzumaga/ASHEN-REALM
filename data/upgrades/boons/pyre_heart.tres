@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/upgrade_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"pyre_heart"
+tags = Array[StringName]([&"ember", &"attack"])
+display_name = "Pyre Heart"
+description = "Una vitalidad alta enciende un primer asalto abrumador."
+category = 1
+affinity = 1
+rarity = 2

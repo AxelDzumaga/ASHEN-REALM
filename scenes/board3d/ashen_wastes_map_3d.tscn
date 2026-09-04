@@ -1,0 +1,201 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scripts/board3d/ashen_wastes_map_3d.gd" id="1_map"]
+[ext_resource type="Script" path="res://scripts/board3d/map_camera_controller.gd" id="2_camera"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_material_ashen"]
+sky_top_color = Color(0.1, 0.06, 0.08, 1)
+sky_horizon_color = Color(0.46, 0.24, 0.16, 1)
+sky_curve = 0.15
+ground_bottom_color = Color(0.035, 0.025, 0.035, 1)
+ground_horizon_color = Color(0.32, 0.18, 0.13, 1)
+ground_curve = 0.12
+sun_angle_max = 26.0
+sun_curve = 0.28
+
+[sub_resource type="Sky" id="Sky_ashen"]
+sky_material = SubResource("Sky_material_ashen")
+
+[sub_resource type="Environment" id="Environment_ashen"]
+background_mode = 2
+sky = SubResource("Sky_ashen")
+background_color = Color(0.035, 0.025, 0.035, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.34, 0.28, 0.25, 1)
+ambient_light_energy = 0.72
+reflected_light_source = 2
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.22, 0.18, 0.19, 1)
+fog_light_energy = 0.55
+fog_density = 0.012
+fog_height = 1.5
+fog_height_density = 0.18
+
+[sub_resource type="BoxMesh" id="Box_player_torso"]
+size = Vector3(0.5, 0.62, 0.32)
+
+[sub_resource type="BoxMesh" id="Box_player_legs"]
+size = Vector3(0.34, 0.5, 0.3)
+
+[sub_resource type="BoxMesh" id="Box_player_head"]
+size = Vector3(0.28, 0.28, 0.28)
+
+[sub_resource type="StandardMaterial3D" id="Material_player"]
+albedo_color = Color(0.95, 0.55, 0.16, 1)
+roughness = 0.62
+emission_enabled = true
+emission = Color(0.45, 0.12, 0.025, 1)
+emission_energy_multiplier = 0.32
+
+[sub_resource type="StandardMaterial3D" id="Material_player_dark"]
+albedo_color = Color(0.4, 0.3, 0.24, 1)
+roughness = 0.7
+emission_enabled = true
+emission = Color(0.22, 0.1, 0.04, 1)
+emission_energy_multiplier = 0.18
+
+[sub_resource type="CylinderMesh" id="Cone_direction"]
+top_radius = 0.0
+bottom_radius = 0.24
+height = 0.62
+radial_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="Material_direction"]
+albedo_color = Color(1, 0.78, 0.3, 1)
+emission_enabled = true
+emission = Color(0.8, 0.3, 0.04, 1)
+emission_energy_multiplier = 0.75
+
+[sub_resource type="TorusMesh" id="Torus_player_indicator"]
+inner_radius = 0.48
+outer_radius = 0.68
+rings = 12
+ring_segments = 8
+
+[sub_resource type="BoxMesh" id="Box_equipment_shoulder"]
+size = Vector3(0.22, 0.16, 0.24)
+
+[sub_resource type="BoxMesh" id="Box_equipment_weapon"]
+size = Vector3(0.08, 0.85, 0.08)
+
+[node name="AshenWastesMap3D" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_map")
+
+[node name="WorldRoot" type="Node3D" parent="."]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="WorldRoot"]
+environment = SubResource("Environment_ashen")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="WorldRoot"]
+rotation_degrees = Vector3(-52, -28, 0)
+light_color = Color(1, 0.72, 0.48, 1)
+light_energy = 1.15
+shadow_enabled = true
+directional_shadow_max_distance = 45.0
+
+[node name="TerrainRoot" type="Node3D" parent="WorldRoot"]
+unique_name_in_owner = true
+
+[node name="MapRoot" type="Node3D" parent="WorldRoot"]
+
+[node name="ConnectionRoot" type="Node3D" parent="WorldRoot/MapRoot"]
+unique_name_in_owner = true
+
+[node name="TileRoot" type="Node3D" parent="WorldRoot/MapRoot"]
+unique_name_in_owner = true
+
+[node name="EmblemRoot" type="Node3D" parent="WorldRoot/MapRoot"]
+
+[node name="PlayerRoot" type="Node3D" parent="WorldRoot"]
+
+[node name="PlayerMarker3D" type="Node3D" parent="WorldRoot/PlayerRoot"]
+unique_name_in_owner = true
+
+[node name="BodyLegs" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+position = Vector3(0, 0.25, 0)
+mesh = SubResource("Box_player_legs")
+material_override = SubResource("Material_player_dark")
+
+[node name="BodyTorso" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+position = Vector3(0, 0.81, 0)
+mesh = SubResource("Box_player_torso")
+material_override = SubResource("Material_player")
+
+[node name="BodyHead" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+position = Vector3(0, 1.26, 0)
+mesh = SubResource("Box_player_head")
+material_override = SubResource("Material_player_dark")
+
+[node name="DirectionMarker" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+position = Vector3(0, 0.2, -0.62)
+rotation_degrees = Vector3(-90, 0, 0)
+mesh = SubResource("Cone_direction")
+material_override = SubResource("Material_direction")
+
+[node name="IndicatorRing" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+position = Vector3(0, 0.85, 0)
+mesh = SubResource("Torus_player_indicator")
+material_override = SubResource("Material_direction")
+
+[node name="EquipmentShoulderLeft" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+unique_name_in_owner = true
+position = Vector3(-0.34, 1.1, 0)
+visible = false
+mesh = SubResource("Box_equipment_shoulder")
+
+[node name="EquipmentShoulderRight" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+unique_name_in_owner = true
+position = Vector3(0.34, 1.1, 0)
+visible = false
+mesh = SubResource("Box_equipment_shoulder")
+
+[node name="EquipmentWeaponBlade" type="MeshInstance3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+unique_name_in_owner = true
+position = Vector3(0.5, 0.65, 0.04)
+rotation_degrees = Vector3(0, 0, -18)
+visible = false
+mesh = SubResource("Box_equipment_weapon")
+
+[node name="PlayerLabel" type="Label3D" parent="WorldRoot/PlayerRoot/PlayerMarker3D"]
+position = Vector3(0, 1.62, 0)
+billboard = 1
+text = "PLAYER"
+font_size = 28
+outline_size = 7
+modulate = Color(1, 0.78, 0.3, 1)
+
+[node name="CameraRig" type="Node3D" parent="WorldRoot"]
+unique_name_in_owner = true
+script = ExtResource("2_camera")
+
+[node name="CameraTarget" type="Node3D" parent="WorldRoot/CameraRig"]
+
+[node name="Camera3D" type="Camera3D" parent="WorldRoot/CameraRig"]
+unique_name_in_owner = true
+current = true
+projection = 1
+size = 17.5
+near = 0.2
+far = 180.0
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="SafeAreaRoot" type="Control" parent="HUDLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

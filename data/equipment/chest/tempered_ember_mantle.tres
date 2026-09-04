@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"tempered_ember_mantle"
+display_name = "Tempered Ember Mantle"
+description = "Forjado para resistir el calor del propio portador. Contenido piloto Equipment 2.0 Fase 1 — INITIAL TUNING."
+slot = 1
+rarity = 1
+defense_bonus = 4
+max_health_bonus = 24
+tier = 2
+required_level = 6
+icon_id = &"armor"
+visual_id = &"tempered_ember_mantle_visual"
+resistance_affinity_id = &"ash"
+resistance_bonus = 0.15
+tags = Array[StringName]([&"health"])

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"crown_of_ashes"
+display_name = "Crown of Ashes"
+description = "Ceniza compactada en forma de corona olvidada. Contenido piloto Equipment 2.0 Fase 1 (slot HEAD, nuevo) — INITIAL TUNING."
+slot = 2
+rarity = 2
+defense_bonus = 5
+max_health_bonus = 20
+crit_chance = 0.05
+tier = 4
+required_level = 15
+icon_id = &"block"
+visual_id = &"crown_of_ashes_visual"
+resistance_affinity_id = &"miasma"
+resistance_bonus = 0.2
+tags = Array[StringName]([&"crit", &"defense"])

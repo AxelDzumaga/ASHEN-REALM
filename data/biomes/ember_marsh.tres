@@ -1,0 +1,76 @@
+[gd_resource type="Resource" script_class="BiomeData" load_steps=19 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/biome_data.gd" id="1_biome"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/bog_emberling.tres" id="2_bog"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/drowned_husk.tres" id="3_husk"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/mire_stalker.tres" id="4_stalker"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/cinder_leech.tres" id="5_leech"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/charroot_beast.tres" id="6_beast"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/ashen_mirecaller.tres" id="7_caller"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/elites/mire_knight.tres" id="8_knight"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/elites/ember_maw.tres" id="9_maw"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/bosses/sunken_pyre.tres" id="10_boss"]
+[ext_resource type="Resource" path="res://data/events/ember_marsh/drowned_shrine.tres" id="11_shrine"]
+[ext_resource type="Resource" path="res://data/events/ember_marsh/ember_moss.tres" id="12_moss"]
+[ext_resource type="Resource" path="res://data/events/ember_marsh/sunken_cache.tres" id="13_cache"]
+[ext_resource type="Resource" path="res://data/events/ember_marsh/whispering_pool.tres" id="14_pool"]
+[ext_resource type="Resource" path="res://data/biome_modifiers/marsh_vitality.tres" id="15_vitality"]
+[ext_resource type="Resource" path="res://data/biome_modifiers/heavy_air.tres" id="16_air"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/mire_seer.tres" id="17_seer"]
+[ext_resource type="Resource" path="res://data/enemies/ember_marsh/rootbound_sentinel.tres" id="18_sentinel"]
+
+[resource]
+script = ExtResource("1_biome")
+id = &"ember_marsh"
+build_affinity_tag = &"heal"
+display_name = "The Ember Marsh"
+material_name = "Resina Corrupta"
+subtitle = "Donde las brasas respiran bajo aguas negras."
+description = "Humedales cubiertos de ceniza devoran caminos en ruinas bajo aguas oscuras, raíces calcinadas y un velo de niebla cálida."
+board_length = 30
+progression_order = 2
+difficulty_tier = 1
+required_milestone_id = &"first_expedition"
+recommended_level = 4
+danger_rating = 3
+difficulty_summary = "Más combates y élites · menos rutas vacías y tesoros · jefe final de presión creciente."
+background_color = Color(0.035, 0.075, 0.066, 1)
+panel_color = Color(0.075, 0.14, 0.12, 1)
+accent_color = Color(0.85, 0.38, 0.16, 1)
+theme_family = &"dark_wetland"
+environment_profile = &"mire"
+map_style = &"sunken_paths"
+ambient_profile = &"marsh_mist"
+background_hook = &"ember_marsh"
+entry_audio_pitch = 0.78
+board_thumbnail_path = "res://assets/art/biomes/ember_marsh/thumbnail.png"
+environment_texture_path = "res://assets/art/biomes/ember_marsh/background.png"
+combat_background_path = "res://assets/art/biomes/ember_marsh/background.png"
+foreground_texture_path = "res://assets/art/biomes/ember_marsh/foreground.png"
+ambient_tint = Color(0.7, 0.8, 0.7, 0.94)
+board_overlay_color = Color(0.015, 0.045, 0.035, 0.68)
+combat_overlay_color = Color(0.012, 0.04, 0.032, 0.42)
+boss_overlay_color = Color(0.09, 0.025, 0.025, 0.56)
+modifiers = Array[ExtResource("15_vitality")]([ExtResource("15_vitality"), ExtResource("16_air")])
+normal_enemy_pool = Array[ExtResource("2_bog")]([ExtResource("2_bog"), ExtResource("3_husk"), ExtResource("4_stalker"), ExtResource("5_leech"), ExtResource("6_beast"), ExtResource("7_caller"), ExtResource("17_seer"), ExtResource("18_sentinel")])
+elite_enemy_pool = Array[ExtResource("8_knight")]([ExtResource("8_knight"), ExtResource("9_maw")])
+boss = ExtResource("10_boss")
+event_pool = Array[ExtResource("11_shrine")]([ExtResource("11_shrine"), ExtResource("12_moss"), ExtResource("13_cache"), ExtResource("14_pool")])
+empty_min = 5
+empty_max = 8
+combat_min = 8
+combat_max = 10
+event_min = 3
+event_max = 5
+treasure_min = 1
+treasure_max = 3
+heal_min = 1
+heal_max = 3
+elite_min = 1
+elite_max = 2
+empty_weight = 4
+combat_weight = 7
+event_weight = 3
+treasure_weight = 1
+heal_weight = 2
+elite_weight = 2

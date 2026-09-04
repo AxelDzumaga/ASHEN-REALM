@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ActiveSkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/active_skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"ember_slash"
+display_name = "Ember Slash"
+description = "Desatá un golpe poderoso alimentado por la Brasa acumulada."
+skill_type = 0
+icon_id = &"ember_slash"
+target_type = 1
+presentation_type = 0
+tags = Array[StringName]([&"offense", &"ember", &"melee"])
+effect_summary = "Inflige un 200% del Ataque efectivo como daño."
+energy_cost = 100
+cooldown_turns = 3
+damage_multiplier = 2.0

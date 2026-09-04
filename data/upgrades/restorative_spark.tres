@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/upgrade_data.gd" id="1_upgrade"]
+
+[resource]
+script = ExtResource("1_upgrade")
+id = &"restorative_spark"
+tags = Array[StringName]([&"heal"])
+display_name = "Chispa Restauradora"
+description = "Avivá una chispa moribunda para sanar tus heridas."
+rarity = 0
+affinity = 3
+effect_type = 3
+primary_value = 30

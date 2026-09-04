@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="CharacterVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_visual_data.gd" id="1_visual"]
+
+[resource]
+script = ExtResource("1_visual")
+portrait_path = "res://assets/art/enemies/enemy_mire_stalker.png"
+combat_texture_path = "res://assets/art/enemies/enemy_mire_stalker.png"
+sprite_frames_path = "res://data/visuals/enemies/mire_stalker_animations.tres"
+accent = Color(0.3490, 0.4196, 0.3608, 1)

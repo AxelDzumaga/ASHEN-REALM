@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ashen_shrine"
+title = "Ashen Shrine"
+description = "Los restos de un santuario ancestral todavía arden bajo la ceniza."
+difficulty_tier = 2
+risk_summary = "Sacrificio alto a cambio de poder permanente durante la run"
+option_a_text = "OFRECER SANGRE"
+option_a_effect_text = "Perdés 18 de Vida · Ganás +4 de Ataque"
+option_a_health_delta = -18
+option_a_attack_delta = 4
+option_b_text = "ALEJARSE"
+option_b_effect_text = "Sin efecto"

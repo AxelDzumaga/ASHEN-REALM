@@ -1,0 +1,163 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/companion_selection.gd" id="1_screen"]
+[ext_resource type="Script" path="res://scripts/combat/combat_character_view.gd" id="2_view"]
+
+[node name="CompanionSelection" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_screen")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.035, 0.022, 0.026, 1)
+mouse_filter = 2
+
+[node name="Frame" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -640.0
+offset_right = 360.0
+offset_bottom = 640.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="Frame"]
+layout_mode = 0
+offset_left = 34.0
+offset_top = 42.0
+offset_right = 686.0
+offset_bottom = 98.0
+theme_override_colors/font_color = Color(0.96, 0.73, 0.42, 1)
+theme_override_font_sizes/font_size = 31
+text = "COMPAÑERO"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Frame"]
+layout_mode = 0
+offset_left = 42.0
+offset_top = 100.0
+offset_right = 678.0
+offset_bottom = 142.0
+theme_override_colors/font_color = Color(0.68, 0.64, 0.7, 1)
+theme_override_font_sizes/font_size = 16
+text = "EQUIPÁ UNA MASCOTA PARA TU PRÓXIMA RUN"
+horizontal_alignment = 1
+
+[node name="CompanionList" type="VBoxContainer" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 38.0
+offset_top = 170.0
+offset_right = 682.0
+offset_bottom = 258.0
+theme_override_constants/separation = 8
+
+[node name="CompanionPreview" type="Control" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 78.0
+offset_top = 280.0
+offset_right = 642.0
+offset_bottom = 580.0
+mouse_filter = 2
+script = ExtResource("2_view")
+
+[node name="StaticArt" type="TextureRect" parent="Frame/CompanionPreview"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FallbackLabel" type="Label" parent="Frame/CompanionPreview"]
+layout_mode = 1
+anchor_left = 0.2
+anchor_top = 0.75
+anchor_right = 0.8
+anchor_bottom = 0.94
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.96, 0.42, 0.16, 1)
+theme_override_font_sizes/font_size = 15
+text = "COMPAÑERO"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CompanionName" type="Label" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 44.0
+offset_top = 590.0
+offset_right = 676.0
+offset_bottom = 636.0
+theme_override_colors/font_color = Color(0.96, 0.49, 0.2, 1)
+theme_override_font_sizes/font_size = 25
+text = "EMBER HOUND"
+horizontal_alignment = 1
+
+[node name="CompanionDetail" type="Label" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 48.0
+offset_top = 646.0
+offset_right = 672.0
+offset_bottom = 1000.0
+theme_override_colors/font_color = Color(0.84, 0.79, 0.78, 1)
+theme_override_font_sizes/font_size = 18
+text = "DETALLE"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Frame"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 1024.0
+offset_right = 680.0
+offset_bottom = 1112.0
+theme_override_constants/separation = 12
+
+[node name="EquipButton" type="Button" parent="Frame/Actions"]
+unique_name_in_owner = true
+theme_type_variation = &"PrimaryButton"
+custom_minimum_size = Vector2(314, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "EQUIPAR"
+
+[node name="UnequipButton" type="Button" parent="Frame/Actions"]
+unique_name_in_owner = true
+theme_type_variation = &"SecondaryButton"
+custom_minimum_size = Vector2(314, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "DESEQUIPAR"
+
+[node name="BackButton" type="Button" parent="Frame"]
+unique_name_in_owner = true
+theme_type_variation = &"SecondaryButton"
+layout_mode = 0
+offset_left = 40.0
+offset_top = 1140.0
+offset_right = 680.0
+offset_bottom = 1226.0
+text = "VOLVER AL REFUGIO"

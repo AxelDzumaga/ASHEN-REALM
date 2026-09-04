@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MilestoneData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/milestone_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+milestone_id = &"first_victory"
+display_name = "Primera Victoria"
+description = "Completá una región por primera vez."
+condition_type = 1
+target_count = 1
+reward_ash = 10
+priority = 20
+icon_id = &"boss"

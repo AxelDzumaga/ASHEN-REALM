@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EquipmentVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_visual_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+visual_id = &"wardens_edge_visual"
+display_name = "Warden Brand"
+slot = 0
+display_mode = 2
+procedural_style = 5
+icon_id = &"weapon"
+attachment_anchor = Vector2(0.34, 0.59)
+attachment_scale = 0.82
+accent = Color(0.8353, 0.6431, 0.2549, 1)
+secondary_accent = Color(0.7569, 0.7412, 0.7294, 1)
+fallback_style = 5

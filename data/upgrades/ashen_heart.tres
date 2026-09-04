@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/upgrade_data.gd" id="1_upgrade"]
+
+[resource]
+script = ExtResource("1_upgrade")
+id = &"ashen_heart"
+tags = Array[StringName]([&"heal"])
+display_name = "Corazón de Ceniza"
+description = "Dejá que el pulso del Reino eche raíces en tu interior."
+rarity = 0
+affinity = 3
+effect_type = 0
+primary_value = 10
+secondary_value = 10

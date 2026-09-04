@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ActiveSkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/active_skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"second_wind"
+display_name = "Second Wind"
+description = "Extraé fuerza de las brasas y recuperá la vida perdida."
+skill_type = 2
+icon_id = &"second_wind"
+target_type = 0
+presentation_type = 1
+cooldown_type = 1
+tags = Array[StringName]([&"sustain", &"self", &"heal"])
+effect_summary = "Recupera un 30% de la Vida máxima. Una vez por combate."
+energy_cost = 90
+cooldown_turns = 4
+heal_percent = 0.3

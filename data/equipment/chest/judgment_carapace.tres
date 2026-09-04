@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"judgment_carapace"
+display_name = "Judgment Carapace"
+description = "Placas selladas con un juicio que todavía arde. Contenido piloto Equipment 2.0 Fase 1 — INITIAL TUNING."
+slot = 1
+rarity = 2
+defense_bonus = 7
+max_health_bonus = 34
+tier = 4
+required_level = 14
+icon_id = &"armor"
+visual_id = &"judgment_carapace_visual"
+resistance_affinity_id = &"ash"
+resistance_bonus = 0.25
+tags = Array[StringName]([&"health", &"defense"])

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"dull_amulet"
+display_name = "Dull Amulet"
+description = "Sin brillo, pero todavía cálido al tacto. Contenido piloto Equipment 2.0 Fase 1 (slot RELIC, nuevo, sin representación visual por diseño) — INITIAL TUNING."
+slot = 4
+rarity = 0
+crit_chance = 0.02
+tier = 1
+required_level = 1
+icon_id = &"boon"
+tags = Array[StringName]([&"crit"])

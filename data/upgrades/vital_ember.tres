@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/upgrade_data.gd" id="1_upgrade"]
+
+[resource]
+script = ExtResource("1_upgrade")
+id = &"vital_ember"
+tags = Array[StringName]([&"heal"])
+display_name = "Brasa Vital"
+description = "Una brasa estable fortalece tu fuerza vital."
+rarity = 0
+affinity = 3
+effect_type = 0
+primary_value = 20
+secondary_value = 20

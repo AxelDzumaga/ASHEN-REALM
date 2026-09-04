@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"mire_bloom"
+display_name = "MIRE BLOOM"
+description = "La curación sostenida prolonga la Regeneración inicial sin crear un estado alternativo."
+icon_id = &"regen"
+category = &"sustain"
+required_tags = Array[StringName]([&"heal", &"status"])
+required_counts = Array[int]([2, 1])
+minimum_distinct_sources = 2
+requirements_text = "2 fuentes HEAL + 1 fuente STATUS, desde al menos 2 fuentes distintas."
+effect_id = &"mire_bloom"
+effect_value = 1.0
+effect_text = "La Regeneración inicial dura 3 turnos en lugar de 2."
+tags = Array[StringName]([&"heal", &"status"])

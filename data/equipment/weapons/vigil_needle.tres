@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"vigil_needle"
+display_name = "Vigil Needle"
+description = "Una hoja austera que recompensa precisión, disciplina y técnicas defensivas."
+slot = 0
+rarity = 0
+tier = 1
+required_level = 2
+icon_id = &"weapon"
+attack_bonus = 2
+crit_chance = 0.03
+skill_damage_bonus = 0.05
+affinity = 0
+tags = Array[StringName]([&"critical", &"guard", &"skill", &"light"])
+visual_id = &"vigil_needle_visual"

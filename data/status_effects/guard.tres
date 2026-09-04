@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_effect_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = &"guard"
+display_name = "Guardia"
+description = "Reduce el próximo golpe recibido y se consume."
+icon_id = &"guard"
+category = 4
+stack_mode = 1
+max_stacks = 1
+duration_type = 1
+base_duration = 1
+trigger = 3
+tags = Array[StringName]([&"mitigation", &"single_hit"])

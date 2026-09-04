@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"inferno_rhythm"
+display_name = "INFERNO RHYTHM"
+description = "La Brasa y la Quemadura alimentan el ritmo ofensivo y refuerzan su aplicación."
+icon_id = &"inferno_rhythm"
+category = &"ember"
+required_source_ids = Array[StringName]([&"boon:burning_strike", &"boon:relentless_flame"])
+requirements_text = "Burning Strike + Relentless Flame, o 3 bendiciones ofensivas distintas."
+effect_id = &"inferno_rhythm"
+effect_value = 2.0
+secondary_value = 5.0
+effect_text = "Burning Strike aplica +1 Quemadura; conserva Relentless y el primer básico del turno contra Quemadura genera 5 de Brasa base."
+tags = Array[StringName]([&"burn", &"ember", &"energy"])

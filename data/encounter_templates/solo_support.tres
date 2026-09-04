@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EncounterTemplateData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/encounter_template_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"solo_support"
+roles = Array[int]([3])
+minimum_progress_percent = 15
+minimum_budget = 2
+weight = 6
+tags = Array[StringName]([&"solo", &"support"])

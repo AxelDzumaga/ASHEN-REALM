@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wanderer_return"
+title = "The Wanderer Returns"
+description = "El viajero que ayudaste te alcanza junto a una brasa intacta. Sólo puede entregarte una parte de lo que encontró."
+difficulty_tier = 0
+risk_summary = "Recompensa segura por una decisión anterior"
+required_flag_ids = Array[StringName]([&"helped_lost_wanderer"])
+selection_priority = 20
+option_a_text = "ACEPTAR LA BRASA"
+option_a_effect_text = "Obtenés una bendición afín a tu build"
+option_a_reward = 1
+option_a_set_flag_ids = Array[StringName]([&"wanderer_chain_completed"])
+option_a_tags = Array[StringName]([&"build", &"boon"])
+option_b_text = "PEDIR EL PAGO"
+option_b_effect_text = "+30 de Ceniza para esta partida"
+option_b_run_ash_delta = 30
+option_b_set_flag_ids = Array[StringName]([&"wanderer_chain_completed"])
+option_b_tags = Array[StringName]([&"ash", &"safe"])

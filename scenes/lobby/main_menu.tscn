@@ -1,0 +1,237 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://scripts/ui/title_screen_stage.gd" id="2_stage"]
+[ext_resource type="Script" path="res://scripts/combat/combat_character_view.gd" id="3_character"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_icon.gd" id="4_icon"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.025, 0.024, 0.032, 1)
+mouse_filter = 2
+
+[node name="Stage" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_stage")
+
+[node name="HeroView" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -190.0
+offset_top = -348.0
+offset_right = 190.0
+offset_bottom = 282.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_character")
+
+[node name="StaticArt" type="TextureRect" parent="HeroView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FallbackLabel" type="Label" parent="HeroView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.73, 0.61, 0.41, 1)
+theme_override_font_sizes/font_size = 52
+text = "ASH"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+[node name="VignetteTop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 270.0
+grow_horizontal = 2
+color = Color(0.012, 0.012, 0.018, 0.56)
+mouse_filter = 2
+
+[node name="TitleBlock" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 36.0
+offset_top = 44.0
+offset_right = -36.0
+offset_bottom = 244.0
+grow_horizontal = 2
+theme_override_constants/separation = -4
+alignment = 1
+
+[node name="Title" type="Label" parent="TitleBlock"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.86, 0.73, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_y = 5
+theme_override_font_sizes/font_size = 68
+text = "ASHEN REALM"
+horizontal_alignment = 1
+
+[node name="TitleRule" type="HBoxContainer" parent="TitleBlock"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="LeftRule" type="ColorRect" parent="TitleBlock/TitleRule"]
+custom_minimum_size = Vector2(130, 2)
+layout_mode = 2
+color = Color(0.55, 0.41, 0.24, 0.7)
+
+[node name="CrestIcon" type="Control" parent="TitleBlock/TitleRule"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4_icon")
+
+[node name="RightRule" type="ColorRect" parent="TitleBlock/TitleRule"]
+custom_minimum_size = Vector2(130, 2)
+layout_mode = 2
+color = Color(0.55, 0.41, 0.24, 0.7)
+
+[node name="Subtitle" type="Label" parent="TitleBlock"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.68, 0.69, 1)
+theme_override_font_sizes/font_size = 18
+text = "Álzate de las cenizas."
+horizontal_alignment = 1
+
+[node name="MenuFrame" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 34.0
+offset_top = -438.0
+offset_right = -34.0
+offset_bottom = -38.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="Buttons" type="VBoxContainer" parent="MenuFrame"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 2
+
+[node name="StartGameButton" type="Button" parent="MenuFrame/Buttons"]
+unique_name_in_owner = true
+theme_type_variation = &"TitlePrimaryButton"
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+theme_override_font_sizes/font_size = 29
+text = "JUGAR"
+
+[node name="StartIcon" type="Control" parent="MenuFrame/Buttons/StartGameButton"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 72.0
+offset_top = -22.0
+offset_right = 116.0
+offset_bottom = 22.0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_icon")
+
+[node name="SecondaryRow" type="HBoxContainer" parent="MenuFrame/Buttons"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="SettingsButton" type="Button" parent="MenuFrame/Buttons/SecondaryRow"]
+unique_name_in_owner = true
+theme_type_variation = &"TitleSecondaryButton"
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 17
+text = "AJUSTES"
+
+[node name="SettingsIcon" type="Control" parent="MenuFrame/Buttons/SecondaryRow/SettingsButton"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 24.0
+offset_top = -16.0
+offset_right = 56.0
+offset_bottom = 16.0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_icon")
+
+[node name="HowToPlayButton" type="Button" parent="MenuFrame/Buttons/SecondaryRow"]
+unique_name_in_owner = true
+theme_type_variation = &"TitleSecondaryButton"
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 17
+text = "CÓMO JUGAR"
+
+[node name="HelpIcon" type="Control" parent="MenuFrame/Buttons/SecondaryRow/HowToPlayButton"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 20.0
+offset_top = -16.0
+offset_right = 52.0
+offset_bottom = 16.0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_icon")
+
+[node name="FooterOrnament" type="Label" parent="MenuFrame/Buttons"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.38, 0.34, 0.35, 1)
+theme_override_font_sizes/font_size = 13
+text = "◆  THE ASHEN WASTES AWAIT  ◆"
+horizontal_alignment = 1

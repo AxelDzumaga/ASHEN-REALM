@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wardens_edge"
+display_name = "Warden's Edge"
+description = "Una reliquia temible arrebatada al guardián del Reino."
+slot = 0
+rarity = 2
+attack_bonus = 9
+tier = 3
+required_level = 9
+icon_id = &"weapon"
+skill_damage_bonus = 0.15
+affinity = 4
+set_id = &"ashen_warden_set"
+boss_source_id = &"ashen_warden"
+boss_set_visual_id = &"ashen_warden_set"
+biome_tags = Array[StringName]([&"ashen_wastes"])
+element_type = &"ember"
+tags = Array[StringName]([&"skill", &"heavy"])
+visual_id = &"wardens_edge_visual"

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wanderers_mantle"
+display_name = "Wanderer's Mantle"
+description = "Cose juntos muchos caminos recorridos. Contenido piloto Equipment 2.0 Fase 1 (slot CAPE, nuevo) — INITIAL TUNING."
+slot = 3
+rarity = 1
+defense_bonus = 2
+ember_gain_bonus = 0.08
+tier = 2
+required_level = 8
+icon_id = &"defense_affinity"
+visual_id = &"wanderers_mantle_visual"
+tags = Array[StringName]([&"ember"])

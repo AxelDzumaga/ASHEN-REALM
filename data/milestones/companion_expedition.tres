@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MilestoneData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/milestone_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+milestone_id = &"companion_expedition"
+display_name = "Cenizas Compartidas"
+description = "Finalizá una run con un Companion equipado."
+condition_type = 7
+target_count = 1
+reward_ash = 5
+priority = 35
+icon_id = &"companion"

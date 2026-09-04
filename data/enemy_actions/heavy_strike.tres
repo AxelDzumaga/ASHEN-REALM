@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EnemyActionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_action_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+action_id = &"heavy_strike"
+display_name = "Golpe pesado"
+power_multiplier = 1.35
+cooldown = 2
+weight = 30
+presentation_type = 1
+

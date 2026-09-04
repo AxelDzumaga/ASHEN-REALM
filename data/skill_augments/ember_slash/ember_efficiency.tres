@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillAugmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/skill_augment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"ember_efficiency"
+tags = Array[StringName]([&"skill", &"energy"])
+display_name = "Ember Efficiency"
+description = "Moldeá la Brasa acumulada desperdiciando menos energía."
+category = "EFICIENCIA"
+skill_id = &"ember_slash"
+effect_type = 1
+max_stacks = 2
+value = 15.0

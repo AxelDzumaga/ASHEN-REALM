@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EquipmentVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_visual_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+visual_id = &"wanderers_mantle_visual"
+display_name = "Wanderer's Mantle"
+slot = 3
+display_mode = 0
+procedural_style = 0
+icon_id = &"defense_affinity"
+fallback_style = 0

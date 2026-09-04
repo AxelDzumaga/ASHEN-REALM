@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"last_stand"
+display_name = "LAST STAND"
+description = "La última brasa sostiene una segunda defensa al borde de la derrota."
+icon_id = &"last_stand"
+category = &"low_hp"
+required_source_ids = Array[StringName]([&"boon:last_ember", &"boon:cinder_skin"])
+requirements_text = "Last Ember + Cinder Skin."
+effect_id = &"last_stand"
+effect_value = 0.25
+effect_text = "Cinder Skin también reduce 25% el segundo golpe mientras Last Ember esté activa."
+tags = Array[StringName]([&"low_hp", &"defense"])

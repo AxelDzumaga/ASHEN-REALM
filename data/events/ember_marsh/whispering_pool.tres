@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"whispering_pool"
+title = "Whispering Pool"
+description = "Voces emergen de un estanque inmóvil donde las brasas flotan bajo la superficie."
+difficulty_tier = 1
+risk_summary = "Vida máxima con daño inmediato o recuperación segura"
+option_a_text = "ESCUCHAR"
+option_a_effect_text = "+12 de Vida máxima · Perdés 12 de Vida actual"
+option_a_health_delta = -12
+option_a_max_health_delta = 12
+option_b_text = "ALEJARSE"
+option_b_effect_text = "Recuperás 18 de Vida"
+option_b_health_delta = 18

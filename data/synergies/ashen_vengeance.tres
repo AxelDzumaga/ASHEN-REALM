@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"ashen_vengeance"
+display_name = "ASHEN VENGEANCE"
+description = "La defensa acumulada transforma el daño recibido en represalia."
+icon_id = &"ashen_vengeance"
+category = &"defense"
+required_source_ids = Array[StringName]([&"boon:ashen_bulwark", &"boon:ashen_reprisal"])
+requirements_text = "Ashen Bulwark + Ashen Reprisal."
+effect_id = &"ashen_vengeance"
+effect_value = 3.0
+effect_text = "La represalia inflige 3 de daño adicional mientras Bulwark otorgue al menos 4 de Defensa."
+tags = Array[StringName]([&"defense", &"guard", &"attack"])

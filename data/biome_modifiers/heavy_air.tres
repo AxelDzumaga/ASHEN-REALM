@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BiomeModifierData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/biome_modifier_data.gd" id="1_modifier"]
+
+[resource]
+script = ExtResource("1_modifier")
+modifier_id = &"heavy_air"
+display_name = "Heavy Air"
+description = "Obtenés 10% menos Energía de Brasa."
+icon_id = &"ember"
+category = 1
+effect_type = 0
+value = 0.9
+tags = Array[StringName]([&"energy", &"marsh"])

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillAugmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/skill_augment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"deep_breath"
+tags = Array[StringName]([&"heal", &"skill"])
+display_name = "Deep Breath"
+description = "Absorbé más poder de las brasas para recuperar Vida adicional."
+category = "CURACIÓN"
+skill_id = &"second_wind"
+effect_type = 6
+max_stacks = 2
+value = 0.05

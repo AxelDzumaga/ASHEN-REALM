@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"sunder_pike"
+display_name = "Sunder Pike"
+description = "Una punta larga diseñada para abrir placas antes de comprometer el golpe decisivo."
+slot = 0
+rarity = 1
+tier = 2
+required_level = 5
+icon_id = &"weapon"
+attack_bonus = 4
+skill_damage_bonus = 0.05
+passive_effect_id = &"sundering_edge"
+passive_trigger = 2
+affinity = 4
+biome_tags = Array[StringName]([&"ashen_wastes"])
+element_type = &"ember"
+tags = Array[StringName]([&"status", &"armor_break", &"skill"])
+visual_id = &"sunder_pike_visual"

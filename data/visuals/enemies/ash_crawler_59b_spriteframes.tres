@@ -1,0 +1,10 @@
+[gd_resource type="SpriteFrames" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/art/enemies/enemy_ash_crawler_59b.png" id="1_tex"]
+
+[sub_resource type="AtlasTexture" id="Atlas_crawler"]
+atlas = ExtResource("1_tex")
+region = Rect2(0, 0, 1536, 1024)
+
+[resource]
+animations = [{"frames": [{"duration": 1.0, "texture": SubResource("Atlas_crawler")}], "loop": true, "name": &"idle", "speed": 10.0}, {"frames": [{"duration": 1.0, "texture": SubResource("Atlas_crawler")}], "loop": false, "name": &"attack", "speed": 16.0}, {"frames": [{"duration": 1.0, "texture": SubResource("Atlas_crawler")}], "loop": false, "name": &"hit", "speed": 12.0}, {"frames": [{"duration": 1.0, "texture": SubResource("Atlas_crawler")}], "loop": false, "name": &"death", "speed": 10.0}]

@@ -1,0 +1,130 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_screen.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/ashen_icon.gd" id="2_icon"]
+
+[node name="EventScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.045, 0.037, 0.06, 1)
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 44.0
+offset_right = -32.0
+offset_bottom = -44.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="Eyebrow" type="Label" parent="Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.79, 0.57, 0.31, 1)
+theme_override_font_sizes/font_size = 22
+text = "EVENTO"
+horizontal_alignment = 1
+
+[node name="EventEmblem" type="Control" parent="Margin/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 78)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("2_icon")
+
+[node name="EventTitle" type="Label" parent="Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Ashen Shrine"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="RiskTierLabel" type="Label" parent="Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "RIESGO MEDIO · DECISIÓN CON COSTE"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="RiskIcon" type="Control" parent="Margin/Content/RiskTierLabel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 170.0
+offset_top = -13.0
+offset_right = 196.0
+offset_bottom = 13.0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_icon")
+
+[node name="DescriptionPanel" type="PanelContainer" parent="Margin/Content"]
+theme_type_variation = &"CardPanel"
+custom_minimum_size = Vector2(0, 148)
+layout_mode = 2
+
+[node name="DescriptionLabel" type="Label" parent="Margin/Content/DescriptionPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Una decisión ancestral aguarda entre la ceniza."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ChoicePrompt" type="Label" parent="Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.63, 0.7, 1)
+text = "ELEGÍ TU RESPUESTA"
+horizontal_alignment = 1
+
+[node name="OptionAButton" type="Button" parent="Margin/Content"]
+unique_name_in_owner = true
+theme_type_variation = &"SecondaryButton"
+custom_minimum_size = Vector2(0, 126)
+layout_mode = 2
+text = "OPCIÓN A\nEfecto"
+autowrap_mode = 2
+
+[node name="OptionBButton" type="Button" parent="Margin/Content"]
+unique_name_in_owner = true
+theme_type_variation = &"SecondaryButton"
+custom_minimum_size = Vector2(0, 126)
+layout_mode = 2
+text = "OPCIÓN B\nEfecto"
+autowrap_mode = 2
+
+[node name="ResultLabel" type="Label" parent="Margin/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.63, 0.24, 1)
+text = "Elegí con cuidado."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2

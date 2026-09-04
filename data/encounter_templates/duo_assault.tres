@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="EncounterTemplateData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/encounter_template_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"duo_assault"
+slots = 2
+roles = Array[int]([0, 0])
+minimum_progress_percent = 25
+minimum_budget = 4
+weight = 12
+duplicate_policy = 1
+tags = Array[StringName]([&"duo", &"pressure"])

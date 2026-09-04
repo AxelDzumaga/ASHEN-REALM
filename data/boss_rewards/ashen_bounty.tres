@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="BossRewardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boss_reward_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ashen_bounty"
+display_name = "Ashen Bounty"
+description = "+55 de Ceniza de partida"

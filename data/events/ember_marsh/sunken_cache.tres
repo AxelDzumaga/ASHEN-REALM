@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"sunken_cache"
+title = "Sunken Cache"
+description = "Un cofre de hierro sellado descansa bajo raíces que aún arden bajo el agua."
+difficulty_tier = 1
+risk_summary = "Ceniza de run a cambio de daño inmediato"
+option_a_text = "ABRIR"
+option_a_effect_text = "+25 de Ceniza · Perdés 10 de Vida"
+option_a_health_delta = -10
+option_a_run_ash_delta = 25
+option_b_text = "ALEJARSE"
+option_b_effect_text = "Sin efecto"

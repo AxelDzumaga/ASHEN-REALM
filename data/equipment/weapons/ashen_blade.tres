@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ashen_blade"
+display_name = "Ashen Blade"
+description = "Una hoja confiable forjada en ceniza enfriada."
+slot = 0
+rarity = 0
+attack_bonus = 2
+tier = 1
+required_level = 1
+icon_id = &"weapon"
+affinity = 1
+tags = Array[StringName]([&"balanced"])
+visual_id = &"ashen_blade_visual"

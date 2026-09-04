@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillAugmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/skill_augment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"executioners_ember"
+tags = Array[StringName]([&"skill", &"attack"])
+display_name = "Executioner's Ember"
+description = "Ember Slash inflige un 35% más de daño final a enemigos con 25% de Vida o menos."
+category = "DAÑO"
+skill_id = &"ember_slash"
+effect_type = 2
+max_stacks = 1
+value = 0.35

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"cinder_knife"
+display_name = "Cinder Knife"
+description = "Una hoja ligera que busca grietas antes que fuerza bruta."
+slot = 0
+rarity = 0
+tier = 1
+required_level = 2
+icon_id = &"weapon"
+attack_bonus = 3
+crit_chance = 0.05
+affinity = 2
+tags = Array[StringName]([&"critical", &"light"])
+visual_id = &"cinder_knife_visual"

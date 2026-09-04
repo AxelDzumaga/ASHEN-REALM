@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SkillAugmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/skill_augment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"ashen_renewal"
+tags = Array[StringName]([&"heal", &"defense", &"skill"])
+display_name = "Ashen Renewal"
+description = "Second Wind endurece tus defensas durante el resto del combate."
+category = "DEFENSA"
+skill_id = &"second_wind"
+effect_type = 8
+max_stacks = 2
+value = 3.0
+secondary_value = 5.0

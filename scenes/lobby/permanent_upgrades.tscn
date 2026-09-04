@@ -1,0 +1,290 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/permanent_upgrades.gd" id="1_upgrades"]
+
+[node name="PermanentUpgrades" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_upgrades")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.055, 0.047, 0.075, 1)
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 32.0
+offset_right = -32.0
+offset_bottom = -32.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="MarginContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 36
+text = "MEJORAS PERMANENTES"
+horizontal_alignment = 1
+
+[node name="AshLabel" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_font_sizes/font_size = 30
+text = "Ceniza: 0"
+horizontal_alignment = 1
+
+[node name="UpgradeScroll" type="ScrollContainer" parent="MarginContainer/Content"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+scroll_deadzone = 24
+follow_focus = true
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+scroll_deadzone = 24
+follow_focus = true
+
+[node name="UpgradeList" type="VBoxContainer" parent="MarginContainer/Content/UpgradeScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="PowerHeader" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.65, 0.22, 1)
+theme_override_font_sizes/font_size = 24
+text = "PODER · MEJORAS VERTICALES"
+
+[node name="VitalityPanel" type="PanelContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+theme_type_variation = &"HealPanel"
+custom_minimum_size = Vector2(0, 196)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content"]
+layout_mode = 2
+
+[node name="Name" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "VITALIDAD"
+
+[node name="VitalityLevelLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Nivel 0 / 10"
+
+[node name="VitalityBonusLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Bonificación actual:  +0 Vida máxima"
+
+[node name="VitalityNextLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.63, 0.7, 1)
+text = "Siguiente:  +5 Vida máxima"
+
+[node name="Purchase" type="HBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content"]
+layout_mode = 2
+
+[node name="VitalityCostLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content/Purchase"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Costo: 30 de Ceniza"
+vertical_alignment = 1
+
+[node name="VitalityButton" type="Button" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/VitalityPanel/Margin/Content/Purchase"]
+unique_name_in_owner = true
+theme_type_variation = &"PrimaryButton"
+custom_minimum_size = Vector2(170, 52)
+layout_mode = 2
+text = "MEJORAR"
+
+[node name="MightPanel" type="PanelContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+theme_type_variation = &"EmberPanel"
+custom_minimum_size = Vector2(0, 196)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content"]
+layout_mode = 2
+
+[node name="Name" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "PODER"
+
+[node name="MightLevelLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Nivel 0 / 10"
+
+[node name="MightBonusLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Bonificación actual:  +0 Ataque"
+
+[node name="MightNextLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.63, 0.7, 1)
+text = "Siguiente:  +1 Ataque"
+
+[node name="Purchase" type="HBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content"]
+layout_mode = 2
+
+[node name="MightCostLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content/Purchase"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Costo: 40 de Ceniza"
+vertical_alignment = 1
+
+[node name="MightButton" type="Button" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/MightPanel/Margin/Content/Purchase"]
+unique_name_in_owner = true
+theme_type_variation = &"PrimaryButton"
+custom_minimum_size = Vector2(170, 52)
+layout_mode = 2
+text = "MEJORAR"
+
+[node name="GuardPanel" type="PanelContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+theme_type_variation = &"CardPanel"
+custom_minimum_size = Vector2(0, 196)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content"]
+layout_mode = 2
+
+[node name="Name" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "GUARDIA"
+
+[node name="GuardLevelLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Nivel 0 / 10"
+
+[node name="GuardBonusLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Bonificación actual:  +0 Defensa"
+
+[node name="GuardNextLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.63, 0.7, 1)
+text = "Siguiente:  +1 Defensa"
+
+[node name="Purchase" type="HBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content"]
+layout_mode = 2
+
+[node name="GuardCostLabel" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content/Purchase"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Costo: 40 de Ceniza"
+vertical_alignment = 1
+
+[node name="GuardButton" type="Button" parent="MarginContainer/Content/UpgradeScroll/UpgradeList/GuardPanel/Margin/Content/Purchase"]
+unique_name_in_owner = true
+theme_type_variation = &"PrimaryButton"
+custom_minimum_size = Vector2(170, 52)
+layout_mode = 2
+text = "MEJORAR"
+
+[node name="UnlockHeader" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.82, 0.68, 1)
+theme_override_font_sizes/font_size = 24
+text = "POSIBILIDADES · DESBLOQUEOS"
+
+[node name="UnlockDescription" type="Label" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.67, 0.63, 0.7, 1)
+text = "Elegí un enfoque para inclinar las ofertas. No concede estadísticas ni garantiza rewards."
+autowrap_mode = 2
+
+[node name="NeutralButton" type="Button" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "SIN ENFOQUE · DISTRIBUCIÓN NORMAL"
+
+[node name="UnlockList" type="VBoxContainer" parent="MarginContainer/Content/UpgradeScroll/UpgradeList"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DebugAddAshButton" type="Button" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "DEBUG: +100 Ash"
+
+[node name="BackButton" type="Button" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+theme_type_variation = &"SecondaryButton"
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "VOLVER"

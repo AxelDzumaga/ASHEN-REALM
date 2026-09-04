@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ActiveSkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/active_skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"ashen_guard"
+display_name = "Ashen Guard"
+description = "Endurecé la ceniza a tu alrededor para reducir en gran medida el próximo golpe enemigo."
+skill_type = 1
+icon_id = &"ashen_guard"
+target_type = 0
+presentation_type = 1
+tags = Array[StringName]([&"defense", &"self", &"guard"])
+effect_summary = "Reduce un 70% el próximo golpe enemigo."
+energy_cost = 70
+cooldown_turns = 3
+damage_reduction = 0.7

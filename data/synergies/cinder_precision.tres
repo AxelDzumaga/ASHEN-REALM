@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"cinder_precision"
+display_name = "CINDER PRECISION"
+description = "La precisión crítica devuelve una pequeña parte del impulso ofensivo."
+icon_id = &"attack"
+category = &"crit"
+required_tags = Array[StringName]([&"crit", &"attack"])
+required_counts = Array[int]([1, 2])
+minimum_distinct_sources = 2
+requirements_text = "1 fuente CRIT + 2 fuentes ATTACK, desde al menos 2 fuentes distintas."
+effect_id = &"cinder_precision"
+effect_value = 8.0
+effect_text = "El primer crítico de cada turno del jugador genera 8 de Brasa base. No realiza una tirada crítica adicional."
+tags = Array[StringName]([&"crit", &"attack", &"energy"])

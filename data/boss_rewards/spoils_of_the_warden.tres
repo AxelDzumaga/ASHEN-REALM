@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="BossRewardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boss_reward_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"spoils_of_the_warden"
+display_name = "Spoils of the Warden"
+description = "+30 de Ceniza · El botín final será Raro o superior"

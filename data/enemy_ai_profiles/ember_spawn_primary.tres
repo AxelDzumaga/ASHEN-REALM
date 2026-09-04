@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EnemyAIData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_ai_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/enemy_actions/basic_attack.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+ai_id = &"ember_spawn_primary"
+display_name = "Presión invocada"
+role = 0
+default_target_policy = 0
+actions = Array[ExtResource("2")]([ExtResource("2")])
+tags = Array[StringName]([&"minion", &"assault"])
+

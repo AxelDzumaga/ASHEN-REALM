@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"last_guard"
+display_name = "Last Guard"
+description = "Una defensa flexible para quienes alternan resistencia y Brasa."
+slot = 1
+rarity = 2
+tier = 3
+required_level = 8
+icon_id = &"armor"
+defense_bonus = 5
+max_health_bonus = 12
+ember_gain_bonus = 0.12
+healing_power_bonus = 0.08
+affinity = 3
+biome_tags = Array[StringName]([&"ember_marsh"])
+element_type = &"tide"
+tags = Array[StringName]([&"energy", &"healing"])
+visual_id = &"last_guard_visual"

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MilestoneData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/milestone_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+milestone_id = &"five_expeditions"
+display_name = "Caminante de Ceniza"
+description = "Finalizá 5 runs."
+condition_type = 0
+target_count = 5
+reward_ash = 10
+priority = 80
+icon_id = &"event"

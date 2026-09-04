@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="BossEncounterData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boss_encounter_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/boss_phases/warden_phase_1.tres" id="2"]
+[ext_resource type="Resource" path="res://data/boss_phases/warden_phase_2.tres" id="3"]
+[ext_resource type="Resource" path="res://data/boss_phases/warden_phase_3.tres" id="4"]
+[resource]
+script = ExtResource("1")
+boss_id = &"ashen_warden"
+display_name = "Ashen Warden"
+mechanic_description = "Defensa, quebrado de armadura y un contraataque anunciado contra el próximo ataque básico."
+encounter_role = 1
+threat_level = 4
+phases = Array[ExtResource("2")]([ExtResource("2"), ExtResource("3"), ExtResource("4")])
+counter_action_id = &"warden_rebuke"
+counter_damage_multiplier = 0.75
+tags = Array[StringName]([&"defensive_punisher", &"counter"])
+boss_tier = 1
+boss_chest_id = &"warden_reliquary"
+guardian_sigils_reward = 4

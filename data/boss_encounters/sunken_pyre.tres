@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="BossEncounterData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boss_encounter_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/boss_phases/sunken_phase_1.tres" id="2"]
+[ext_resource type="Resource" path="res://data/boss_phases/sunken_phase_2.tres" id="3"]
+[ext_resource type="Resource" path="res://data/boss_phases/sunken_phase_3.tres" id="4"]
+[ext_resource type="Resource" path="res://data/enemy_actions/call_embers.tres" id="5"]
+[resource]
+script = ExtResource("1")
+boss_id = &"sunken_pyre"
+display_name = "The Sunken Pyre"
+mechanic_description = "Presión creciente e invocación única de dos Ember Spawn que comparten el campo con la pira."
+encounter_role = 1
+threat_level = 5
+phases = Array[ExtResource("2")]([ExtResource("2"), ExtResource("3"), ExtResource("4")])
+summon_action = ExtResource("5")
+tags = Array[StringName]([&"summoner", &"pressure"])
+boss_tier = 2
+boss_chest_id = &"sunken_reliquary"
+guardian_sigils_reward = 6

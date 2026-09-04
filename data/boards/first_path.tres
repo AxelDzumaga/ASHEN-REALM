@@ -1,0 +1,82 @@
+[gd_resource type="Resource" script_class="BoardData" load_steps=23 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/board_data.gd" id="1_board"]
+[ext_resource type="Script" path="res://scripts/data/board_tile_data.gd" id="2_tile"]
+
+[sub_resource type="Resource" id="Tile01"]
+script = ExtResource("2_tile")
+
+[sub_resource type="Resource" id="Tile02"]
+script = ExtResource("2_tile")
+type = 4
+
+[sub_resource type="Resource" id="Tile03"]
+script = ExtResource("2_tile")
+type = 3
+
+[sub_resource type="Resource" id="Tile04"]
+script = ExtResource("2_tile")
+type = 5
+
+[sub_resource type="Resource" id="Tile05"]
+script = ExtResource("2_tile")
+
+[sub_resource type="Resource" id="Tile06"]
+script = ExtResource("2_tile")
+type = 1
+
+[sub_resource type="Resource" id="Tile07"]
+script = ExtResource("2_tile")
+type = 6
+
+[sub_resource type="Resource" id="Tile08"]
+script = ExtResource("2_tile")
+type = 4
+
+[sub_resource type="Resource" id="Tile09"]
+script = ExtResource("2_tile")
+
+[sub_resource type="Resource" id="Tile10"]
+script = ExtResource("2_tile")
+type = 3
+
+[sub_resource type="Resource" id="Tile11"]
+script = ExtResource("2_tile")
+type = 5
+
+[sub_resource type="Resource" id="Tile12"]
+script = ExtResource("2_tile")
+type = 4
+
+[sub_resource type="Resource" id="Tile13"]
+script = ExtResource("2_tile")
+type = 1
+
+[sub_resource type="Resource" id="Tile14"]
+script = ExtResource("2_tile")
+type = 3
+
+[sub_resource type="Resource" id="Tile15"]
+script = ExtResource("2_tile")
+
+[sub_resource type="Resource" id="Tile16"]
+script = ExtResource("2_tile")
+type = 6
+
+[sub_resource type="Resource" id="Tile17"]
+script = ExtResource("2_tile")
+
+[sub_resource type="Resource" id="Tile18"]
+script = ExtResource("2_tile")
+type = 3
+
+[sub_resource type="Resource" id="Tile19"]
+script = ExtResource("2_tile")
+
+[sub_resource type="Resource" id="Tile20"]
+script = ExtResource("2_tile")
+type = 2
+
+[resource]
+script = ExtResource("1_board")
+tiles = Array[ExtResource("2_tile")]([SubResource("Tile01"), SubResource("Tile02"), SubResource("Tile03"), SubResource("Tile04"), SubResource("Tile05"), SubResource("Tile06"), SubResource("Tile07"), SubResource("Tile08"), SubResource("Tile09"), SubResource("Tile10"), SubResource("Tile11"), SubResource("Tile12"), SubResource("Tile13"), SubResource("Tile14"), SubResource("Tile15"), SubResource("Tile16"), SubResource("Tile17"), SubResource("Tile18"), SubResource("Tile19"), SubResource("Tile20")])

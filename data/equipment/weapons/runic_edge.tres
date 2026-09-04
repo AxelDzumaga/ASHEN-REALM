@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"runic_edge"
+display_name = "Runic Edge"
+description = "Sus runas concentran la Brasa en técnicas precisas."
+slot = 0
+rarity = 1
+tier = 2
+required_level = 3
+icon_id = &"weapon"
+attack_bonus = 4
+skill_damage_bonus = 0.15
+affinity = 1
+tags = Array[StringName]([&"skill", &"rune"])
+visual_id = &"runic_edge_visual"

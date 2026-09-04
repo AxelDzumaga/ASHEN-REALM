@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BiomeModifierData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/biome_modifier_data.gd" id="1_modifier"]
+
+[resource]
+script = ExtResource("1_modifier")
+modifier_id = &"ashen_surge"
+display_name = "Ashen Surge"
+description = "Obtenés 15% más Energía de Brasa."
+icon_id = &"ember"
+category = 0
+effect_type = 0
+value = 1.15
+tags = Array[StringName]([&"energy", &"wastes"])

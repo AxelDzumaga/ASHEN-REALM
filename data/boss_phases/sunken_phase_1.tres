@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BossPhaseData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boss_phase_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/enemy_ai_profiles/sunken_phase_1.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+phase_id = &"drowned_flame"
+display_name = "Drowned Flame"
+hp_threshold_percent = 100
+ai_profile_override = ExtResource("2")
+visual_accent = Color(0.58, 0.25, 0.18, 1)
+transition_message = "LA LLAMA AHOGADA DESPIERTA"
+tags = Array[StringName]([&"pressure"])
+

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SkillAugmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/skill_augment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"stored_embers"
+tags = Array[StringName]([&"guard", &"energy"])
+display_name = "Stored Embers"
+description = "Recuperá Energía de Brasa cuando Ashen Guard absorba un golpe."
+category = "EFICIENCIA"
+skill_id = &"ashen_guard"
+effect_type = 4
+max_stacks = 2
+value = 15.0
+secondary_value = 25.0

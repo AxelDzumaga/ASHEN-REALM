@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"phoenix_blood"
+display_name = "PHOENIX BLOOD"
+description = "La recuperación de una victoria carga el siguiente comienzo de combate."
+icon_id = &"phoenix_blood"
+category = &"sustain"
+required_source_ids = Array[StringName]([&"boon:ember_blood", &"boon:pyre_heart"])
+requirements_text = "Ember Blood + Pyre Heart."
+effect_id = &"phoenix_blood"
+effect_value = 4.0
+effect_text = "Si Ember Blood deja al Wanderer con 80% de Vida o más, el próximo Pyre Heart obtiene 4 de Ataque adicional."
+tags = Array[StringName]([&"heal", &"ember", &"attack"])

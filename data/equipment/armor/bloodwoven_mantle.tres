@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"bloodwoven_mantle"
+display_name = "Bloodwoven Mantle"
+description = "Fibras oscuras convierten heridas controladas en precisión sin abandonar por completo el sostén."
+slot = 1
+rarity = 2
+tier = 3
+required_level = 7
+icon_id = &"armor"
+defense_bonus = 4
+max_health_bonus = 10
+crit_damage_bonus = 0.15
+healing_power_bonus = 0.08
+affinity = 1
+biome_tags = Array[StringName]([&"ember_marsh"])
+element_type = &"tide"
+tags = Array[StringName]([&"low_health", &"critical", &"healing"])
+visual_id = &"bloodwoven_mantle_visual"

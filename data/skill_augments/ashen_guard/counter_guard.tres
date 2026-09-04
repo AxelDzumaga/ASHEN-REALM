@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SkillAugmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/skill_augment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"counter_guard"
+tags = Array[StringName]([&"guard", &"attack"])
+display_name = "Counter Guard"
+description = "Contraatacá cuando Ashen Guard absorba un golpe enemigo."
+category = "UTILIDAD"
+skill_id = &"ashen_guard"
+effect_type = 5
+max_stacks = 2
+value = 8.0
+secondary_value = 14.0

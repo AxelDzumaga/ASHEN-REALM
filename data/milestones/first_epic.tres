@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MilestoneData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/milestone_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+milestone_id = &"first_epic"
+display_name = "Hallazgo Épico"
+description = "Conseguí tu primer Equipment Épico."
+condition_type = 4
+target_count = 1
+reward_ash = 10
+priority = 60
+icon_id = &"loot"

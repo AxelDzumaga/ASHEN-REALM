@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"drowned_shrine"
+title = "Drowned Shrine"
+description = "Un santuario semisumergido exhala ceniza cálida entre aguas negras."
+difficulty_tier = 1
+risk_summary = "Poder ofensivo con coste o curación segura"
+option_a_text = "METER LA MANO EN EL AGUA"
+option_a_effect_text = "+4 de Ataque · Perdés 15 de Vida"
+option_a_health_delta = -15
+option_a_attack_delta = 4
+option_b_text = "REZAR"
+option_b_effect_text = "Recuperás 18 de Vida"
+option_b_health_delta = 18

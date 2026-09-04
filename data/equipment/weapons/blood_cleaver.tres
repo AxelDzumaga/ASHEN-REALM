@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"blood_cleaver"
+display_name = "Blood Cleaver"
+description = "Cuanto más cerca está su portador de caer, más feroz se vuelve."
+slot = 0
+rarity = 2
+tier = 3
+required_level = 8
+icon_id = &"weapon"
+attack_bonus = 8
+crit_chance = 0.06
+crit_damage_bonus = 0.25
+passive_effect_id = &"bloodbound"
+passive_trigger = 4
+affinity = 1
+tags = Array[StringName]([&"low_health", &"critical"])
+visual_id = &"blood_cleaver_visual"

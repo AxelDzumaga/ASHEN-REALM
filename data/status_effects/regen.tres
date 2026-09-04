@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StatusEffectData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_effect_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = &"regen"
+display_name = "Regeneración"
+description = "Recupera Vida al comienzo del turno."
+icon_id = &"regen"
+category = 0
+stack_mode = 1
+max_stacks = 1
+duration_type = 0
+base_duration = 2
+trigger = 1
+magnitude_per_stack = 5
+tags = Array[StringName]([&"healing_over_time"])
+

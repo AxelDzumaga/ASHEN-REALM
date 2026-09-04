@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"weathered_hood"
+display_name = "Weathered Hood"
+description = "Capucha curtida por muchos caminos. Contenido piloto Equipment 2.0 Fase 1 (slot HEAD, nuevo) — INITIAL TUNING."
+slot = 2
+rarity = 0
+defense_bonus = 1
+max_health_bonus = 8
+tier = 1
+required_level = 1
+icon_id = &"block"
+visual_id = &"weathered_hood_visual"
+tags = Array[StringName]([&"balanced"])

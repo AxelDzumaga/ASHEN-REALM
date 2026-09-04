@@ -1,0 +1,91 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/tutorial/how_to_play.gd" id="1"]
+[node name="HowToPlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.055, 0.047, 0.075, 1)
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 36.0
+offset_top = 40.0
+offset_right = -36.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+[node name="Title" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 38
+text = "CÓMO JUGAR"
+horizontal_alignment = 1
+[node name="Subtitle" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+text = "Una guía breve para sobrevivir en el Reino."
+horizontal_alignment = 1
+[node name="Scroll" type="ScrollContainer" parent="Margin/Layout"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+scroll_deadzone = 24
+follow_focus = true
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+[node name="Sections" type="VBoxContainer" parent="Margin/Layout/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+[node name="Guide" type="Label" parent="Margin/Layout/Scroll/Sections"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "RUN\nPrepará tu equipo, habilidades y Companion en el Refugio. Elegí una región e iniciá una expedición real de 30 casillas.\n\nTABLERO\nTirá el dado: el Wanderer avanza automáticamente. Combate, élite, evento, tesoro, curación y Jefe se explican la primera vez que aparecen.\n\nCOMBATE\nElegí un objetivo y tocá ATAQUE o una habilidad. ATAQUE es gratuito y genera Brasa. Tu Companion actúa después de vos; luego responden los enemigos.\n\nHABILIDADES Y BRASA\nPodés equipar hasta 3 habilidades. Consumen Brasa y cada una mantiene su propia recarga. Brasa solo existe durante el combate; Ceniza es la moneda permanente.\n\nESTADOS\nQuemadura, Debilitado y Armadura rota pueden durar varios turnos. Regeneración y Guardia son efectos beneficiosos. Los badges muestran su estado actual.\n\nNIVEL DE RUN\nLos encuentros dan XP. Al subir de nivel elegís una mejora temporal. Nivel, XP y mejoras se reinician al terminar la run.\n\nBOONS Y AUGMENTS\nLos Boons modifican tu build; los Augments mejoran una habilidad equipada. Ambos duran solo durante la run.\n\nEQUIPO\nEl arma y la armadura equipadas quedan fijas durante la run. El loot se conserva al llegar a Results y nunca reemplaza automáticamente lo equipado.\n\nSINERGIAS\nSe activan al combinar fuentes compatibles de equipo, habilidades, Augments, Boons, Companion y región. Son pasivas y se reinician con la run.\n\nMETA PROGRESIÓN\nResults deposita Ceniza y equipo de forma segura. Los hitos dan objetivos y pequeñas recompensas únicas; Ashen Rank resume tu progreso sin aumentar stats. Abandonar descarta Ceniza y recompensas todavía no depositadas.\n\nARCHIVO DE CENIZA\nEl Archivo es una referencia opcional. NUEVO marca entradas que todavía no revisaste."
+autowrap_mode = 2
+[node name="ResetButton" type="Button" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 62)
+layout_mode = 2
+text = "REINICIAR TUTORIALES"
+autowrap_mode = 2
+[node name="Confirmation" type="VBoxContainer" parent="Margin/Layout"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+[node name="Question" type="Label" parent="Margin/Layout/Confirmation"]
+layout_mode = 2
+text = "¿Reiniciar el progreso de los tutoriales? Volverán a aparecer cuando se activen naturalmente."
+horizontal_alignment = 1
+autowrap_mode = 2
+[node name="YesButton" type="Button" parent="Margin/Layout/Confirmation"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+text = "SÍ"
+[node name="NoButton" type="Button" parent="Margin/Layout/Confirmation"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+text = "NO"
+[node name="DebugCompleteButton" type="Button" parent="Margin/Layout"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "DEBUG: COMPLETE TUTORIALS"
+[node name="BackButton" type="Button" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+text = "VOLVER"

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"warden_plate"
+display_name = "Warden Plate"
+description = "Una armadura pesada imbuida con la resistencia del Warden."
+slot = 1
+rarity = 2
+defense_bonus = 6
+max_health_bonus = 20
+tier = 3
+required_level = 10
+icon_id = &"armor"
+passive_effect_id = &"warden_first_guard"
+passive_trigger = 3
+affinity = 4
+set_id = &"ashen_warden_set"
+boss_source_id = &"ashen_warden"
+boss_set_visual_id = &"ashen_warden_set"
+biome_tags = Array[StringName]([&"ashen_wastes"])
+element_type = &"ember"
+tags = Array[StringName]([&"first_hit", &"defense"])
+visual_id = &"warden_plate_visual"

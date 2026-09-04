@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CharacterVisualData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_visual_data.gd" id="1_visual"]
+
+[resource]
+script = ExtResource("1_visual")
+portrait_path = "res://assets/art/player/player_ashen_wanderer_59b.png"
+combat_texture_path = "res://assets/art/player/player_ashen_wanderer_59b.png"
+sprite_frames_path = "res://data/visuals/player/ashen_wanderer_basic_attack_pilot.tres"
+accent = Color(0.9020, 0.6353, 0.2353, 1)
+combat_scale = 1.1
+combat_offset = Vector2(-5, -2)
+animation_contact_times = {"attack": 0.5, "basic_attack": 0.5, "ember_slash": 0.64, "guard": 0.45, "second_wind": 0.5}
+allow_equipment_overlays = false

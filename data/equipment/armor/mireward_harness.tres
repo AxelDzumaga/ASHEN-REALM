@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"mireward_harness"
+display_name = "Mireward Harness"
+description = "Raíces trenzadas responden a la Guardia consumida con una recuperación breve."
+slot = 1
+rarity = 1
+tier = 2
+required_level = 5
+icon_id = &"armor"
+defense_bonus = 3
+max_health_bonus = 8
+healing_power_bonus = 0.05
+passive_effect_id = &"guarded_regrowth"
+passive_trigger = 3
+affinity = 3
+biome_tags = Array[StringName]([&"ember_marsh"])
+element_type = &"tide"
+tags = Array[StringName]([&"guard", &"healing", &"regen"])
+visual_id = &"mireward_harness_visual"

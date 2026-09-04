@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SynergyData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/synergy_data.gd" id="1"]
+[resource]
+script = ExtResource("1")
+synergy_id = &"runic_flow"
+display_name = "RUNIC FLOW"
+description = "Una carga rúnica bien construida devuelve Brasa al ejecutar habilidades."
+icon_id = &"skill"
+category = &"skill"
+required_tags = Array[StringName]([&"skill"])
+required_counts = Array[int]([3])
+required_source_ids = Array[StringName]([&"equipment:runic_edge"])
+minimum_distinct_sources = 3
+requirements_text = "Runic Edge + 3 fuentes SKILL."
+effect_id = &"runic_flow"
+effect_value = 6.0
+effect_text = "La primera habilidad usada en cada turno del jugador genera 6 de Brasa base."
+tags = Array[StringName]([&"skill", &"energy"])

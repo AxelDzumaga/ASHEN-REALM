@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EnemyAIData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_ai_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/enemy_actions/basic_attack.tres" id="2"]
+[ext_resource type="Resource" path="res://data/enemy_actions/sunder.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+ai_id = &"assault_sunder"
+display_name = "Acechador quebrador"
+role = 0
+default_target_policy = 1
+actions = Array[ExtResource("2")]([ExtResource("2"), ExtResource("3")])
+tags = Array[StringName]([&"assault", &"armor_break"])
