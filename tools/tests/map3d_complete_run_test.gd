@@ -2,6 +2,8 @@ extends Node
 
 const GAME_SCENE := preload("res://scenes/core/game.tscn")
 const AdapterSource = preload("res://scripts/board/board_tile_resolution_adapter.gd")
+const BoardTurnControllerSource = preload("res://scripts/board/board_turn_controller.gd")
+const RouteBranchDataSource = preload("res://scripts/board/route_branch_data.gd")
 
 
 func _ready() -> void:
@@ -20,6 +22,7 @@ func _ready() -> void:
 	var controller: RefCounted = map.get("_turn_controller")
 	var logical_steps: Array[int] = []
 	var interaction_counts := {"combat": 0, "elite": 0, "event": 0, "treasure": 0, "heal": 0, "boss": 0}
+	var fork_choices := 0
 	controller.logical_step_emitted.connect(func(_from: int, to: int) -> void: logical_steps.append(to))
 	_check(failures, "starts_in_map3d", map.name == "AshenWastesMap3D" and run.board_position == 0)
 
@@ -33,9 +36,32 @@ func _ready() -> void:
 		var destinations: Array[int] = []
 		destinations.assign(plan["destinations"])
 		var destination: int = destinations[0]
-		if destinations.size() == 2:
-			_check(failures, "route_choice_%d" % turn_guard, controller.choose_destination(destination))
-		await map.call("_move_player_to", destination)
+		# True routing (MAP3D-HUMAN-004): MOVE puede pausar en un FORK
+		# pre-generado. _move_player_to muestra el overlay real y espera
+		# branch_choice_selected; acá se simula tocar "Ruta A" siempre, para
+		# que la corrida completa siga siendo determinística.
+		map.call("_move_player_to", destination)
+		var move_guard := 0
+		var choice_sent := false
+		while move_guard < 600:
+			move_guard += 1
+			var state: int = int(controller.get("state"))
+			if state != BoardTurnControllerSource.State.MOVING and state != BoardTurnControllerSource.State.ROUTE_DECISION:
+				break
+			# Esperar a que el overlay real exista (no sólo el state) antes de
+			# emitir: _request_branch_choice recién queda escuchando
+			# branch_choice_selected después de construirlo, y emitir antes
+			# perdería la señal para siempre.
+			if state == BoardTurnControllerSource.State.ROUTE_DECISION and not choice_sent:
+				var overlay: Node = map.get_node_or_null("HUDLayer/BranchChoiceOverlay")
+				if overlay != null:
+					fork_choices += 1
+					choice_sent = true
+					map.emit_signal("branch_choice_selected", RouteBranchDataSource.ROUTE_A)
+			elif state != BoardTurnControllerSource.State.ROUTE_DECISION:
+				choice_sent = false
+			await get_tree().process_frame
+		_check(failures, "movement_completed_%d" % turn_guard, run.board_position == destination)
 		var resolution: Dictionary = controller.request_tile_resolution()
 		var tile_type: int = int(resolution.get("tile_type", -1))
 		await map.call("_resolve_current_tile", tile_type)
@@ -96,6 +122,7 @@ func _ready() -> void:
 		"same_map_instance": game.get("board_screen") == map,
 		"board2d_used": false,
 		"rewards_deposited": run.rewards_deposited,
+		"fork_choices": fork_choices,
 	}))
 	game.queue_free()
 	RunManager.current_run = null
