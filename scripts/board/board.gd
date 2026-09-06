@@ -2,12 +2,14 @@ extends Control
 
 const BoardTurnControllerSource = preload("res://scripts/board/board_turn_controller.gd")
 const BoardTileResolutionAdapterSource = preload("res://scripts/board/board_tile_resolution_adapter.gd")
+const RouteBranchDataSource = preload("res://scripts/board/route_branch_data.gd")
 
 signal pause_requested
 signal combat_requested(is_boss: bool, is_elite: bool)
 signal event_requested
 signal treasure_requested
 signal route_destination_selected(destination: int)
+signal branch_choice_selected(branch: int)
 
 const COLUMNS := 4
 const TILE_HEIGHT := 92
@@ -284,36 +286,15 @@ func _on_roll_button_pressed() -> void:
 	return_button.disabled = true
 	await get_tree().create_timer(ROLL_REVEAL_DELAY).timeout
 	AudioManager.play_event(AudioManager.AudioEvent.DICE_LAND)
-	var origin: int = int(plan["origin"])
-	var destinations: Array[int] = []
-	destinations.assign(plan["destinations"])
-	if destinations.is_empty():
-		push_error("Route agency produced no valid destination.")
-		_turn_controller.abort_turn()
-		_is_moving = false
-		return_button.disabled = false
-		return
-	var destination: int = _turn_controller.get_selected_destination()
-	if destinations.size() == 2:
-		destination = await _request_route_choice(destinations, origin)
-		if not _turn_controller.choose_destination(destination):
-			push_error("Route agency rejected selected destination: %d" % destination)
-			_turn_controller.abort_turn()
-			_is_moving = false
-			return_button.disabled = false
-			return
-		TelemetryManager.track_route_choice_selected(
-			RunManager.current_run, _tile_type_key(_tile_types[destination]), destination - origin,
-		)
-	else:
-		event_label.text = "Avanzando %d casillas..." % (destination - origin)
+	var destination: int = int(plan["destinations"][0])
+	event_label.text = "Avanzando %d casillas..." % (destination - RunManager.current_run.board_position)
 	await _move_player_to(destination)
 	await _ensure_current_tile_visible()
 	var resolution: Dictionary = _turn_controller.request_tile_resolution()
 	if resolution.is_empty():
 		push_error("Board turn controller rejected tile resolution.")
 	else:
-		await _resolve_current_tile()
+		await _resolve_current_tile(int(resolution["tile_type"]))
 	_turn_controller.complete_resolution()
 	_is_moving = false
 	roll_button.disabled = RunManager.current_run.board_locked or _combat_pending
@@ -326,7 +307,14 @@ func _move_player_to(target_index: int) -> void:
 	if _turn_controller == null or _turn_controller.get_selected_destination() != target_index:
 		push_error("Rejected invalid route destination: %d" % target_index)
 		return
-	while _turn_controller.has_pending_steps():
+	while true:
+		if int(_turn_controller.get("state")) == BoardTurnControllerSource.State.ROUTE_DECISION:
+			await _handle_fork_pause()
+			if int(_turn_controller.get("state")) != BoardTurnControllerSource.State.MOVING:
+				break
+			continue
+		if not _turn_controller.has_pending_steps():
+			break
 		var tile_index: int = _turn_controller.advance_one_step()
 		if tile_index < 0:
 			push_error("Board turn controller failed during movement.")
@@ -340,6 +328,21 @@ func _move_player_to(target_index: int) -> void:
 		_update_position_label()
 		_highlight_current_tile(tile_index)
 		board_scroll.ensure_control_visible(_tile_controls[tile_index])
+
+
+## Intercepción obligatoria: MOVE llegó a un FORK sin carril elegido. Pausa
+## la animación (no consume ni agrega movimiento), presenta Ruta A/B con
+## Partial Information y espera la elección antes de que el loop de arriba
+## siga consumiendo los pasos restantes del mismo roll.
+func _handle_fork_pause() -> void:
+	var fork_index: int = int(_turn_controller.get("_pending_fork_index"))
+	var branch_data: RefCounted = RunManager.current_run.route_branches.get(fork_index)
+	if branch_data == null:
+		push_error("Fork reached without generated branch data at index %d" % fork_index)
+		_turn_controller.abort_turn()
+		return
+	var chosen: int = await _request_branch_choice(fork_index, branch_data)
+	_turn_controller.choose_branch(chosen)
 
 
 func _request_route_choice(destinations: Array[int], origin: int) -> int:
@@ -362,6 +365,47 @@ func _request_route_choice(destinations: Array[int], origin: int) -> int:
 	return selected
 
 
+## Partial Information aprobada: identidad + peligro + enfoque + primer nodo
+## visible, sin revelar las 4 casillas completas de ninguna ruta. No es un
+## popup de arte final — controles procedurales simples, consistentes con el
+## resto del HUD de Board2D.
+func _request_branch_choice(fork_index: int, branch_data: RefCounted) -> int:
+	event_label.text = "BIFURCACIÓN\nElegí tu ruta"
+	var overlay := PanelContainer.new()
+	overlay.name = "RouteChoiceOverlay"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	overlay.add_theme_stylebox_override("panel", VisualTheme.elevated_panel_style(Color("241a14"), VisualTheme.EMBER_BRIGHT, 3, 18))
+	add_child(overlay)
+	var rows := HBoxContainer.new()
+	rows.add_theme_constant_override("separation", 18)
+	overlay.add_child(rows)
+	TelemetryManager.track_route_choice_shown(
+		RunManager.current_run,
+		_tile_type_key(branch_data.first_tile_for(RouteBranchDataSource.ROUTE_A)),
+		_tile_type_key(branch_data.first_tile_for(RouteBranchDataSource.ROUTE_B)),
+		1, 1,
+	)
+	for branch: int in [RouteBranchDataSource.ROUTE_A, RouteBranchDataSource.ROUTE_B]:
+		var archetype: StringName = branch_data.archetype_for(branch)
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(180, 120)
+		var label: String = "A" if branch == RouteBranchDataSource.ROUTE_A else "B"
+		button.text = "RUTA %s\n%s\nPELIGRO: %s\nENFOQUE: %s\n1er nodo: %s" % [
+			label, RouteBranchDataSource.display_name(archetype), RouteBranchDataSource.danger_label(archetype),
+			RouteBranchDataSource.focus_label(archetype), _tile_name(branch_data.first_tile_for(branch)),
+		]
+		button.pressed.connect(func() -> void: branch_choice_selected.emit(branch))
+		rows.add_child(button)
+	var chosen: int = await branch_choice_selected
+	overlay.queue_free()
+	var archetype_chosen: StringName = branch_data.archetype_for(chosen)
+	event_label.text = "RUTA %s ELEGIDA\n%s" % [
+		"A" if chosen == RouteBranchDataSource.ROUTE_A else "B", RouteBranchDataSource.display_name(archetype_chosen),
+	]
+	TelemetryManager.track_route_choice_selected(RunManager.current_run, _tile_type_key(branch_data.first_tile_for(chosen)), 1)
+	return chosen
+
+
 func _on_tile_gui_input(event: InputEvent, tile_index: int) -> void:
 	if tile_index not in _pending_route_destinations:
 		return
@@ -378,8 +422,7 @@ func _on_tile_gui_input(event: InputEvent, tile_index: int) -> void:
 	route_destination_selected.emit(tile_index)
 
 
-func _resolve_current_tile() -> void:
-	var tile_type: int = _tile_types[RunManager.current_run.board_position]
+func _resolve_current_tile(tile_type: int) -> void:
 	if _has_forced_tile and tile_type != BoardTileData.TileType.BOSS:
 		_has_forced_tile = false
 		await _resolve_tile_type(_forced_tile_type)
@@ -770,7 +813,7 @@ func _on_debug_go_boss_pressed() -> void:
 	RunManager.current_run.board_position = _tile_types.size() - 1
 	_place_marker_immediately(RunManager.current_run.board_position)
 	_update_hud()
-	_resolve_current_tile()
+	_resolve_current_tile(_tile_types[RunManager.current_run.board_position])
 	roll_button.disabled = true
 	return_button.disabled = true
 

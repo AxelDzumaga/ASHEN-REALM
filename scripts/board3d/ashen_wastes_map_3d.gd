@@ -6,12 +6,14 @@ signal combat_requested(is_boss: bool, is_elite: bool)
 signal event_requested
 signal treasure_requested
 signal route_destination_selected(destination: int)
+signal branch_choice_selected(branch: int)
 
 const BoardTurnControllerSource = preload("res://scripts/board/board_turn_controller.gd")
 const BoardTileResolutionAdapterSource = preload("res://scripts/board/board_tile_resolution_adapter.gd")
 const MapLayout3DSource = preload("res://scripts/board3d/map_layout_3d.gd")
 const MapTile3DSource = preload("res://scripts/board3d/map_tile_3d.gd")
 const MapSandboxContextSource = preload("res://scripts/board3d/map_sandbox_context.gd")
+const RouteBranchDataSource = preload("res://scripts/board/route_branch_data.gd")
 
 const MOVE_DURATION := 0.18
 const ROLL_REVEAL_DELAY := 0.35
@@ -32,6 +34,11 @@ var _run: RunState
 var _sandbox_mode := false
 var _positions: Array[Vector3] = []
 var _tiles: Array[StaticBody3D] = []
+## fork_index -> {RouteBranchData.ROUTE_A/ROUTE_B: Array[MapTile3D]} — sólo
+## existen para el/los fork(s) generados en esta run.
+var _branch_tiles: Dictionary = {}
+## fork_index -> {RouteBranchData.ROUTE_A/ROUTE_B: Array[Vector3]}
+var _branch_positions: Dictionary = {}
 var _materials: Dictionary = {}
 var _turn_controller: RefCounted
 var _dice_roller := DiceRoller.new()
@@ -103,7 +110,17 @@ func _create_materials() -> void:
 		BoardTileData.TileType.EVENT: _material(Color("6f82ad"), 0.08),
 		BoardTileData.TileType.TREASURE: _material(Color("d5a441"), 0.16),
 		BoardTileData.TileType.ELITE: _material(Color("d0654e"), 0.2),
+		BoardTileData.TileType.FORK: _material(Color("caa24a"), 0.22),
 	}
+
+
+## Nodos 3D no tienen `modulate`; el tinte por carril (A/B) se aplica como un
+## material propio en vez de intentar teñir el StaticBody3D directamente.
+func _tinted_material(tile_type: int, tint: Color) -> StandardMaterial3D:
+	var base: StandardMaterial3D = _materials[tile_type]
+	var result: StandardMaterial3D = base.duplicate()
+	result.albedo_color = result.albedo_color.lerp(tint, 0.4)
+	return result
 
 
 func _material(color: Color, emission_strength: float = 0.0) -> StandardMaterial3D:
@@ -144,8 +161,83 @@ func _build_tiles() -> void:
 		var tile: StaticBody3D = MapTile3DSource.new()
 		tile.configure(index, _run.board_tile_sequence[index], _materials[_run.board_tile_sequence[index]])
 		tile.position = _positions[index]
+		if _is_reserved_branch_window(index):
+			# Las 4 casillas reservadas de cada fork no representan contenido
+			# jugable propio (ver RESERVED SPINE WINDOW): quedan ocultas y sin
+			# colisión, pero el tile existe igual para que _tiles conserve un
+			# elemento por índice (varios consumidores — incluyendo tests —
+			# asumen _tiles.size() == board length sin huecos null).
+			tile.visible = false
+			tile.collision_layer = 0
 		tile_root.add_child(tile)
 		_tiles[index] = tile
+	_build_branch_lanes()
+
+
+func _is_reserved_branch_window(index: int) -> bool:
+	for fork_index: int in _run.route_branches:
+		if index > fork_index and index <= fork_index + RouteBranchDataSource.BRANCH_LENGTH:
+			return true
+	return false
+
+
+## Construye las dos rutas físicamente separadas de cada fork generado:
+## divergen desde el FORK y reconvergen en el MERGE (MapLayout3D.get_branch_
+## position). Ambas quedan visibles antes de elegir; sólo la elegida se
+## camina (_move_player_to usa _branch_positions del carril activo).
+func _build_branch_lanes() -> void:
+	for fork_index: int in _run.route_branches:
+		var branch_data: RefCounted = _run.route_branches[fork_index]
+		var merge_index: int = fork_index + RouteBranchDataSource.BRANCH_LENGTH + 1
+		var lane_tiles: Dictionary = {RouteBranchDataSource.ROUTE_A: [], RouteBranchDataSource.ROUTE_B: []}
+		var lane_positions: Dictionary = {RouteBranchDataSource.ROUTE_A: [], RouteBranchDataSource.ROUTE_B: []}
+		for branch: int in [RouteBranchDataSource.ROUTE_A, RouteBranchDataSource.ROUTE_B]:
+			var side: int = 1 if branch == RouteBranchDataSource.ROUTE_A else -1
+			var tint: Color = Color("ffb35c") if branch == RouteBranchDataSource.ROUTE_A else Color("6fb8d6")
+			for local_position: int in range(1, RouteBranchDataSource.BRANCH_LENGTH + 1):
+				var world_position: Vector3 = MapLayout3DSource.get_branch_position(
+					fork_index, merge_index, side, local_position, RouteBranchDataSource.BRANCH_LENGTH, _positions,
+				)
+				var tile_type: int = branch_data.tile_type_for(branch, fork_index + local_position)
+				var tile: StaticBody3D = MapTile3DSource.new()
+				tile.configure(fork_index + local_position, tile_type, _tinted_material(tile_type, tint))
+				tile.position = world_position
+				tile_root.add_child(tile)
+				lane_tiles[branch].append(tile)
+				lane_positions[branch].append(world_position)
+			_connect_branch_lane(fork_index, merge_index, branch, lane_positions[branch], tint)
+		_branch_tiles[fork_index] = lane_tiles
+		_branch_positions[fork_index] = lane_positions
+
+
+func _connect_branch_lane(fork_index: int, merge_index: int, branch: int, lane_positions: Array, tint: Color) -> void:
+	var waypoints: Array[Vector3] = [_positions[fork_index]]
+	for position: Vector3 in lane_positions:
+		waypoints.append(position)
+	waypoints.append(_positions[merge_index])
+	var road_material := _material(Color("302925"))
+	road_material.albedo_color = road_material.albedo_color.lerp(tint, 0.35)
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 0.22
+	cylinder.bottom_radius = 0.26
+	cylinder.height = 1.0
+	cylinder.radial_segments = 6
+	cylinder.material = road_material
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = cylinder
+	multimesh.instance_count = waypoints.size() - 1
+	for index: int in range(waypoints.size() - 1):
+		var start: Vector3 = waypoints[index]
+		var finish: Vector3 = waypoints[index + 1]
+		var direction: Vector3 = finish - start
+		var basis := Basis(Quaternion(Vector3.UP, direction.normalized())).scaled_local(Vector3(1.0, direction.length(), 1.0))
+		var origin: Vector3 = (start + finish) * 0.5 - Vector3(0.0, 0.2, 0.0)
+		multimesh.set_instance_transform(index, Transform3D(basis, origin))
+	var instance := MultiMeshInstance3D.new()
+	instance.name = "BranchLane%d_%d" % [fork_index, branch]
+	instance.multimesh = multimesh
+	connection_root.add_child(instance)
 
 
 func _build_connections() -> void:
@@ -159,14 +251,23 @@ func _build_connections() -> void:
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = cylinder
-	multimesh.instance_count = _positions.size() - 1
+	var segment_indices: Array[int] = []
 	for index: int in range(_positions.size() - 1):
+		# La ventana reservada de un fork no tiene un único camino recto ni
+		# tiles reales en sus 4 posiciones: las dos rutas divergentes
+		# (_build_branch_lanes) ocupan ese tramo en su lugar.
+		if _is_reserved_branch_window(index) or _is_reserved_branch_window(index + 1):
+			continue
+		segment_indices.append(index)
+	multimesh.instance_count = segment_indices.size()
+	for multimesh_index: int in segment_indices.size():
+		var index: int = segment_indices[multimesh_index]
 		var start: Vector3 = _positions[index]
 		var finish: Vector3 = _positions[index + 1]
 		var direction: Vector3 = finish - start
 		var basis := Basis(Quaternion(Vector3.UP, direction.normalized())).scaled_local(Vector3(1.0, direction.length(), 1.0))
 		var origin: Vector3 = (start + finish) * 0.5 - Vector3(0.0, 0.2, 0.0)
-		multimesh.set_instance_transform(index, Transform3D(basis, origin))
+		multimesh.set_instance_transform(multimesh_index, Transform3D(basis, origin))
 	var instance := MultiMeshInstance3D.new()
 	instance.name = "PathConnectionsMultiMesh"
 	instance.multimesh = multimesh
@@ -381,8 +482,7 @@ func _on_roll_pressed() -> void:
 		return
 	var result: int = int(plan["roll"])
 	var origin: int = int(plan["origin"])
-	var destinations: Array[int] = []
-	destinations.assign(plan["destinations"])
+	var destination: int = int(plan["destinations"][0])
 	_is_moving = true
 	_roll_button.disabled = true
 	_pause_button.disabled = true
@@ -391,15 +491,7 @@ func _on_roll_pressed() -> void:
 	AudioManager.play_event(AudioManager.AudioEvent.DICE_ROLL)
 	await get_tree().create_timer(ROLL_REVEAL_DELAY).timeout
 	AudioManager.play_event(AudioManager.AudioEvent.DICE_LAND)
-	var destination: int = _turn_controller.get_selected_destination()
-	if destinations.size() == 2:
-		destination = await _request_route_choice(destinations, origin)
-		if not _turn_controller.choose_destination(destination):
-			_turn_controller.abort_turn()
-			_finish_input_cycle()
-			return
-	else:
-		_event_label.text = "Avanzando %d casillas..." % (destination - origin)
+	_event_label.text = "Avanzando %d casillas..." % (destination - origin)
 	await _move_player_to(destination)
 	var resolution: Dictionary = _turn_controller.request_tile_resolution()
 	if not resolution.is_empty():
@@ -408,44 +500,26 @@ func _on_roll_pressed() -> void:
 	_finish_input_cycle()
 
 
-func _request_route_choice(destinations: Array[int], origin: int) -> int:
-	_route_input_committed = false
-	_pending_route_destinations = destinations.duplicate()
-	_tiles[destinations[0]].set_route_marker("A")
-	_tiles[destinations[1]].set_route_marker("B")
-	camera_rig.focus_route(destinations, _positions)
-	_event_label.text = "ELEGÍ TU DESTINO · tocá A o B"
-	if not _sandbox_mode:
-		TelemetryManager.track_route_choice_shown(
-			_run, _tile_type_key(_run.board_tile_sequence[destinations[0]]),
-			_tile_type_key(_run.board_tile_sequence[destinations[1]]),
-			destinations[0] - origin, destinations[1] - origin,
-		)
-	var selected: int = await route_destination_selected
-	for destination: int in destinations:
-		_tiles[destination].set_route_marker("")
-	_pending_route_destinations.clear()
-	_route_input_committed = false
-	_event_label.text = "Ruta elegida · avanzando %d casillas..." % (selected - origin)
-	if not _sandbox_mode:
-		TelemetryManager.track_route_choice_selected(
-			_run, _tile_type_key(_run.board_tile_sequence[selected]), selected - origin,
-		)
-	return selected
-
-
 func _move_player_to(destination: int) -> void:
-	while _turn_controller.has_pending_steps():
-		var from_index: int = _run.board_position
+	while true:
+		if int(_turn_controller.get("state")) == BoardTurnControllerSource.State.ROUTE_DECISION:
+			await _handle_fork_pause()
+			_update_current_tile(_run.board_position)
+			if int(_turn_controller.get("state")) != BoardTurnControllerSource.State.MOVING:
+				break
+			continue
+		if not _turn_controller.has_pending_steps():
+			break
 		var to_index: int = _turn_controller.advance_one_step()
 		if to_index < 0:
 			return
 		var start: Vector3 = player_marker.position
-		var target: Vector3 = _positions[to_index] + Vector3(0.0, 1.05, 0.0)
+		var target: Vector3 = _effective_position(to_index) + Vector3(0.0, 1.05, 0.0)
 		var flat_target := Vector3(target.x, player_marker.position.y, target.z)
 		if player_marker.position.distance_to(flat_target) > 0.01:
 			player_marker.look_at(flat_target, Vector3.UP)
-		camera_rig.follow_step(from_index, to_index, _positions, MOVE_DURATION)
+		var look_ahead: Vector3 = _effective_position(mini(to_index + 2, _run.board_tile_sequence.size() - 1)) + Vector3(0.0, 1.05, 0.0)
+		camera_rig.follow_step_to_position(target, look_ahead, MOVE_DURATION)
 		var midpoint: Vector3 = start.lerp(target, 0.5) + Vector3(0.0, 0.38, 0.0)
 		var tween := create_tween()
 		tween.tween_property(player_marker, "position", midpoint, MOVE_DURATION * 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -458,6 +532,74 @@ func _move_player_to(destination: int) -> void:
 	camera_rig.focus_arrival(destination, _positions)
 	await get_tree().create_timer(0.12).timeout
 	camera_rig.focus_navigation(destination, _positions)
+
+
+## Intercepción obligatoria: MOVE llegó a un FORK sin carril elegido. No
+## consume ni agrega movimiento del roll actual, y no resuelve contenido.
+func _handle_fork_pause() -> void:
+	var fork_index: int = int(_turn_controller.get("_pending_fork_index"))
+	var branch_data: RefCounted = _run.route_branches.get(fork_index)
+	if branch_data == null:
+		_turn_controller.abort_turn()
+		return
+	var lanes: Dictionary = _branch_positions.get(fork_index, {})
+	var focus_points: Array[Vector3] = [_positions[fork_index]]
+	for branch: int in [RouteBranchDataSource.ROUTE_A, RouteBranchDataSource.ROUTE_B]:
+		for position: Vector3 in (lanes.get(branch, []) as Array):
+			focus_points.append(position)
+	camera_rig.focus_world_points(focus_points)
+	var chosen: int = await _request_branch_choice(fork_index, branch_data)
+	_turn_controller.choose_branch(chosen)
+
+
+## Partial Information aprobada: identidad + peligro + enfoque + primer nodo
+## visible; nunca revela las 4 casillas completas. Overlay 2D simple sobre el
+## HUD — ambos carriles ya son visibles/comparables en el mundo 3D detrás.
+func _request_branch_choice(fork_index: int, branch_data: RefCounted) -> int:
+	_event_label.text = "BIFURCACIÓN · elegí tu ruta"
+	if not _sandbox_mode:
+		TelemetryManager.track_route_choice_shown(
+			_run, _tile_type_key(branch_data.first_tile_for(RouteBranchDataSource.ROUTE_A)),
+			_tile_type_key(branch_data.first_tile_for(RouteBranchDataSource.ROUTE_B)), 1, 1,
+		)
+	var overlay := PanelContainer.new()
+	overlay.name = "BranchChoiceOverlay"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	hud_layer.add_child(overlay)
+	var rows := HBoxContainer.new()
+	rows.add_theme_constant_override("separation", 18)
+	overlay.add_child(rows)
+	for branch: int in [RouteBranchDataSource.ROUTE_A, RouteBranchDataSource.ROUTE_B]:
+		var archetype: StringName = branch_data.archetype_for(branch)
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(200, 130)
+		var label: String = "A" if branch == RouteBranchDataSource.ROUTE_A else "B"
+		button.text = "RUTA %s\n%s\nPELIGRO: %s\nENFOQUE: %s\n1er nodo: %s" % [
+			label, RouteBranchDataSource.display_name(archetype), RouteBranchDataSource.danger_label(archetype),
+			RouteBranchDataSource.focus_label(archetype), _tile_type_key(branch_data.first_tile_for(branch)).to_upper(),
+		]
+		button.pressed.connect(func() -> void: branch_choice_selected.emit(branch))
+		rows.add_child(button)
+	var chosen: int = await branch_choice_selected
+	overlay.queue_free()
+	var archetype_chosen: StringName = branch_data.archetype_for(chosen)
+	_event_label.text = "RUTA %s ELEGIDA · %s" % [
+		"A" if chosen == RouteBranchDataSource.ROUTE_A else "B", RouteBranchDataSource.display_name(archetype_chosen),
+	]
+	if not _sandbox_mode:
+		TelemetryManager.track_route_choice_selected(_run, _tile_type_key(branch_data.first_tile_for(chosen)), 1)
+	return chosen
+
+
+## Posición mundial de `index` según el carril activo (ver RouteBranchData);
+## fuera de una rama activa devuelve la posición normal del spine.
+func _effective_position(index: int) -> Vector3:
+	if _run.active_branch != RouteBranchDataSource.NONE and _run.active_fork_index >= 0:
+		var fork_index: int = _run.active_fork_index
+		if index > fork_index and index <= fork_index + RouteBranchDataSource.BRANCH_LENGTH:
+			var local_position: int = index - fork_index - 1
+			return _branch_positions[fork_index][_run.active_branch][local_position]
+	return _positions[clampi(index, 0, _positions.size() - 1)]
 
 
 func _resolve_current_tile(tile_type: int) -> void:
@@ -563,13 +705,38 @@ func _finish_input_cycle() -> void:
 
 
 func _place_player_immediately(index: int) -> void:
-	player_marker.position = _positions[index] + Vector3(0.0, 1.05, 0.0)
+	player_marker.position = _effective_position(index) + Vector3(0.0, 1.05, 0.0)
 	_update_current_tile(index)
 
 
 func _update_current_tile(index: int) -> void:
 	for tile_index: int in _tiles.size():
-		_tiles[tile_index].set_progress_state(tile_index < index, tile_index == index)
+		var tile: StaticBody3D = _tiles[tile_index]
+		if tile == null:
+			# Casilla reservada de un fork: no tiene tile propio en el spine
+			# (ver _build_tiles/_is_reserved_branch_window).
+			continue
+		tile.set_progress_state(tile_index < index, tile_index == index)
+	_update_branch_visuals(index)
+
+
+## Progreso visual de los carriles: el elegido sigue mostrando visitado/actual
+## como cualquier tile del spine; el no elegido queda oculto en cuanto hay
+## una elección confirmada (nunca se camina, tampoco se ve como si se hiciera).
+func _update_branch_visuals(index: int) -> void:
+	for fork_index: int in _branch_tiles:
+		var lanes: Dictionary = _branch_tiles[fork_index]
+		var chosen: int = _run.active_branch if _run.active_fork_index == fork_index else RouteBranchDataSource.NONE
+		var committed: bool = chosen != RouteBranchDataSource.NONE or index > fork_index + RouteBranchDataSource.BRANCH_LENGTH
+		for branch: int in [RouteBranchDataSource.ROUTE_A, RouteBranchDataSource.ROUTE_B]:
+			var tiles: Array = lanes[branch]
+			var is_unchosen: bool = committed and branch != chosen
+			for local_index: int in tiles.size():
+				var tile: StaticBody3D = tiles[local_index]
+				var branch_position: int = fork_index + local_index + 1
+				tile.visible = not is_unchosen
+				if not is_unchosen:
+					tile.set_progress_state(branch_position < index, branch_position == index)
 
 
 func _pulse_player() -> void:

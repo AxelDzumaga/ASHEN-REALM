@@ -38,12 +38,29 @@ func focus_route(destinations: Array[int], positions: Array[Vector3]) -> void:
 	_focus(focus_points, 0.28, 15.5)
 
 
+## Encuadra puntos de mundo arbitrarios (p.ej. ambos carriles de un fork
+## verdadero, que no pertenecen al array `positions` del spine).
+func focus_world_points(points: Array[Vector3], duration: float = 0.32, size: float = 17.0) -> void:
+	state = State.ROUTE_SELECTION
+	_focus(points, duration, size)
+
+
 func follow_step(from_index: int, to_index: int, positions: Array[Vector3], duration: float) -> void:
 	state = State.MOVING
 	if from_index < 0 or to_index < 0 or to_index >= positions.size():
 		return
 	var look_ahead_index: int = mini(positions.size() - 1, to_index + 2)
 	var target: Vector3 = positions[to_index].lerp(positions[look_ahead_index], 0.28)
+	_move_rig(target, duration)
+
+
+## Igual que follow_step, pero recibe las posiciones ya resueltas (spine o
+## carril de rama activo) en vez de derivarlas de un índice — necesario
+## mientras el jugador camina dentro de una rama, donde el índice lógico no
+## corresponde a una única posición fija del spine.
+func follow_step_to_position(current_world: Vector3, look_ahead_world: Vector3, duration: float) -> void:
+	state = State.MOVING
+	var target: Vector3 = current_world.lerp(look_ahead_world, 0.28)
 	_move_rig(target, duration)
 
 
