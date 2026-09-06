@@ -15,6 +15,7 @@ enum Intent {
 	EVENT,
 	TREASURE,
 	BOSS,
+	FORK,
 }
 
 
@@ -32,6 +33,8 @@ static func get_intent(tile_type: int) -> Intent:
 			return Intent.TREASURE
 		BoardTileData.TileType.BOSS:
 			return Intent.BOSS
+		BoardTileData.TileType.FORK:
+			return Intent.FORK
 		_:
 			return Intent.EMPTY
 
@@ -45,5 +48,11 @@ static func resolve_inline(intent: Intent, run: RunState) -> Dictionary:
 		Intent.HEAL:
 			var recovered: int = run.heal(HEAL_AMOUNT)
 			return {"resolved": true, "intent": intent, "recovered": recovered}
+		Intent.FORK:
+			# El FORK no resuelve contenido propio: la elección de ruta ya
+			# ocurrió como pausa de movimiento (BoardTurnController), no
+			# como resolución. Sólo se llega acá cuando el roll aterrizó
+			# exactamente en el fork (remaining == 0 ese turno).
+			return {"resolved": true, "intent": intent, "message": "Elegiste tu ruta."}
 		_:
 			return {"resolved": false, "intent": intent}
