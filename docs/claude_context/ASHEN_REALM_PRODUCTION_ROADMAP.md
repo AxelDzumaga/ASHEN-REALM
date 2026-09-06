@@ -45,11 +45,22 @@ Definition of Done:
 Goals:
 
 - complete formal Map3D human playtest;
+  STATUS: DONE (2026-09-06) — PASS WITH ISSUES.
+  5 design/presentation/content issues registered
+  (MAP3D-HUMAN-001 through 005), see
+  ASHEN_REALM_TECHNICAL_HANDOFF.md and
+  build/map3d_human_playtest_v14_2026-09-06/HUMAN_PLAYTEST.md.
+  Not yet fixed/implemented.
 - human economy playtest;
 - update technical documentation;
 - confirm current outstanding elemental content decisions.
 
 Do not start major 3D production yet.
+
+Do not jump to Combat3D or Character3D
+based on this result alone; the Map3D issues
+are a design/polish pass, not an architecture
+blocker, but they have not been scheduled yet.
 
 ---
 

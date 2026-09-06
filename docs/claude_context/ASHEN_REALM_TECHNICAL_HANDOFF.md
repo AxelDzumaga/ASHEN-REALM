@@ -148,14 +148,30 @@ Includes:
 Defeat-flow regression:
 PASS in recent testing.
 
-However:
+Formal human Map3D playtest:
+COMPLETED 2026-09-06.
 
-formal subjective human Map3D playtest
-remains incomplete.
+Build used:
+build/map3d_human_playtest_v14_2026-09-06/
+(SAVE_VERSION 14, baseline commit 56ced61).
 
-HUMAN_PLAYTEST.md
-was still empty/pending
-in the latest repository audit.
+Both previously existing playtest builds
+(map3d_playtest, map3d_playtest_v13_2026-09-03)
+were confirmed stale before this session
+(SAVE_VERSION 12 and 13 respectively, baked
+into their PCKs) and were not reused.
+
+Human-validated flows (all PASS):
+
+- movement;
+- routing A/B (functional, see design issue below);
+- Combat return;
+- Elite;
+- Event;
+- Treasure;
+- Boss flow;
+- Defeat flow (human-confirmed, matches automated
+  map3d_defeat_flow_test).
 
 Therefore:
 
@@ -163,7 +179,36 @@ MAP3D TECHNICAL:
 PASS.
 
 MAP3D HUMAN VALIDATION:
-PENDING.
+PASS WITH ISSUES (2026-09-06).
+
+Full results:
+build/map3d_human_playtest_v14_2026-09-06/HUMAN_PLAYTEST.md
+
+5 open design/presentation/content issues registered
+(MAP3D-HUMAN-001 through 005), none of them technical
+stability bugs:
+
+MAP3D-HUMAN-001 — map feels too empty.
+ART DEBT / DESIGN ISSUE. Severity HIGH.
+
+MAP3D-HUMAN-002 — no temporary progress/overview
+visualization for how much of the run remains.
+UX ISSUE. Severity MEDIUM.
+
+MAP3D-HUMAN-003 — dice is functional but lacks a
+satisfying visual representation (roll/animation/face).
+UX / PRESENTATION. Severity MEDIUM.
+
+MAP3D-HUMAN-004 — A/B routing does not feel like two
+meaningfully different paths.
+DESIGN ISSUE. Severity HIGH.
+
+MAP3D-HUMAN-005 — no clear final reward after
+completing the run/boss.
+DESIGN ISSUE / CONTENT GAP. Severity HIGH.
+
+None of these issues have been implemented/fixed yet.
+Do not treat Map3D as presentation-final.
 
 ---
 
@@ -465,7 +510,7 @@ Do not assume it is already configured.
 
 1. No verified local Git/source-control workflow.
 2. Combat architecture is too presentation-coupled for clean Combat3D migration.
-3. Map3D formal human playtest still pending.
+3. Map3D presentation/design polish pending (5 open issues from 2026-09-06 human playtest: empty map density, no run-progress overview, dice presentation, A/B route differentiation, missing final reward).
 4. Android production/AAB pipeline not ready.
 5. Final 3D character/equipment pipeline not yet implemented.
 
