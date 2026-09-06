@@ -612,7 +612,14 @@ func _add_screen_backdrop(screen: Control) -> void:
 		backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		backdrop.configure(screen.name)
 		screen.add_child(backdrop)
-		screen.move_child(backdrop, mini(1, screen.get_child_count() - 1))
+		# AshenBackdrop pinta bandas de fondo opacas a pantalla completa
+		# (PresentationBackdrop._draw_depth_bands): siempre debe quedar
+		# detrás de todo el contenido real de la screen, sin importar cuántos
+		# hijos ya tenía. "mini(1, count-1)" asumía varios hijos previos y
+		# terminaba insertando el backdrop DESPUÉS (encima) del único hijo
+		# real en screens armadas con pocos nodos (p.ej. Map3DPrototypeResult),
+		# tapando el contenido por completo.
+		screen.move_child(backdrop, 0)
 	_add_biome_environment(screen)
 
 
