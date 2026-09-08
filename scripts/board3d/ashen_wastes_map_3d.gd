@@ -571,15 +571,31 @@ func _request_branch_choice(fork_index: int, branch_data: RefCounted) -> int:
 	overlay.add_child(rows)
 	for branch: int in [RouteBranchDataSource.ROUTE_A, RouteBranchDataSource.ROUTE_B]:
 		var archetype: StringName = branch_data.archetype_for(branch)
+		# L0 (2026-09-08): antes A y B sólo se distinguían por la letra en texto
+		# plano. El color de peligro (mismo VisualTheme.difficulty_color que ya
+		# usa el resto de la UI) + un ícono de enfoque (mismos ids que combate/
+		# curación/tesoro en el resto del juego) dan una segunda y tercera señal
+		# no basada únicamente en leer el texto.
+		var accent: Color = VisualTheme.difficulty_color(RouteBranchDataSource.danger_tier(archetype))
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 6)
+		var icon := AshenIcon.new()
+		icon.configure(RouteBranchDataSource.icon_id(archetype), accent, AshenIcon.DisplaySize.LARGE)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		column.add_child(icon)
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(200, 130)
+		button.add_theme_stylebox_override("normal", VisualTheme.button_style(VisualTheme.CARD, accent, 3))
+		button.add_theme_stylebox_override("hover", VisualTheme.button_style(VisualTheme.CARD.lightened(0.08), accent, 4))
+		button.add_theme_stylebox_override("focus", VisualTheme.button_style(VisualTheme.CARD.lightened(0.08), accent, 4))
 		var label: String = "A" if branch == RouteBranchDataSource.ROUTE_A else "B"
 		button.text = "RUTA %s\n%s\nPELIGRO: %s\nENFOQUE: %s\n1er nodo: %s" % [
 			label, RouteBranchDataSource.display_name(archetype), RouteBranchDataSource.danger_label(archetype),
 			RouteBranchDataSource.focus_label(archetype), _tile_type_key(branch_data.first_tile_for(branch)).to_upper(),
 		]
 		button.pressed.connect(func() -> void: branch_choice_selected.emit(branch))
-		rows.add_child(button)
+		column.add_child(button)
+		rows.add_child(column)
 	var chosen: int = await branch_choice_selected
 	overlay.queue_free()
 	var archetype_chosen: StringName = branch_data.archetype_for(chosen)
