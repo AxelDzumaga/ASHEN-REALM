@@ -10,7 +10,16 @@ const NONE := 0
 const ROUTE_A := 1
 const ROUTE_B := 2
 
-const BRANCH_LENGTH := 4
+## L0 (2026-09-08): 4 -> 6. Con D4 como techo de movimiento, una rama de 4
+## casillas se podía cruzar entera en un solo roll (4 exacto) - "true routing"
+## era real pero se sentía instantáneo, exactamente el feedback del playtest
+## humano ("la ruta B es de pocas casillas"). Con 6, ningún roll único puede
+## atravesar la rama completa (max roll 4 < 6): el jugador queda dentro de la
+## ruta elegida durante al menos 2 rolls, normalmente ~2-3. Ver BoardGenerator
+## (mismo valor, ahora referenciado desde acá) y biome_min/max de EMPTY en
+## ashen_wastes.tres/ember_marsh.tres, ajustados -2 para no romper la
+## generación (ver comentario en BoardGenerator._choose_counts).
+const BRANCH_LENGTH := 6
 
 var fork_index: int = -1
 var route_a: Array[int] = []
@@ -73,3 +82,28 @@ static func display_name(archetype: StringName) -> String:
 		&"recovery": return "RUTA DE RECUPERACIÓN"
 		&"treasure": return "RUTA DEL TESORO"
 		_: return "RUTA EQUILIBRADA"
+
+
+## L0 (2026-09-08): tier 0/1/2 = EASY/MEDIUM/HARD, mismo mapeo que danger_label()
+## pero como índice para VisualTheme.difficulty_color() — antes el panel de
+## elección A/B sólo mostraba texto plano, sin ninguna distinción visual entre
+## rutas más allá de la letra (feedback humano: "cada cosa debería tener su
+## color, su distinción").
+static func danger_tier(archetype: StringName) -> int:
+	match archetype:
+		&"combat": return 2
+		&"treasure": return 1
+		&"recovery": return 0
+		_: return 1
+
+
+## Ícono ya existente en AshenIcon (ver ashen_icon.gd) por arquetipo — ninguno
+## nuevo: reusa los mismos ids que ya se usan para combate/curación/tesoro en
+## el resto de la UI. "balanced" no tiene un foco dominante, así que usa el
+## ícono neutro de ruta (mismo id que el botón de "Comenzar" del menú principal).
+static func icon_id(archetype: StringName) -> StringName:
+	match archetype:
+		&"combat": return &"combat"
+		&"recovery": return &"heal"
+		&"treasure": return &"treasure"
+		_: return &"route"

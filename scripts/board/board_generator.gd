@@ -9,7 +9,9 @@ const _RouteBranchData = preload("res://scripts/board/route_branch_data.gd")
 
 const MAX_GENERATION_ATTEMPTS := 16
 const NO_SEED := -1
-const BRANCH_LENGTH := 4
+## L0 (2026-09-08): antes este archivo tenía su propia copia de BRANCH_LENGTH
+## (duplicada con RouteBranchData.BRANCH_LENGTH, mismo valor a mano en dos
+## lugares). Referenciar la constante única evita que vuelvan a divergir.
 ## Cantidad de forks por run. INITIAL TUNING — un solo fork por run para el
 ## MVP de MAP3D-HUMAN-004; validar en el próximo Human Playtest antes de
 ## considerar más de uno.
@@ -168,7 +170,7 @@ static func validate(tiles: Array[int], biome: BiomeData, fork_index: int = -1) 
 ## Rango de índices "consumidos" por un fork: el propio tile FORK más sus
 ## BRANCH_LENGTH casillas de rama reservadas.
 static func _is_reserved(index: int, fork_index: int) -> bool:
-	return fork_index >= 0 and index >= fork_index and index <= fork_index + BRANCH_LENGTH
+	return fork_index >= 0 and index >= fork_index and index <= fork_index + _RouteBranchData.BRANCH_LENGTH
 
 
 ## Elige, de forma determinística, en qué índice del spine va el fork (o -1
@@ -181,7 +183,7 @@ static func _choose_fork_index(biome: BiomeData, rng: RandomNumberGenerator) -> 
 	if FORK_COUNT <= 0:
 		return -1
 	var lower_bound: int = _elite_start_index(biome.board_length)
-	var upper_bound: int = biome.board_length - 1 - BRANCH_LENGTH - 3
+	var upper_bound: int = biome.board_length - 1 - _RouteBranchData.BRANCH_LENGTH - 3
 	if upper_bound < lower_bound:
 		return -1
 	return rng.randi_range(lower_bound, upper_bound)
@@ -207,7 +209,7 @@ static func _build_branch_content(archetype: StringName, rng: RandomNumberGenera
 	var weights: Dictionary = ROUTE_ARCHETYPES.get(archetype, ROUTE_ARCHETYPES[&"balanced"])
 	var tiles: Array[int] = []
 	var danger_streak := 0
-	for _index: int in BRANCH_LENGTH:
+	for _index: int in _RouteBranchData.BRANCH_LENGTH:
 		var candidates: Array[int] = []
 		for type: int in BRANCH_ALLOWED_TYPES:
 			if danger_streak >= 2 and _is_dangerous(type):
@@ -267,7 +269,7 @@ static func _place_fallback_elite(tiles: Array[int], preferred_index: int) -> vo
 
 
 static func _choose_counts(biome: BiomeData, rng: RandomNumberGenerator, fork_index: int = -1) -> Dictionary:
-	var reserved: int = BRANCH_LENGTH + 1 if fork_index >= 0 else 0
+	var reserved: int = _RouteBranchData.BRANCH_LENGTH + 1 if fork_index >= 0 else 0
 	for _attempt in MAX_GENERATION_ATTEMPTS:
 		var counts: Dictionary = {
 			BoardTileData.TileType.COMBAT: rng.randi_range(biome.combat_min, biome.combat_max),
