@@ -229,8 +229,8 @@ player/companion below.
 Important:
 
 scripts/combat/combat.gd
-has grown to approximately 2148 lines
-in the latest audit.
+has grown to approximately 2360 lines
+in the latest audit (2026-09-07).
 
 This is the largest architectural risk
 for future Combat3D.
@@ -374,9 +374,11 @@ FORGE SHARDS.
 
 Shop exists.
 
-Latest audit identified
-Biome Material purchasing
-as a partially connected area.
+Latest audit (2026-09-07) confirmed Biome Material
+has NO shop purchase path at all: ShopOfferData.RewardType
+has no biome-material entry. Materials are earned only via
+run events and spent only in refinement. This is a CONTENT
+GAP (no offer authored), not a partially-broken integration.
 
 Do not assume shop is unfinished globally;
 audit the specific requested behavior first.
