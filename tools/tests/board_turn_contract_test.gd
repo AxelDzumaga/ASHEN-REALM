@@ -104,16 +104,24 @@ func _test_tile_resolution_contract() -> void:
 ## gate/cooldown) — esa mecánica fue la causa raíz de "A y B se sienten como
 ## la misma ruta" y queda superada, no combinada con la nueva.
 func _test_shared_controller_contract() -> void:
-	# spine: 0 EMPTY, 1 COMBAT, 2 FORK, 3-6 reservado (placeholder), 7 EVENT
-	# (merge), 8 BOSS. Ruta A: COMBAT,COMBAT,TREASURE,HEAL. Ruta B:
-	# EVENT,HEAL,EMPTY,TREASURE.
+	# spine: 0 EMPTY, 1 COMBAT, 2 FORK, 3-8 reservado (placeholder, 6 casillas —
+	# L0 2026-09-08: BRANCH_LENGTH 4->6, ver comentario en RouteBranchData),
+	# 9 EVENT (merge), 10 BOSS. Ruta A: COMBAT,COMBAT,TREASURE,HEAL,EMPTY,EVENT.
+	# Ruta B: EVENT,HEAL,EMPTY,TREASURE,COMBAT,EMPTY.
 	var sequence: Array[int] = [
 		BoardTileData.TileType.EMPTY, BoardTileData.TileType.COMBAT, BoardTileData.TileType.FORK,
 		BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY,
+		BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY,
 		BoardTileData.TileType.EVENT, BoardTileData.TileType.BOSS,
 	]
-	var route_a: Array[int] = [BoardTileData.TileType.COMBAT, BoardTileData.TileType.COMBAT, BoardTileData.TileType.TREASURE, BoardTileData.TileType.HEAL]
-	var route_b: Array[int] = [BoardTileData.TileType.EVENT, BoardTileData.TileType.HEAL, BoardTileData.TileType.EMPTY, BoardTileData.TileType.TREASURE]
+	var route_a: Array[int] = [
+		BoardTileData.TileType.COMBAT, BoardTileData.TileType.COMBAT, BoardTileData.TileType.TREASURE,
+		BoardTileData.TileType.HEAL, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EVENT,
+	]
+	var route_b: Array[int] = [
+		BoardTileData.TileType.EVENT, BoardTileData.TileType.HEAL, BoardTileData.TileType.EMPTY,
+		BoardTileData.TileType.TREASURE, BoardTileData.TileType.COMBAT, BoardTileData.TileType.EMPTY,
+	]
 	var branch_data := RouteBranchDataSource.new(2, route_a, route_b, &"combat", &"recovery")
 
 	# PARTE 1 — el roll aterriza EXACTO en el fork (remaining == 0): sólo hay
@@ -147,12 +155,14 @@ func _test_shared_controller_contract() -> void:
 	_check("route_a_node3_is_treasure", int(resolution_a2.get("tile_type", -1)) == BoardTileData.TileType.TREASURE)
 	controller_a.complete_resolution()
 
-	var plan_a3: Dictionary = controller_a.request_roll(2)
+	# board_position=5 tras la parte anterior; merge_index = fork_index(2) +
+	# BRANCH_LENGTH(6) + 1 = 9, así que un roll de 4 aterriza justo en el merge.
+	var plan_a3: Dictionary = controller_a.request_roll(4)
 	while controller_a.has_pending_steps():
 		controller_a.advance_one_step()
 	var resolution_a3: Dictionary = controller_a.request_tile_resolution()
 	_check("merge_clears_branch_state", run_a.active_branch == RouteBranchDataSource.NONE and run_a.active_fork_index == -1)
-	_check("merge_tile_reads_spine_content", int(resolution_a3.get("tile_type", -1)) == BoardTileData.TileType.EVENT and int(plan_a3.get("destinations", [])[0]) == 7)
+	_check("merge_tile_reads_spine_content", int(resolution_a3.get("tile_type", -1)) == BoardTileData.TileType.EVENT and int(plan_a3.get("destinations", [])[0]) == 9)
 	controller_a.complete_resolution()
 
 	# PARTE 2 — el roll ALCANZA el fork con pasos restantes (remaining > 0):
