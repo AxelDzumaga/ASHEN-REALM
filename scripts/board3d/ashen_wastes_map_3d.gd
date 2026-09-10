@@ -69,6 +69,16 @@ func configure_playtest_mode(enabled: bool) -> void:
 	_playtest_mode = enabled
 
 
+## Active Run Persistence — forwarded to BoardTurnController's injected
+## checkpoint hook. No-ops with no selected character (e.g. isolated
+## tests, --map3d-prototype launches, which bypass character selection
+## entirely) rather than erroring.
+func _checkpoint_active_run(run: RunState, phase: String, reason: String) -> void:
+	if CharacterProfileRepository.selected_character_id.is_empty():
+		return
+	ActiveRunRepository.checkpoint(CharacterProfileRepository.selected_character_id, run, phase, reason)
+
+
 func _ready() -> void:
 	if theme == null:
 		theme = VisualTheme.create_theme()
@@ -84,7 +94,7 @@ func _ready() -> void:
 	_build_connections()
 	_build_tiles()
 	_build_hud()
-	_turn_controller = BoardTurnControllerSource.new(_run, _run.board_tile_sequence, _dice_roller)
+	_turn_controller = BoardTurnControllerSource.new(_run, _run.board_tile_sequence, _dice_roller, _checkpoint_active_run)
 	_place_player_immediately(_run.board_position)
 	_apply_equipment_visuals()
 	_update_hud()

@@ -35,6 +35,15 @@ func configure(is_victory: bool) -> void:
 	_is_victory = is_victory
 
 
+func _checkpoint_terminal(reason: String) -> void:
+	if CharacterProfileRepository.selected_character_id.is_empty() or not RunManager.has_active_run():
+		return
+	ActiveRunRepository.checkpoint(
+		CharacterProfileRepository.selected_character_id, RunManager.current_run,
+		ActiveRunRepository.PHASE_RUN_COMPLETE_PENDING_DEPOSIT, reason, _is_victory,
+	)
+
+
 func _ready() -> void:
 	if not RunManager.has_active_run():
 		push_error("Run Result requires an active run.")
@@ -48,9 +57,17 @@ func _ready() -> void:
 			return
 	else:
 		RunManager.current_run.prepare_loot(false)
+	# Active Run Persistence terminal transaction (§21): checkpoint the
+	# full pre-deposit state (loot now resolved either way) before
+	# attempting deposit, so a crash here resumes straight back into this
+	# same terminal step rather than replaying gameplay.
+	_checkpoint_terminal("pre_deposit")
 	if not RunManager.current_run.rewards_deposited and not SaveManager.deposit_run(RunManager.current_run):
 		push_error("Run Result could not persist run rewards and metaprogression.")
 		return
+	# Mirrors rewards_deposited=true onto disk immediately — the next
+	# write after deposit_run() returns, nothing else runs in between.
+	_checkpoint_terminal("post_deposit")
 	TelemetryManager.track_run_finished(
 		RunManager.current_run,
 		&"victory" if _is_victory else &"defeat",
@@ -333,6 +350,15 @@ func _attach_ash_icon() -> void:
 
 func _on_return_button_pressed() -> void:
 	return_button.disabled = true
+	# Active Run Persistence DELETE point (§28): only ever here, once the
+	# terminal deposit is confirmed resolved — never from an incidental
+	# navigation (show_lobby()/show_main_menu() do NOT delete active runs).
+	if (
+		not CharacterProfileRepository.selected_character_id.is_empty()
+		and RunManager.has_active_run()
+		and RunManager.current_run.rewards_deposited
+	):
+		ActiveRunRepository.delete_active_run(CharacterProfileRepository.selected_character_id)
 	return_to_lobby_requested.emit()
 
 

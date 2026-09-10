@@ -499,10 +499,22 @@ func _launch_map3d_prototype() -> void:
 	show_board()
 
 
+## Active Run Persistence — game.gd's own checkpoint calls (the ones that
+## don't go through BoardTurnController's injected hook: entering a
+## reward-granting screen, a reward callback's mutation committing, the
+## terminal boundary). No-ops with no selected character (isolated tests,
+## --map3d-prototype launches) or no active run.
+func _checkpoint_active_run(phase: String, reason: String, terminal_is_victory: bool = false) -> void:
+	if CharacterProfileRepository.selected_character_id.is_empty() or not RunManager.has_active_run():
+		return
+	ActiveRunRepository.checkpoint(CharacterProfileRepository.selected_character_id, RunManager.current_run, phase, reason, terminal_is_victory)
+
+
 func show_combat(is_boss: bool = false, is_elite: bool = false) -> void:
 	if _run_terminal_transition_started or not RunManager.has_active_run():
 		return
 	AudioManager.set_music_state(AudioManager.MusicState.BOSS if is_boss else AudioManager.MusicState.COMBAT)
+	_checkpoint_active_run(ActiveRunRepository.PHASE_IN_ENCOUNTER, "entering_combat")
 	var combat := COMBAT_SCENE.instantiate()
 	combat.configure(RunManager.current_run.biome_data, is_boss, is_elite)
 	combat.combat_won.connect(_on_combat_won)
@@ -512,6 +524,7 @@ func show_combat(is_boss: bool = false, is_elite: bool = false) -> void:
 
 func show_event() -> void:
 	AudioManager.set_music_state(AudioManager.MusicState.BOARD)
+	_checkpoint_active_run(ActiveRunRepository.PHASE_IN_ENCOUNTER, "entering_event")
 	var event_screen := EVENT_SCENE.instantiate()
 	event_screen.configure(RunManager.current_run.biome_data.event_pool)
 	event_screen.event_resolved.connect(_on_event_resolved)
@@ -520,6 +533,7 @@ func show_event() -> void:
 
 func show_treasure() -> void:
 	AudioManager.set_music_state(AudioManager.MusicState.BOARD)
+	_checkpoint_active_run(ActiveRunRepository.PHASE_IN_ENCOUNTER, "entering_treasure")
 	var treasure_screen := TREASURE_SCENE.instantiate()
 	treasure_screen.continue_requested.connect(_on_treasure_continue_requested)
 	_set_screen(treasure_screen, true)
@@ -722,6 +736,7 @@ func _on_combat_won(is_boss: bool, is_elite: bool) -> void:
 	if is_boss:
 		RunManager.current_run.record_boss_victory()
 		RunManager.current_run.add_run_xp(RunLevelConfig.BOSS_COMBAT_XP)
+		_checkpoint_active_run(ActiveRunRepository.PHASE_REWARD_PENDING, "boss_defeated")
 		show_boss_reward()
 		return
 
@@ -732,6 +747,7 @@ func _on_combat_won(is_boss: bool, is_elite: bool) -> void:
 		RunManager.current_run.record_normal_combat_victory()
 		RunManager.current_run.add_run_xp(RunLevelConfig.NORMAL_COMBAT_XP)
 	_pending_post_combat_is_elite = is_elite
+	_checkpoint_active_run(ActiveRunRepository.PHASE_REWARD_PENDING, "combat_won")
 	if RunManager.current_run.pending_level_ups > 0:
 		show_level_up_selection()
 		return
@@ -748,6 +764,7 @@ func _continue_post_combat_rewards() -> void:
 
 
 func _on_level_up_upgrade_selected(_upgrade: UpgradeData) -> void:
+	_checkpoint_active_run(ActiveRunRepository.PHASE_REWARD_PENDING, "level_up_selected")
 	if RunManager.current_run.pending_level_ups > 0:
 		show_level_up_selection()
 	else:
@@ -758,6 +775,7 @@ func _on_combat_lost(_is_boss: bool, _is_elite: bool) -> void:
 	if _run_terminal_transition_started:
 		return
 	_run_terminal_transition_started = true
+	_checkpoint_active_run(ActiveRunRepository.PHASE_RUN_COMPLETE_PENDING_DEPOSIT, "combat_lost", false)
 	if is_instance_valid(board_screen) and board_screen.has_method("terminate_after_defeat"):
 		board_screen.call("terminate_after_defeat")
 	_discard_board()
@@ -765,28 +783,33 @@ func _on_combat_lost(_is_boss: bool, _is_elite: bool) -> void:
 
 
 func _on_event_resolved() -> void:
+	_checkpoint_active_run(ActiveRunRepository.PHASE_ON_BOARD, "event_resolved")
 	show_board()
 	board_screen.resume_after_interaction("La decisión está tomada. Seguí adelante.")
 
 
 func _on_treasure_continue_requested() -> void:
+	_checkpoint_active_run(ActiveRunRepository.PHASE_ON_BOARD, "treasure_resolved")
 	show_board()
 	board_screen.resume_after_interaction("Tesoro reclamado. Seguí adelante.")
 
 
 func _on_upgrade_selected(_upgrade: UpgradeData) -> void:
 	RunManager.current_run.upgrades_obtained += 1
+	_checkpoint_active_run(ActiveRunRepository.PHASE_ON_BOARD, "upgrade_selected")
 	show_board()
 	board_screen.resume_after_combat()
 
 
 func _on_skill_augment_selected(_augment: SkillAugmentData) -> void:
+	_checkpoint_active_run(ActiveRunRepository.PHASE_ON_BOARD, "skill_augment_selected")
 	show_board()
 	board_screen.resume_after_combat()
 
 
 func _on_boss_reward_selected(_reward: BossRewardData) -> void:
 	RunManager.current_run.prepare_loot(true)
+	_checkpoint_active_run(ActiveRunRepository.PHASE_RUN_COMPLETE_PENDING_DEPOSIT, "boss_reward_selected", true)
 	if _map3d_prototype_mode:
 		_show_map3d_prototype_result(true)
 		return
