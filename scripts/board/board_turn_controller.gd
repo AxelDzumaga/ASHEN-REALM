@@ -14,6 +14,16 @@ extends RefCounted
 ## BoardGenerator — RouteBranchData es un class_name nuevo en este mismo
 ## cambio, y este controller se instancia desde el arranque de una run.
 const _RouteBranchData = preload("res://scripts/board/route_branch_data.gd")
+const _BoardTileResolutionAdapter = preload("res://scripts/board/board_tile_resolution_adapter.gd")
+
+## Active Run Persistence checkpoint phases. Plain string literals here
+## (not a reference to ActiveRunRepository's own constants) so this
+## presentation-independent domain controller stays decoupled from the
+## save/persistence autoload — round_trip_phase_constants_match in
+## active_run_checkpoint_wiring_test.gd proves these stay in sync.
+const CHECKPOINT_PHASE_ON_BOARD := "ON_BOARD"
+const CHECKPOINT_PHASE_ROUTE_DECISION_PENDING := "ROUTE_DECISION_PENDING"
+const CHECKPOINT_PHASE_ENCOUNTER_PENDING := "ENCOUNTER_PENDING"
 
 signal roll_received(result: int, origin: int, destinations: Array[int])
 signal route_choice_requested(destinations: Array[int], origin: int)
@@ -38,6 +48,12 @@ var state: State = State.IDLE
 var run: RunState
 var sequence: Array[int] = []
 var dice_roller: DiceRoller
+## Active Run Persistence — optional hook, called as
+## checkpoint_callback.call(run, phase, reason) at safe checkpoint
+## boundaries (SAFE CHECKPOINTS ONLY, approved design — never per
+## animation frame/per step). A no-op Callable by default so every
+## existing caller/test that doesn't pass one is unaffected.
+var checkpoint_callback: Callable = Callable()
 
 var _origin: int = -1
 var _destinations: Array[int] = []
@@ -46,10 +62,16 @@ var _last_roll: int = 0
 var _pending_fork_index: int = -1
 
 
-func _init(run_state: RunState, tile_sequence: Array[int], roller: DiceRoller = null) -> void:
+func _init(run_state: RunState, tile_sequence: Array[int], roller: DiceRoller = null, checkpoint: Callable = Callable()) -> void:
 	run = run_state
 	sequence = tile_sequence
 	dice_roller = roller if roller != null else DiceRoller.new()
+	checkpoint_callback = checkpoint
+
+
+func _checkpoint(phase: String, reason: String) -> void:
+	if checkpoint_callback.is_valid():
+		checkpoint_callback.call(run, phase, reason)
 
 
 func is_turn_locked() -> bool:
@@ -98,10 +120,12 @@ func advance_one_step() -> int:
 		_pending_fork_index = to_index
 		state = State.ROUTE_DECISION
 		route_choice_required.emit(to_index, fork)
+		_checkpoint(CHECKPOINT_PHASE_ROUTE_DECISION_PENDING, "fork_reached")
 		return to_index
 	if to_index == _selected_destination:
 		state = State.AWAITING_RESOLUTION
 		movement_completed.emit(to_index)
+		_checkpoint(CHECKPOINT_PHASE_ON_BOARD, "movement_completed")
 	return to_index
 
 
@@ -117,6 +141,7 @@ func choose_branch(branch: int) -> bool:
 	run.active_branch = branch
 	run.active_fork_index = _pending_fork_index
 	_pending_fork_index = -1
+	_checkpoint(CHECKPOINT_PHASE_ON_BOARD, "route_choice_committed")
 	if run.board_position == _selected_destination:
 		# El fork era el destino final de este roll (remaining == 0): el
 		# turno termina acá. El contenido de la ruta se resuelve en próximos
@@ -138,7 +163,22 @@ func request_tile_resolution() -> Dictionary:
 	state = State.RESOLVING
 	var tile_type: int = _effective_tile_type(run.board_position)
 	tile_resolution_requested.emit(tile_type, run.board_position)
+	_checkpoint(_phase_for_tile_type(tile_type), "tile_landing_committed")
 	return {"tile_type": tile_type, "position": run.board_position}
+
+
+## EMPTY/HEAL/FORK resolve inline (BoardTileResolutionAdapter.resolve_inline())
+## with no screen transition, so the checkpoint right after landing on one
+## of them is already back to ON_BOARD. Everything else needs a screen —
+## the checkpoint here marks ENCOUNTER_PENDING; the presentation layer
+## marks IN_ENCOUNTER itself once that screen actually opens.
+func _phase_for_tile_type(tile_type: int) -> String:
+	var intent: int = _BoardTileResolutionAdapter.get_intent(tile_type)
+	match intent:
+		_BoardTileResolutionAdapter.Intent.EMPTY, _BoardTileResolutionAdapter.Intent.HEAL, _BoardTileResolutionAdapter.Intent.FORK:
+			return CHECKPOINT_PHASE_ON_BOARD
+		_:
+			return CHECKPOINT_PHASE_ENCOUNTER_PENDING
 
 
 func complete_resolution() -> void:
