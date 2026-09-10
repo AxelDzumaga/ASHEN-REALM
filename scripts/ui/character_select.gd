@@ -19,12 +19,23 @@ var _pending_delete_id: String = ""
 
 func _ready() -> void:
 	back_button.pressed.connect(func() -> void: back_requested.emit())
-	CharacterProfileRepository.characters_changed.connect(_refresh)
+	CharacterProfileRepository.characters_changed.connect(_on_characters_changed)
 	_refresh()
 
 
-func _refresh() -> void:
+func _on_characters_changed() -> void:
 	_pending_delete_id = ""
+	_refresh()
+
+
+## Rebuilds the slot rows from the current repository state. Does NOT
+## reset _pending_delete_id itself — it is also called from the "arm"
+## step of the delete confirmation to redraw with the new armed state,
+## and resetting it here would wipe that state before it's ever shown.
+## Callers that need the armed state cleared (an actual deletion
+## completing, or CharacterProfileRepository.characters_changed firing
+## for any other reason) clear it explicitly before calling this.
+func _refresh() -> void:
 	for child: Node in slots_container.get_children():
 		child.queue_free()
 	var characters: Array = CharacterProfileRepository.list_characters()
@@ -39,6 +50,7 @@ func _build_occupied_slot(entry: Dictionary) -> Control:
 	var character_id: String = String(entry.get("character_id", ""))
 	var corrupt: bool = bool(entry.get("corrupt", false))
 	var row := HBoxContainer.new()
+	row.set_meta("character_id", character_id)
 	row.add_theme_constant_override("separation", 10)
 
 	var select_button := Button.new()
@@ -84,8 +96,8 @@ func _on_select_pressed(character_id: String) -> void:
 ## to the wrong character.
 func _on_delete_pressed(character_id: String) -> void:
 	if _pending_delete_id == character_id:
-		CharacterProfileRepository.delete_character(character_id)
 		_pending_delete_id = ""
+		CharacterProfileRepository.delete_character(character_id)
 	else:
 		_pending_delete_id = character_id
 		_refresh()

@@ -19,7 +19,7 @@ func _ready() -> void:
 	_test_main_menu_zero_characters()
 	_test_character_create_flow()
 	_test_main_menu_one_character()
-	_test_character_select_flow()
+	await _test_character_select_flow()
 	_test_main_menu_multi_characters()
 	for key: String in _checks:
 		if not bool(_checks[key]):
@@ -101,7 +101,44 @@ func _test_character_select_flow() -> void:
 	character_select.character_selected.connect(func(id: String) -> void: captured_id[0] = id)
 	character_select.emit_signal("character_selected", second_id)
 	_check("select_emits_chosen_id", String(captured_id[0]) == second_id)
+
+	await _test_two_step_delete_confirmation(character_select, second_id)
 	character_select.queue_free()
+
+
+## Regression coverage for a real bug caught during development: the
+## first press must arm the confirmation (show it, NOT delete yet); only
+## a second press on the same slot must actually delete.
+func _test_two_step_delete_confirmation(character_select: Control, character_id: String) -> void:
+	var row: HBoxContainer = _find_slot_row(character_select, character_id)
+	if row == null:
+		_check("delete_confirmation_row_found", false)
+		return
+	var delete_button: Button = row.get_child(1)
+
+	delete_button.emit_signal("pressed")
+	_check("delete_first_press_does_not_delete_yet", CharacterProfileRepository.character_exists(character_id))
+	# _refresh() rebuilds rows with new Node instances; the old ones are
+	# only queue_free()'d (removal deferred to frame end), so a frame must
+	# pass before re-querying by character_id resolves to the new row
+	# instead of the stale about-to-be-freed one.
+	await get_tree().process_frame
+	var armed_row: HBoxContainer = _find_slot_row(character_select, character_id)
+	var armed_delete_button: Button = armed_row.get_child(1)
+	_check("delete_first_press_shows_confirm_state", armed_delete_button.text != "ELIMINAR")
+
+	armed_delete_button.emit_signal("pressed")
+	_check("delete_second_press_actually_deletes", not CharacterProfileRepository.character_exists(character_id))
+
+	CharacterProfileRepository.create_character("Second Hero")
+
+
+func _find_slot_row(character_select: Control, character_id: String) -> HBoxContainer:
+	var slots_container: VBoxContainer = character_select.get_node("%SlotsContainer")
+	for child: Node in slots_container.get_children():
+		if child is HBoxContainer and String(child.get_meta("character_id", "")) == character_id:
+			return child
+	return null
 
 
 func _test_main_menu_multi_characters() -> void:

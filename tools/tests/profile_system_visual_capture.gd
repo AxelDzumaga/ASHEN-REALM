@@ -28,9 +28,21 @@ func _ready() -> void:
 	await _capture_character_select("05_character_select_full")
 
 	await _capture_character_create("06_character_create_empty")
+	await _capture_delete_armed("07_character_select_delete_armed")
 
 	print("PROFILE_SYSTEM_VISUAL_CAPTURE done")
 	get_tree().quit(0)
+
+
+func _capture_delete_armed(name: String) -> void:
+	var character_select := CHARACTER_SELECT_SCENE.instantiate()
+	_swap(character_select)
+	await get_tree().process_frame
+	var slots: VBoxContainer = character_select.get_node("%SlotsContainer")
+	var first_row: HBoxContainer = slots.get_child(0)
+	var delete_button: Button = first_row.get_child(1)
+	delete_button.emit_signal("pressed")
+	await _save(name)
 
 
 func _swap(screen: Control) -> void:

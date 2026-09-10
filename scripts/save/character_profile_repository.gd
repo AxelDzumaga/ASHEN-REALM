@@ -327,7 +327,17 @@ func _scan_valid_characters() -> Array:
 				})
 		entry_name = dir.get_next()
 	dir.list_dir_end()
-	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("created_at", 0)) < int(b.get("created_at", 0)))
+	# created_at has 1-second resolution, so characters created in the same
+	# second would otherwise tie and reorder unpredictably on every rescan
+	# (directory listing order is not guaranteed stable). character_id
+	# breaks the tie deterministically, so the list order stays fixed
+	# across repeated listings even when creation timestamps collide.
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var created_a: int = int(a.get("created_at", 0))
+		var created_b: int = int(b.get("created_at", 0))
+		if created_a != created_b:
+			return created_a < created_b
+		return String(a.get("character_id", "")) < String(b.get("character_id", "")))
 	if result.size() > MAX_CHARACTER_SLOTS:
 		push_warning("More than MAX_CHARACTER_SLOTS (%d) valid directories found under %s; keeping the oldest %d for selection, excess left on disk untouched." % [MAX_CHARACTER_SLOTS, profiles_root, MAX_CHARACTER_SLOTS])
 		result = result.slice(0, MAX_CHARACTER_SLOTS)
