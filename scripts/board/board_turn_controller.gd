@@ -221,11 +221,19 @@ func abort_turn() -> void:
 ## reservado de un fork (o sin carril elegido todavía) lee el spine normal,
 ## exactamente como antes de esta feature.
 func _effective_tile_type(index: int) -> int:
-	if run.active_branch != _RouteBranchData.NONE and run.active_fork_index >= 0:
-		var branch: RefCounted = run.route_branches.get(run.active_fork_index)
-		if branch != null and index > run.active_fork_index and index <= run.active_fork_index + _RouteBranchData.BRANCH_LENGTH:
-			return branch.tile_type_for(run.active_branch, index)
-	return sequence[index]
+	return resolve_effective_tile_type(run, sequence, index)
+
+
+## Static, callable without a live controller instance — Active Run
+## Persistence resume (game.gd) needs this same branch-aware lookup to
+## decide which screen to reopen for a checkpoint landed at
+## ENCOUNTER_PENDING, without constructing a full controller first.
+static func resolve_effective_tile_type(run_state: RunState, tile_sequence: Array[int], index: int) -> int:
+	if run_state.active_branch != _RouteBranchData.NONE and run_state.active_fork_index >= 0:
+		var branch: RefCounted = run_state.route_branches.get(run_state.active_fork_index)
+		if branch != null and index > run_state.active_fork_index and index <= run_state.active_fork_index + _RouteBranchData.BRANCH_LENGTH:
+			return branch.tile_type_for(run_state.active_branch, index)
+	return tile_sequence[index]
 
 
 func _fork_at(index: int) -> RefCounted:

@@ -26,6 +26,8 @@ const BOSS_REWARD_SCENE := preload("res://scenes/rewards/boss_reward.tscn")
 const RUN_RESULT_SCENE := preload("res://scenes/results/run_result.tscn")
 const FeatureFlagsSource = preload("res://scripts/core/feature_flags.gd")
 const MapSandboxContextSource = preload("res://scripts/board3d/map_sandbox_context.gd")
+const BoardTurnControllerSource = preload("res://scripts/board/board_turn_controller.gd")
+const BoardTileResolutionAdapterSource = preload("res://scripts/board/board_tile_resolution_adapter.gd")
 
 var current_screen: Control
 var board_screen: Control
@@ -345,7 +347,9 @@ func show_main_menu() -> void:
 	main_menu.settings_requested.connect(show_settings.bind(show_main_menu))
 	main_menu.how_to_play_requested.connect(show_how_to_play_from_main)
 	_set_screen(main_menu)
-	main_menu.configure_for_characters(CharacterProfileRepository.list_characters())
+	var characters: Array = CharacterProfileRepository.list_characters()
+	var has_active_run: bool = characters.size() == 1 and ActiveRunRepository.has_active_run(String(characters[0].get("character_id", "")))
+	main_menu.configure_for_characters(characters, has_active_run)
 
 
 ## Profile System startup UX (approved design): 0 characters -> open
@@ -381,7 +385,121 @@ func _enter_character(character_id: String) -> void:
 		push_warning("No se pudo seleccionar el personaje %s." % character_id)
 		show_main_menu()
 		return
-	show_lobby()
+	if not ActiveRunRepository.has_active_run(character_id):
+		show_lobby()
+		return
+	var loaded: Dictionary = ActiveRunRepository.load_active_run(character_id)
+	if not bool(loaded.get("recoverable", false)):
+		# §22/§25: preserve nothing further to do here — a genuinely
+		# corrupt MAIN was already diagnostically preserved by
+		# AtomicJsonStore during the recovery attempt itself; this branch
+		# also covers content drift (e.g. a biome that no longer resolves)
+		# which has nothing to preserve. Either way, permanent ProfileData
+		# was never touched, and the character must not be permanently
+		# stuck unable to start a new expedition — clear the unusable file.
+		ActiveRunRepository.delete_active_run(character_id)
+		show_run_recovery_failed()
+		return
+	_resume_active_run(loaded)
+
+
+func show_run_recovery_failed() -> void:
+	AudioManager.set_music_state(AudioManager.MusicState.LOBBY)
+	var screen := Control.new()
+	screen.name = "RunRecoveryFailed"
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen.add_child(center)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 18)
+	center.add_child(column)
+	var title := Label.new()
+	title.text = "LA EXPEDICIÓN NO PUDO RECUPERARSE"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	column.add_child(title)
+	var message := Label.new()
+	message.text = "Tu personaje y tu progreso permanente están a salvo. La expedición en curso no pudo restaurarse."
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.custom_minimum_size = Vector2(420, 0)
+	column.add_child(message)
+	var back_button := Button.new()
+	back_button.theme_type_variation = &"PrimaryButton"
+	back_button.text = "VOLVER AL REFUGIO"
+	back_button.pressed.connect(show_lobby)
+	column.add_child(back_button)
+	_set_screen(screen)
+	back_button.grab_focus()
+
+
+## Active Run Persistence resume dispatcher (§50): the persisted phase
+## chooses the broad resume path; RunState's own existing markers (read
+## by the normal screens themselves — pending_level_ups,
+## pending_level_up_option_ids, loot_rolled, etc, all already restored by
+## RunState.from_dictionary()) choose the exact reward sub-step, never a
+## scene name encoded in persisted data.
+func _resume_active_run(loaded: Dictionary) -> void:
+	var run: RunState = loaded.get("run")
+	var phase: String = String(loaded.get("phase", ""))
+	RunManager.resume_run(run)
+	match phase:
+		ActiveRunRepository.PHASE_ON_BOARD, ActiveRunRepository.PHASE_ROUTE_DECISION_PENDING:
+			show_board()
+		ActiveRunRepository.PHASE_ENCOUNTER_PENDING, ActiveRunRepository.PHASE_IN_ENCOUNTER:
+			_resume_into_encounter(run)
+		ActiveRunRepository.PHASE_REWARD_PENDING:
+			_resume_into_reward_flow(run)
+		ActiveRunRepository.PHASE_RUN_COMPLETE_PENDING_DEPOSIT:
+			show_run_result(bool(loaded.get("terminal_is_victory", false)))
+		_:
+			# Should be unreachable — ActiveRunRepository.load_active_run()
+			# already rejects any envelope whose phase isn't one of the
+			# known values before returning recoverable=true. Fail toward
+			# the safest option rather than an unhandled dispatch.
+			show_board()
+
+
+## ENCOUNTER_PENDING/IN_ENCOUNTER both mean "re-enter the same encounter
+## from its pre-encounter checkpoint" (Encounter Checkpoint Resume,
+## approved design) — never an attempt to reconstruct mid-combat state.
+## Re-derives which screen from the tile the run is actually standing on,
+## the same branch-aware lookup BoardTurnController itself uses.
+func _resume_into_encounter(run: RunState) -> void:
+	var tile_type: int = BoardTurnControllerSource.resolve_effective_tile_type(run, run.board_tile_sequence, run.board_position)
+	match BoardTileResolutionAdapterSource.get_intent(tile_type):
+		BoardTileResolutionAdapterSource.Intent.COMBAT:
+			show_combat(false, false)
+		BoardTileResolutionAdapterSource.Intent.ELITE:
+			show_combat(false, true)
+		BoardTileResolutionAdapterSource.Intent.BOSS:
+			show_combat(true, false)
+		BoardTileResolutionAdapterSource.Intent.EVENT:
+			show_event()
+		BoardTileResolutionAdapterSource.Intent.TREASURE:
+			show_treasure()
+		_:
+			# EMPTY/HEAL/FORK never checkpoint at this phase (BoardTurnController
+			# marks them ON_BOARD, not ENCOUNTER_PENDING) — unreachable in
+			# practice; falling back to the board is still safe.
+			show_board()
+
+
+## REWARD_PENDING: pending_level_ups is the only sub-step RunState marks
+## unambiguously; anything past it re-derives via the same
+## RunRewardResolver.choose() the live flow already uses. Known,
+## documented limitation: _pending_post_combat_is_elite (whether the
+## reward tier should be elite-weighted) is game.gd session state, not
+## persisted on RunState — a resume here always falls back to treating it
+## as a normal encounter's reward. This can never duplicate or lose a
+## permanent reward; at worst an elite-tier reward offer resumes as a
+## normal-tier one.
+func _resume_into_reward_flow(run: RunState) -> void:
+	if run.pending_level_ups > 0:
+		show_level_up_selection()
+		return
+	_pending_post_combat_is_elite = false
+	_continue_post_combat_rewards()
 
 
 func show_lobby() -> void:
@@ -1185,6 +1303,15 @@ func _close_pause() -> void:
 
 
 func _confirm_abandon() -> void:
+	# Active Run Persistence — explicit abandon (§20): delete the active
+	# run artifacts, never deposit anything, never touch permanent
+	# ProfileData. Reachable only from the board's pause menu, which is
+	# structurally unreachable once a run has reached
+	# RUN_COMPLETE_PENDING_DEPOSIT (combat/RunResult own no pause access,
+	# see _connect_board_screen()) — satisfying "abandon disabled once
+	# terminal" without an extra explicit phase check.
+	if not CharacterProfileRepository.selected_character_id.is_empty():
+		ActiveRunRepository.delete_active_run(CharacterProfileRepository.selected_character_id)
 	_close_pause()
 	show_lobby()
 

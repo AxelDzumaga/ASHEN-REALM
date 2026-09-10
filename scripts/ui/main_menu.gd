@@ -75,14 +75,18 @@ func _on_new_character_pressed() -> void:
 ## Profile System startup UX (approved design): 0 characters -> NUEVA
 ## PARTIDA; 1 -> CONTINUAR directly (no selector shown) with a name/level
 ## summary and a NUEVO PERSONAJE option; 2-3 -> SELECCIONAR PERSONAJE.
-func configure_for_characters(characters: Array) -> void:
+## `has_active_run` (only meaningful in the one-character case) swaps the
+## label to CONTINUAR EXPEDICIÓN — Active Run Persistence's Continue UX —
+## so a player can tell "resume where I left off" apart from "nothing in
+## progress, just enter the Refuge".
+func configure_for_characters(characters: Array, has_active_run: bool = false) -> void:
 	var count: int = characters.size()
 	new_character_button.visible = count == 1
 	if count == 0:
 		start_game_button.text = "NUEVA PARTIDA"
 		character_summary_label.visible = false
 	elif count == 1:
-		start_game_button.text = "CONTINUAR"
+		start_game_button.text = "CONTINUAR EXPEDICIÓN" if has_active_run else "CONTINUAR"
 		var entry: Dictionary = characters[0]
 		var display_name: String = String(entry.get("display_name", ""))
 		var level: int = int(entry.get("player_level", 1))
