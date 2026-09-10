@@ -219,6 +219,17 @@ func deposit_run(run_state: RunState) -> bool:
 	if is_future_save_loaded or run_state == null or run_state.rewards_deposited:
 		return false
 
+	# Active Run Persistence idempotency (P0 correctness): a resumed run
+	# whose permanent reward was already committed to profile.json in a
+	# previous attempt must NEVER be granted again — this is the fix for
+	# the crash window between "profile saved" and "active_run.json
+	# updated to reflect it". run_id empty never matches (a fresh profile's
+	# last_deposited_run_id also defaults to "", which must not look like
+	# a match for a run that was never actually deposited).
+	if not run_state.run_id.is_empty() and profile.last_deposited_run_id == run_state.run_id:
+		run_state.rewards_deposited = true
+		return true
+
 	var profile_before: Dictionary = profile.to_dictionary()
 	begin_save_transaction()
 	run_state.player_xp_earned = PlayerProgressionConfig.calculate_run_xp(run_state)
@@ -253,6 +264,12 @@ func deposit_run(run_state: RunState) -> bool:
 		profile.total_defeats += 1
 	if not run_state.pending_loot_id.is_empty():
 		_grant_or_salvage_equipment(run_state.pending_loot_id, run_state)
+	if not run_state.run_id.is_empty():
+		# Written in the SAME ProfileData transaction as the reward
+		# mutations above, so the idempotency marker and the rewards it
+		# guards are one atomic write — never two writes that could land
+		# on opposite sides of a crash.
+		profile.last_deposited_run_id = run_state.run_id
 	var milestone_result: MilestoneResolverSource.CompletionResult = MilestoneResolverSource.evaluate(profile)
 	profile_changed.emit()
 	save_profile()
