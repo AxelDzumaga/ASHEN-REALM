@@ -66,6 +66,14 @@ var display_name: String = ""
 var created_at: int = 0
 var last_played_at: int = 0
 
+## Active Run Persistence — reward-deposit idempotency marker. Holds the
+## run_id of the most recently deposited expedition; SaveManager.deposit_run()
+## refuses to re-apply permanent rewards for a run whose id already matches
+## this, so a crash between "profile saved" and "active_run.json updated to
+## reflect it" can never double-grant. Additive, safely defaults to "" for
+## saves written before this field existed — no SAVE_VERSION bump needed.
+var last_deposited_run_id: String = ""
+
 
 func to_dictionary() -> Dictionary:
 	return {
@@ -114,6 +122,7 @@ func to_dictionary() -> Dictionary:
 		"display_name": display_name,
 		"created_at": created_at,
 		"last_played_at": last_played_at,
+		"last_deposited_run_id": last_deposited_run_id,
 	}
 
 
@@ -202,6 +211,7 @@ static func from_dictionary(data: Dictionary) -> ProfileData:
 	profile.display_name = _read_string(data, "display_name")
 	profile.created_at = _read_int(data, "created_at", 0, 0, 99_999_999_999)
 	profile.last_played_at = _read_int(data, "last_played_at", 0, 0, 99_999_999_999)
+	profile.last_deposited_run_id = _read_string(data, "last_deposited_run_id")
 	return profile
 
 

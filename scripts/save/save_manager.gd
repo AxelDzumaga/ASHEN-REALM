@@ -2,6 +2,7 @@ extends Node
 
 const MilestoneCatalogSource = preload("res://scripts/meta/milestone_catalog.gd")
 const MilestoneResolverSource = preload("res://scripts/meta/milestone_resolver.gd")
+const AtomicJsonStoreSource = preload("res://scripts/save/atomic_json_store.gd")
 
 signal profile_changed
 signal codex_discovered(display_name: String)
@@ -14,6 +15,7 @@ enum SaveResult {
 
 const SAVE_VERSION: int = 14
 const SAVE_PATH: String = "user://profile.json"
+const VERSION_KEY: String = "save_version"
 
 var profile: ProfileData = ProfileData.new()
 var save_path: String = SAVE_PATH
@@ -36,8 +38,8 @@ func _ready() -> void:
 ## que ejecutan gameplay real (combate, deposit_run, codex, equipment, etc.)
 ## y por lo tanto pueden disparar save_profile(). Nunca debe alcanzar
 ## user://profile.json — el profile real del jugador/dev.
-## _get_temp_path()/_get_backup_path() derivan de save_path, así que TEMP y
-## BACKUP quedan aislados automáticamente, sin cambios adicionales.
+## AtomicJsonStore deriva TEMP/BACKUP de save_path (".tmp"/".bak"), así que
+## quedan aislados automáticamente, sin cambios adicionales.
 ## Generaliza el patrón ad-hoc "TEST_SAVE" que ya usaban algunos tests
 ## (stage72_systems_runtime_test.gd, stage78_economy_runtime_test.gd,
 ## combined_progression_runtime_test.gd, stage69_meta_test.gd) en un único
@@ -74,44 +76,34 @@ func load_profile() -> bool:
 	profile = ProfileData.new()
 	is_future_save_loaded = false
 	_corrupt_main_pending_preservation = false
-	var temp_path: String = _get_temp_path()
-	var backup_path: String = _get_backup_path()
-	var main_exists: bool = FileAccess.file_exists(save_path)
-	var main_candidate: Dictionary = _read_candidate(save_path, false) if main_exists else _invalid_candidate()
 
-	if bool(main_candidate["valid"]):
-		if int(main_candidate["version"]) <= SAVE_VERSION:
-			_cleanup_residual_temp(temp_path)
-		return _load_candidate(main_candidate, "main")
-
-	if main_exists:
-		_corrupt_main_pending_preservation = true
-		push_warning("The main profile save is invalid. Recovery candidates will be checked without overwriting it.")
-
-	var temp_candidate: Dictionary = _read_candidate(temp_path, true) if FileAccess.file_exists(temp_path) else _invalid_candidate()
-	if bool(temp_candidate["valid"]) and int(temp_candidate["version"]) <= SAVE_VERSION:
-		if _promote_recovery_temp(temp_path):
-			_corrupt_main_pending_preservation = false
+	var result: Dictionary = AtomicJsonStoreSource.load_best_candidate(save_path, VERSION_KEY, SAVE_VERSION)
+	match String(result.get("source", "none")):
+		"main":
+			return _load_candidate(result, "main")
+		"temporary":
 			print("Recovered profile from a complete temporary save.")
-			return _load_candidate(temp_candidate, "temporary")
-		push_warning("A valid temporary profile was found but could not be promoted. It will remain available for recovery.")
-	if bool(temp_candidate["valid"]) and int(temp_candidate["version"]) > SAVE_VERSION:
-		return _load_candidate(temp_candidate, "future temporary save")
-
-	var backup_candidate: Dictionary = _read_candidate(backup_path, false) if FileAccess.file_exists(backup_path) else _invalid_candidate()
-	if bool(backup_candidate["valid"]):
-		if int(backup_candidate["version"]) > SAVE_VERSION:
-			return _load_candidate(backup_candidate, "future backup")
-		if _restore_backup(backup_path, temp_path):
-			_corrupt_main_pending_preservation = false
+			return _load_candidate(result, "temporary")
+		"temporary_unpromotable":
+			push_warning("A valid temporary profile was found but could not be promoted. It will remain available for recovery.")
+		"future_temporary":
+			return _load_candidate(result, "future temporary save")
+		"future_backup":
+			return _load_candidate(result, "future backup")
+		"backup":
 			print("Recovered profile from backup.")
-		else:
+			return _load_candidate(result, "backup")
+		"backup_unrestored":
 			push_warning("The backup profile is valid but MAIN could not be restored. The backup was loaded in memory and left intact.")
-		return _load_candidate(backup_candidate, "backup")
+			_corrupt_main_pending_preservation = bool(result.get("main_was_corrupt", false))
+			return _load_candidate(result, "backup")
+		_:
+			pass
 
 	DiscoveryTracker.sanitize_profile(profile, false)
-	if not main_exists:
+	if not bool(result.get("main_was_corrupt", false)):
 		return save_profile()
+	_corrupt_main_pending_preservation = true
 	push_warning("No valid MAIN, TEMP, or BACKUP profile was available. Defaults are active; the corrupt MAIN will be preserved before a new save is created.")
 	return false
 
@@ -227,6 +219,17 @@ func deposit_run(run_state: RunState) -> bool:
 	if is_future_save_loaded or run_state == null or run_state.rewards_deposited:
 		return false
 
+	# Active Run Persistence idempotency (P0 correctness): a resumed run
+	# whose permanent reward was already committed to profile.json in a
+	# previous attempt must NEVER be granted again — this is the fix for
+	# the crash window between "profile saved" and "active_run.json
+	# updated to reflect it". run_id empty never matches (a fresh profile's
+	# last_deposited_run_id also defaults to "", which must not look like
+	# a match for a run that was never actually deposited).
+	if not run_state.run_id.is_empty() and profile.last_deposited_run_id == run_state.run_id:
+		run_state.rewards_deposited = true
+		return true
+
 	var profile_before: Dictionary = profile.to_dictionary()
 	begin_save_transaction()
 	run_state.player_xp_earned = PlayerProgressionConfig.calculate_run_xp(run_state)
@@ -261,6 +264,12 @@ func deposit_run(run_state: RunState) -> bool:
 		profile.total_defeats += 1
 	if not run_state.pending_loot_id.is_empty():
 		_grant_or_salvage_equipment(run_state.pending_loot_id, run_state)
+	if not run_state.run_id.is_empty():
+		# Written in the SAME ProfileData transaction as the reward
+		# mutations above, so the idempotency marker and the rewards it
+		# guards are one atomic write — never two writes that could land
+		# on opposite sides of a crash.
+		profile.last_deposited_run_id = run_state.run_id
 	var milestone_result: MilestoneResolverSource.CompletionResult = MilestoneResolverSource.evaluate(profile)
 	profile_changed.emit()
 	save_profile()
@@ -673,42 +682,11 @@ func _grant_or_salvage_equipment(equipment_id: String, run_state: RunState) -> b
 
 
 func _write_profile_safely() -> bool:
-	var temp_path: String = _get_temp_path()
-	var backup_path: String = _get_backup_path()
 	var data: Dictionary = profile.to_dictionary()
-	data["save_version"] = SAVE_VERSION
-	var json_text: String = JSON.stringify(data, "\t")
-
-	if not _write_text_file(temp_path, json_text):
-		push_warning("Profile save failed while writing TEMP.")
+	var success: bool = AtomicJsonStoreSource.write_safely(save_path, data, VERSION_KEY, SAVE_VERSION, _corrupt_main_pending_preservation)
+	if not success:
 		return false
-	var temp_candidate: Dictionary = _read_candidate(temp_path, true)
-	if not bool(temp_candidate["valid"]) or int(temp_candidate["version"]) != SAVE_VERSION:
-		push_warning("Profile TEMP validation failed. MAIN and BACKUP were not changed.")
-		return false
-
-	if _corrupt_main_pending_preservation and FileAccess.file_exists(save_path):
-		if not _preserve_corrupt_main():
-			push_warning("Profile save aborted because the corrupt MAIN could not be preserved.")
-			return false
-		_corrupt_main_pending_preservation = false
-
-	if FileAccess.file_exists(save_path):
-		var main_candidate: Dictionary = _read_candidate(save_path, false)
-		if not bool(main_candidate["valid"]):
-			if not _preserve_corrupt_main():
-				push_warning("Profile save aborted because MAIN became invalid and could not be preserved.")
-				return false
-		elif not _replace_backup_with_main(backup_path):
-			push_warning("Profile save aborted because the previous MAIN could not be preserved as BACKUP.")
-			return false
-
-	if not _rename_file(temp_path, save_path):
-		push_warning("Profile save failed while promoting TEMP. The previous state remains in BACKUP and TEMP was retained.")
-		return false
-	if not FileAccess.file_exists(save_path):
-		push_warning("Profile save promotion returned without creating MAIN.")
-		return false
+	_corrupt_main_pending_preservation = false
 	print("Profile save succeeded.")
 	return true
 
@@ -782,114 +760,9 @@ func _migrate_profile(loaded_version: int) -> void:
 		pass
 
 
-func _read_candidate(path: String, require_save_version: bool) -> Dictionary:
-	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return _invalid_candidate()
-	var text: String = file.get_as_text()
-	file.close()
-	var json: JSON = JSON.new()
-	if json.parse(text) != OK or typeof(json.data) != TYPE_DICTIONARY:
-		return _invalid_candidate()
-	var data: Dictionary = json.data
-	if require_save_version and not data.has("save_version"):
-		return _invalid_candidate()
-	var raw_version: Variant = data.get("save_version", 1)
-	if typeof(raw_version) != TYPE_INT and typeof(raw_version) != TYPE_FLOAT:
-		return _invalid_candidate()
-	if typeof(raw_version) == TYPE_FLOAT and (is_nan(raw_version) or is_inf(raw_version)):
-		return _invalid_candidate()
-	var version: int = int(raw_version)
-	if version < 1:
-		return _invalid_candidate()
-	return {"valid": true, "data": data, "version": version}
-
-
-func _invalid_candidate() -> Dictionary:
-	return {"valid": false, "data": {}, "version": 0}
-
-
-func _write_text_file(path: String, text: String) -> bool:
-	# Profile System: character paths are one level deeper than the legacy
-	# user://profile.json (user://profiles/<character_id>/profile.json), so
-	# the parent directory may not exist yet on a character's first save.
-	# No-op (and harmless) for the legacy path, since user:// always exists.
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		return false
-	file.store_string(text)
-	file.flush()
-	file.close()
-	return FileAccess.file_exists(path)
-
-
-func _replace_backup_with_main(backup_path: String) -> bool:
-	if FileAccess.file_exists(backup_path):
-		if not _remove_file(backup_path):
-			return false
-	return _rename_file(save_path, backup_path)
-
-
-func _promote_recovery_temp(temp_path: String) -> bool:
-	if FileAccess.file_exists(save_path) and not _preserve_corrupt_main():
-		return false
-	return _rename_file(temp_path, save_path)
-
-
-func _restore_backup(backup_path: String, temp_path: String) -> bool:
-	if FileAccess.file_exists(temp_path) and not _remove_file(temp_path):
-		return false
-	if not _copy_file(backup_path, temp_path):
-		return false
-	var copied_candidate: Dictionary = _read_candidate(temp_path, false)
-	if not bool(copied_candidate["valid"]):
-		return false
-	if FileAccess.file_exists(save_path) and not _preserve_corrupt_main():
-		return false
-	return _rename_file(temp_path, save_path)
-
-
-func _preserve_corrupt_main() -> bool:
-	if not FileAccess.file_exists(save_path):
-		return true
-	var corrupt_path: String = "%s.corrupt.%d.json" % [save_path.trim_suffix(".json"), int(Time.get_unix_time_from_system())]
-	var suffix: int = 1
-	while FileAccess.file_exists(corrupt_path):
-		corrupt_path = "%s.corrupt.%d.%d.json" % [save_path.trim_suffix(".json"), int(Time.get_unix_time_from_system()), suffix]
-		suffix += 1
-	if not _rename_file(save_path, corrupt_path):
-		return false
-	print("Corrupt profile preserved at %s." % corrupt_path)
-	return true
-
-
-func _cleanup_residual_temp(temp_path: String) -> void:
-	if FileAccess.file_exists(temp_path) and not _remove_file(temp_path):
-		push_warning("A residual profile TEMP could not be removed.")
-
-
-func _rename_file(from_path: String, to_path: String) -> bool:
-	var error: Error = DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
-	return error == OK
-
-
-func _copy_file(from_path: String, to_path: String) -> bool:
-	var error: Error = DirAccess.copy_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
-	return error == OK
-
-
 func _remove_file(path: String) -> bool:
 	var error: Error = DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	return error == OK
-
-
-func _get_temp_path() -> String:
-	return "%s.tmp" % save_path
-
-
-func _get_backup_path() -> String:
-	return "%s.bak" % save_path
 
 
 func _sanitize_equipment() -> void:

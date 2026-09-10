@@ -73,6 +73,15 @@ var _pending_route_destinations: Array[int] = []
 var _pending_route_origin: int = -1
 
 
+## Active Run Persistence — forwarded to BoardTurnController's injected
+## checkpoint hook. No-ops with no selected character (e.g. isolated
+## tests, prototype launch modes) rather than erroring.
+func _checkpoint_active_run(run: RunState, phase: String, reason: String) -> void:
+	if CharacterProfileRepository.selected_character_id.is_empty():
+		return
+	ActiveRunRepository.checkpoint(CharacterProfileRepository.selected_character_id, run, phase, reason)
+
+
 func _ready() -> void:
 	if not RunManager.has_active_run():
 		RunManager.start_new_run()
@@ -80,7 +89,7 @@ func _ready() -> void:
 	if _tile_types.is_empty():
 		push_error("Board requires a generated tile sequence in RunState.")
 		return
-	_turn_controller = BoardTurnControllerSource.new(RunManager.current_run, _tile_types, _dice_roller)
+	_turn_controller = BoardTurnControllerSource.new(RunManager.current_run, _tile_types, _dice_roller, _checkpoint_active_run)
 
 	_build_board()
 	player_marker.add_theme_stylebox_override("panel", VisualTheme.elevated_panel_style(Color("3b2517"), VisualTheme.EMBER_BRIGHT, 3, 26))
@@ -107,6 +116,15 @@ func _ready() -> void:
 	)
 	if not board_intro_resolved or not is_inside_tree():
 		return
+	if int(_turn_controller.get("state")) == BoardTurnControllerSource.State.ROUTE_DECISION:
+		# Active Run Persistence resume: the controller detected we're
+		# sitting on an unresolved fork (see
+		# BoardTurnController._detect_resumed_fork_pause()) — reopen the
+		# same A/B choice immediately, exactly as if the roll that landed
+		# here had just happened, before allowing any further input.
+		await _handle_fork_pause()
+		if not is_inside_tree():
+			return
 	roll_button.disabled = RunManager.current_run.board_locked
 	if not roll_button.disabled:
 		roll_button.grab_focus()

@@ -69,6 +69,16 @@ func configure_playtest_mode(enabled: bool) -> void:
 	_playtest_mode = enabled
 
 
+## Active Run Persistence — forwarded to BoardTurnController's injected
+## checkpoint hook. No-ops with no selected character (e.g. isolated
+## tests, --map3d-prototype launches, which bypass character selection
+## entirely) rather than erroring.
+func _checkpoint_active_run(run: RunState, phase: String, reason: String) -> void:
+	if CharacterProfileRepository.selected_character_id.is_empty():
+		return
+	ActiveRunRepository.checkpoint(CharacterProfileRepository.selected_character_id, run, phase, reason)
+
+
 func _ready() -> void:
 	if theme == null:
 		theme = VisualTheme.create_theme()
@@ -84,12 +94,17 @@ func _ready() -> void:
 	_build_connections()
 	_build_tiles()
 	_build_hud()
-	_turn_controller = BoardTurnControllerSource.new(_run, _run.board_tile_sequence, _dice_roller)
+	_turn_controller = BoardTurnControllerSource.new(_run, _run.board_tile_sequence, _dice_roller, _checkpoint_active_run)
 	_place_player_immediately(_run.board_position)
 	_apply_equipment_visuals()
 	_update_hud()
 	await get_tree().process_frame
 	camera_rig.focus_navigation(_run.board_position, _positions, 0.0)
+	if is_instance_valid(self) and int(_turn_controller.get("state")) == BoardTurnControllerSource.State.ROUTE_DECISION:
+		# Active Run Persistence resume: same reasoning as Board2D — the
+		# controller detected we're sitting on an unresolved fork, reopen
+		# the same A/B choice immediately.
+		await _handle_fork_pause()
 
 
 func _resolve_context() -> void:
