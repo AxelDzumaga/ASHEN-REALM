@@ -16,6 +16,7 @@ func _ready() -> void:
 	_test_dropped_legacy_fields_do_not_survive()
 	_test_missing_route_branch_dropped_not_crashed()
 	_test_biome_data_rederived_from_id()
+	_test_large_realistic_board_seed_survives_round_trip()
 	for key: String in _checks:
 		if not bool(_checks[key]):
 			_failures.append(key)
@@ -107,6 +108,7 @@ func _build_fixture() -> RunState:
 	run.pending_level_ups = 1
 	run.level_up_choices_generated = 2
 	run.pending_level_up_option_ids = [&"iron_vigil_node", &"ember_focus_node"]
+	run.pending_reward_is_elite = true
 	run.run_level_upgrade_stacks = {&"iron_vigil_node": 2}
 	run.equipment_passive_ids = [&"ashen_blade_passive"]
 	run.equipment_crit_chance = 0.15
@@ -214,6 +216,7 @@ func _test_full_round_trip() -> void:
 	_check("pending_level_ups", restored.pending_level_ups == original.pending_level_ups)
 	_check("level_up_choices_generated", restored.level_up_choices_generated == original.level_up_choices_generated)
 	_check("pending_level_up_option_ids", restored.pending_level_up_option_ids == original.pending_level_up_option_ids)
+	_check("pending_reward_is_elite", restored.pending_reward_is_elite == original.pending_reward_is_elite)
 	_check("run_level_upgrade_stacks", restored.run_level_upgrade_stacks == original.run_level_upgrade_stacks)
 	_check("equipment_passive_ids", restored.equipment_passive_ids == original.equipment_passive_ids)
 	_check("equipment_crit_chance", is_equal_approx(restored.equipment_crit_chance, original.equipment_crit_chance))
@@ -261,3 +264,19 @@ func _test_biome_data_rederived_from_id() -> void:
 	var restored: RunState = RunState.from_dictionary(dict)
 	_check("unknown_biome_id_yields_null_biome_data", restored.biome_data == null)
 	_check("unknown_biome_id_preserved_verbatim", restored.biome_id == &"nonexistent_biome_xyz")
+
+
+## Regression lock for a real bug caught during the Active Run Persistence
+## merge-gate hardening pass: BoardGenerator's unseeded fallback
+## (generate_for_run() with no explicit seed) multiplies a unix timestamp
+## by 1_000_000 before XOR-ing it, routinely landing in the trillions — a
+## +-2 billion clamp silently corrupted every real (non-debug, non-forced)
+## board_seed on load, breaking every seed-derived RNG (encounter, crit,
+## reward) it fed. Caught by a live end-to-end reward-resume test, not by
+## this file's own original fixture (which used a small board_seed and
+## never exercised the clamp boundary).
+func _test_large_realistic_board_seed_survives_round_trip() -> void:
+	var run := RunState.new()
+	run.board_seed = 1789073244582738  # representative of Time.get_unix_time_from_system() * 1_000_000 magnitude
+	var restored: RunState = RunState.from_dictionary(run.to_dictionary())
+	_check("large_realistic_board_seed_not_clamped", restored.board_seed == 1789073244582738)

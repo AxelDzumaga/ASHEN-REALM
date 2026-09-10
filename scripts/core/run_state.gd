@@ -103,6 +103,16 @@ var total_xp_gained: int = 0
 var pending_level_ups: int = 0
 var level_up_choices_generated: int = 0
 var pending_level_up_option_ids: Array[StringName] = []
+## Active Run Persistence — the domain fact game.gd needs to resolve the
+## post-combat build-reward flow (RunRewardResolver.choose(),
+## UpgradeRewardContext.Type), replacing what used to be a session-only
+## game.gd variable (_pending_post_combat_is_elite) that a resume could
+## never reconstruct. Set alongside record_elite_combat_victory()/
+## record_normal_combat_victory() at combat-won time; cleared once the
+## reward is actually resolved. Boss rewards never touch this — that
+## flow (show_boss_reward()) is separate and does not call
+## RunRewardResolver.choose().
+var pending_reward_is_elite: bool = false
 var run_level_upgrade_stacks: Dictionary[StringName, int] = {}
 var equipped_weapon_id: StringName = &""
 var equipped_armor_id: StringName = &""
@@ -443,6 +453,7 @@ func to_dictionary() -> Dictionary:
 		"pending_level_ups": pending_level_ups,
 		"level_up_choices_generated": level_up_choices_generated,
 		"pending_level_up_option_ids": _string_names_to_strings(pending_level_up_option_ids),
+		"pending_reward_is_elite": pending_reward_is_elite,
 		"run_level_upgrade_stacks": _string_name_int_dict_to_string_dict(run_level_upgrade_stacks),
 		"equipment_passive_ids": _string_names_to_strings(equipment_passive_ids),
 		"equipment_crit_chance": equipment_crit_chance,
@@ -468,7 +479,15 @@ static func from_dictionary(data: Dictionary) -> RunState:
 	run.started_at_unix = _read_int(data, "started_at_unix", run.started_at_unix, 0, 99_999_999_999)
 	run.biome_id = StringName(_read_string(data, "biome_id"))
 	run.biome_data = BiomeCatalog.get_by_id(run.biome_id)
-	run.board_seed = _read_int(data, "board_seed", BoardGenerator.NO_SEED, -2_000_000_000, 2_000_000_000)
+	# BoardGenerator's own unseeded fallback (generate_for_run(), no explicit
+	# seed) multiplies a unix timestamp by 1_000_000 before XOR-ing it —
+	# routinely landing in the trillions, far past a +-2 billion clamp. A
+	# narrower bound here would silently corrupt every real (non-debug,
+	# non-forced) seed on load, breaking board_seed-derived determinism
+	# for encounter/reward/crit RNG everywhere at once. Use the full safe
+	# int64 range instead; -1 (BoardGenerator.NO_SEED) is the only
+	# legitimate negative value.
+	run.board_seed = _read_int(data, "board_seed", BoardGenerator.NO_SEED, -1, 9_223_372_036_854_775_807)
 	run.board_tile_sequence = _read_int_array(data, "board_tile_sequence")
 	run.route_branches = _read_route_branches(data, "route_branches")
 	run.last_normal_encounter_signature = StringName(_read_string(data, "last_normal_encounter_signature"))
@@ -537,6 +556,7 @@ static func from_dictionary(data: Dictionary) -> RunState:
 	run.pending_level_ups = _read_int(data, "pending_level_ups", 0, 0, 2_000_000_000)
 	run.level_up_choices_generated = _read_int(data, "level_up_choices_generated", 0, 0, 2_000_000_000)
 	run.pending_level_up_option_ids = _read_string_name_array(data, "pending_level_up_option_ids")
+	run.pending_reward_is_elite = _read_bool(data, "pending_reward_is_elite")
 	run.run_level_upgrade_stacks = _read_string_name_int_dict(data, "run_level_upgrade_stacks")
 	run.equipment_passive_ids = _read_string_name_array(data, "equipment_passive_ids")
 	run.equipment_crit_chance = _read_float(data, "equipment_crit_chance")

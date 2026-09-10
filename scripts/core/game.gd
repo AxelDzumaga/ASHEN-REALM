@@ -43,7 +43,6 @@ var _pause_source_screen: Control
 var _pause_buttons: Array[Button] = []
 var _pause_confirmation_visible: bool = false
 var _pause_return_focus_index: int = 0
-var _pending_post_combat_is_elite: bool = false
 var _resume_input_guard: Control
 var _tutorial_input_guard: Control
 var _tutorial_input_guard_generation: int = 0
@@ -485,20 +484,16 @@ func _resume_into_encounter(run: RunState) -> void:
 			show_board()
 
 
-## REWARD_PENDING: pending_level_ups is the only sub-step RunState marks
+## REWARD_PENDING: pending_level_ups is the first sub-step RunState marks
 ## unambiguously; anything past it re-derives via the same
-## RunRewardResolver.choose() the live flow already uses. Known,
-## documented limitation: _pending_post_combat_is_elite (whether the
-## reward tier should be elite-weighted) is game.gd session state, not
-## persisted on RunState — a resume here always falls back to treating it
-## as a normal encounter's reward. This can never duplicate or lose a
-## permanent reward; at worst an elite-tier reward offer resumes as a
-## normal-tier one.
+## RunRewardResolver.choose() the live flow already uses, now reading
+## RunState.pending_reward_is_elite (restored by from_dictionary() like
+## every other persisted field) instead of a game.gd session variable —
+## a resumed Elite encounter's reward stays Elite, exactly like a live one.
 func _resume_into_reward_flow(run: RunState) -> void:
 	if run.pending_level_ups > 0:
 		show_level_up_selection()
 		return
-	_pending_post_combat_is_elite = false
 	_continue_post_combat_rewards()
 
 
@@ -864,7 +859,7 @@ func _on_combat_won(is_boss: bool, is_elite: bool) -> void:
 	else:
 		RunManager.current_run.record_normal_combat_victory()
 		RunManager.current_run.add_run_xp(RunLevelConfig.NORMAL_COMBAT_XP)
-	_pending_post_combat_is_elite = is_elite
+	RunManager.current_run.pending_reward_is_elite = is_elite
 	_checkpoint_active_run(ActiveRunRepository.PHASE_REWARD_PENDING, "combat_won")
 	if RunManager.current_run.pending_level_ups > 0:
 		show_level_up_selection()
@@ -873,7 +868,7 @@ func _on_combat_won(is_boss: bool, is_elite: bool) -> void:
 
 
 func _continue_post_combat_rewards() -> void:
-	var is_elite: bool = _pending_post_combat_is_elite
+	var is_elite: bool = RunManager.current_run.pending_reward_is_elite
 	var reward_type: RunRewardResolver.Type = RunRewardResolver.choose(is_elite, RunManager.current_run)
 	if reward_type == RunRewardResolver.Type.SKILL_AUGMENT:
 		show_skill_augment_selection()
@@ -914,12 +909,14 @@ func _on_treasure_continue_requested() -> void:
 
 func _on_upgrade_selected(_upgrade: UpgradeData) -> void:
 	RunManager.current_run.upgrades_obtained += 1
+	RunManager.current_run.pending_reward_is_elite = false
 	_checkpoint_active_run(ActiveRunRepository.PHASE_ON_BOARD, "upgrade_selected")
 	show_board()
 	board_screen.resume_after_combat()
 
 
 func _on_skill_augment_selected(_augment: SkillAugmentData) -> void:
+	RunManager.current_run.pending_reward_is_elite = false
 	_checkpoint_active_run(ActiveRunRepository.PHASE_ON_BOARD, "skill_augment_selected")
 	show_board()
 	board_screen.resume_after_combat()
