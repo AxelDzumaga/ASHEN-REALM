@@ -58,7 +58,19 @@ func notify_codex_discovered(display_name: String) -> void:
 	codex_discovered.emit(display_name)
 
 
+## Profile System — clears the active character so nothing can accidentally
+## save to a just-deselected character's path (e.g. mid-deletion). Callers
+## must select a character (or use_isolated_test_profile) again before the
+## next save_profile()/load_profile() call.
+func clear_active_character() -> void:
+	save_path = ""
+	profile = ProfileData.new()
+	is_future_save_loaded = false
+
+
 func load_profile() -> bool:
+	if save_path.is_empty():
+		return false
 	profile = ProfileData.new()
 	is_future_save_loaded = false
 	_corrupt_main_pending_preservation = false
@@ -105,6 +117,9 @@ func load_profile() -> bool:
 
 
 func save_profile() -> bool:
+	if save_path.is_empty():
+		last_save_result = SaveResult.FAILED
+		return false
 	if is_future_save_loaded:
 		last_save_result = SaveResult.BLOCKED_FUTURE_VERSION
 		push_warning("Profile save blocked: the loaded data belongs to a newer save version.")
@@ -795,6 +810,11 @@ func _invalid_candidate() -> Dictionary:
 
 
 func _write_text_file(path: String, text: String) -> bool:
+	# Profile System: character paths are one level deeper than the legacy
+	# user://profile.json (user://profiles/<character_id>/profile.json), so
+	# the parent directory may not exist yet on a character's first save.
+	# No-op (and harmless) for the legacy path, since user:// always exists.
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false

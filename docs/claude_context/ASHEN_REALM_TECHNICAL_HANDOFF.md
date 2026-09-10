@@ -60,6 +60,92 @@ Runtime test profile isolation exists.
 
 ---
 
+## PROFILE SYSTEM (character slots)
+
+STATUS (2026-09-10, branch `feature/profile-system`):
+IMPLEMENTED, TESTED, NOT MERGED. Local commits only, not pushed
+(explicitly withheld pending a separate engineering report/review — see
+`ASHEN_REALM_DECISIONS.md` workflow).
+
+3 local character slots (`CharacterProfileRepository.MAX_CHARACTER_SLOTS`).
+Name-only creation. `character_id` is generated
+(`char_<unix_timestamp>_<random_hex>`), never derived from the display
+name, never reused after deletion.
+
+Domain layer:
+`scripts/save/character_profile_repository.gd` (autoload
+`CharacterProfileRepository`). Owns enumeration, slot-count
+enforcement, id generation, index repair, legacy migration, safe
+deletion. Does NOT reimplement ProfileData serialization — every
+character profile read/write is still done by repointing
+`SaveManager.save_path`/`.profile` and calling its existing
+load_profile()/save_profile() (same TEMP→MAIN→BACKUP pipeline as
+before, now also applying per-character since
+`SaveManager._write_text_file()` now creates the parent directory
+first, needed for the one-level-deeper character paths).
+
+File layout:
+`user://profiles/index.json` (cache/listing only — index_version,
+per-character character_id/display_name/player_level/
+selected_biome_id/last_played_at) +
+`user://profiles/<character_id>/profile.json` (authoritative,
+its own `.tmp`/`.bak`/`.corrupt.<timestamp>.json` siblings). Character
+profile files are always authoritative: `list_characters()`/`refresh()`
+rebuild from a directory scan every time and self-heal `index.json`
+from it — a stale, missing, corrupt, or duplicate-referencing index
+never loses or hides a valid character. A directory whose profile.json
+(and .bak) are both unreadable is reported as a CORRUPT slot (still
+occupies a cap slot, still deletable) rather than silently dropped, so
+one corrupted character can never hide/damage its siblings.
+
+`ProfileData` gained additive `character_id`/`display_name`/
+`created_at`/`last_played_at` fields, safely defaulted for older
+saves. SAVE_VERSION intentionally stayed at 14 — no migration was
+required.
+
+Legacy migration:
+old `user://profile.json` → Slot 1 (`display_name` "Ashen Wanderer" if
+it was empty). Interruption-safe: migration only ever runs while
+neither `index.json` nor its backup exists AND a directory scan finds
+zero valid characters — a crash after the character file was written
+but before the index existed is recovered as "already migrated," never
+duplicated. The legacy file is never deleted by this milestone.
+
+Startup UX (`scripts/core/game.gd`, `scripts/ui/main_menu.gd`,
+`scenes/lobby/character_select.tscn`, `scenes/lobby/character_create.tscn`):
+Main Menu's primary button branches on character count — 0 → NUEVA
+PARTIDA (opens character creation directly), 1 → CONTINUAR (selects
+that character and enters the lobby directly, no selector), 2-3 →
+SELECCIONAR PERSONAJE. `--map3d-prototype` and visual-slice debug
+launch paths are untouched (still bypass this entirely, by design).
+Deletion uses a two-step press-to-arm/press-to-confirm interaction as
+an interim stand-in for hold-to-confirm (not built this milestone —
+"do not build final art for it" was explicit in the approved design).
+
+Test isolation: `SaveManager.use_isolated_test_profile()` is untouched
+and still fully decoupled from the repository — synthetic test
+profiles never need to register in `profiles/index.json`.
+`CharacterProfileRepository.use_isolated_test_root(name)` is the
+repository's own symmetric isolation entry point for tests that need
+the domain layer itself, including a dedicated
+`legacy_path_override` so migration tests can never accidentally read
+a real developer's real `user://profile.json`.
+
+Real bug caught during development (see commit `b4525f5`): the delete
+confirmation's "arm" step called the same `_refresh()` used for a real
+post-deletion rebuild, which unconditionally cleared the pending-delete
+id — the first ELIMINAR press silently did nothing. Fixed; now has
+explicit regression coverage. Caught by real-render smoke capture, not
+by the logic-only test suite alone — a reminder that this class of "UI
+state gets clobbered by its own redraw" bug does not show up in
+headless dummy-renderer runs that never actually inspect button text.
+
+Not built this milestone (explicitly out of scope, see approved
+design): online login/account, cloud save, Active Run Persistence
+(`active_run.json`/`active_run_id`).
+
+---
+
 ## TEST PROFILE ISOLATION
 
 IMPLEMENTED + TESTED.

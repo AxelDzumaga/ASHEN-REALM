@@ -1,6 +1,8 @@
 extends Control
 
 const MAIN_MENU_SCENE := preload("res://scenes/lobby/main_menu.tscn")
+const CHARACTER_SELECT_SCENE := preload("res://scenes/lobby/character_select.tscn")
+const CHARACTER_CREATE_SCENE := preload("res://scenes/lobby/character_create.tscn")
 const LOBBY_SCENE := preload("res://scenes/lobby/lobby.tscn")
 const PERMANENT_UPGRADES_SCENE := preload("res://scenes/lobby/permanent_upgrades.tscn")
 const EQUIPMENT_SCENE := preload("res://scenes/lobby/equipment.tscn")
@@ -86,6 +88,7 @@ func _ready() -> void:
 		return
 	var visual_slice_mode: StringName = DebugConfig.get_visual_slice_mode()
 	if visual_slice_mode.is_empty():
+		CharacterProfileRepository.startup()
 		show_main_menu()
 	else:
 		_launch_visual_slice.call_deferred(visual_slice_mode)
@@ -337,10 +340,48 @@ func show_main_menu() -> void:
 	RunManager.end_run()
 	_discard_board()
 	var main_menu := MAIN_MENU_SCENE.instantiate()
-	main_menu.start_game_requested.connect(show_lobby)
+	main_menu.start_game_requested.connect(_on_main_menu_primary_action)
+	main_menu.new_character_requested.connect(show_character_create)
 	main_menu.settings_requested.connect(show_settings.bind(show_main_menu))
 	main_menu.how_to_play_requested.connect(show_how_to_play_from_main)
 	_set_screen(main_menu)
+	main_menu.configure_for_characters(CharacterProfileRepository.list_characters())
+
+
+## Profile System startup UX (approved design): 0 characters -> open
+## character creation directly; 1 -> select it and go straight to the
+## lobby (no selector shown); 2-3 -> open the selector.
+func _on_main_menu_primary_action() -> void:
+	var characters: Array = CharacterProfileRepository.list_characters()
+	if characters.is_empty():
+		show_character_create()
+	elif characters.size() == 1:
+		_enter_character(String(characters[0].get("character_id", "")))
+	else:
+		show_character_select()
+
+
+func show_character_select() -> void:
+	var character_select := CHARACTER_SELECT_SCENE.instantiate()
+	character_select.character_selected.connect(_enter_character)
+	character_select.create_requested.connect(show_character_create)
+	character_select.back_requested.connect(show_main_menu)
+	_set_screen(character_select)
+
+
+func show_character_create() -> void:
+	var character_create := CHARACTER_CREATE_SCENE.instantiate()
+	character_create.created.connect(_enter_character)
+	character_create.back_requested.connect(show_main_menu)
+	_set_screen(character_create)
+
+
+func _enter_character(character_id: String) -> void:
+	if not CharacterProfileRepository.select_character(character_id):
+		push_warning("No se pudo seleccionar el personaje %s." % character_id)
+		show_main_menu()
+		return
+	show_lobby()
 
 
 func show_lobby() -> void:
