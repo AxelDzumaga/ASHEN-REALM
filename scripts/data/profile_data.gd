@@ -56,6 +56,16 @@ var completed_tutorials: Array[String] = []
 var owned_meta_unlock_ids: Array[StringName] = []
 var selected_starting_option_id: StringName = &""
 
+## Profile System (character slots) metadata. Additive fields, safely
+## defaulted ("" / 0) for saves written before this feature existed —
+## no SAVE_VERSION bump required. character_id/display_name are the
+## authoritative identity source; CharacterProfileRepository's index.json
+## is only a cache of these values, never the source of truth.
+var character_id: String = ""
+var display_name: String = ""
+var created_at: int = 0
+var last_played_at: int = 0
+
 
 func to_dictionary() -> Dictionary:
 	return {
@@ -100,6 +110,10 @@ func to_dictionary() -> Dictionary:
 		"completed_tutorials": completed_tutorials.duplicate(),
 		"owned_meta_unlock_ids": _string_names_to_strings(owned_meta_unlock_ids),
 		"selected_starting_option_id": String(selected_starting_option_id),
+		"character_id": character_id,
+		"display_name": display_name,
+		"created_at": created_at,
+		"last_played_at": last_played_at,
 	}
 
 
@@ -184,6 +198,10 @@ static func from_dictionary(data: Dictionary) -> ProfileData:
 		StringName(_read_string(data, "selected_starting_option_id")),
 		profile.owned_meta_unlock_ids,
 	)
+	profile.character_id = _read_string(data, "character_id")
+	profile.display_name = _read_string(data, "display_name")
+	profile.created_at = _read_int(data, "created_at", 0, 0, 99_999_999_999)
+	profile.last_played_at = _read_int(data, "last_played_at", 0, 0, 99_999_999_999)
 	return profile
 
 
