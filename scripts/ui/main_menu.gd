@@ -1,10 +1,18 @@
 extends Control
 
+## Primary button intent — game.gd interprets it against the current
+## character count (0 -> create, 1 -> continue directly, 2-3 -> selector).
+## Kept as one signal (rather than separate "new game"/"continue"/
+## "select" signals) so this screen only reports the raw UI action; it
+## does not need to know Profile System semantics itself.
 signal start_game_requested
 signal settings_requested
 signal how_to_play_requested
+signal new_character_requested
 
 @onready var start_game_button: Button = %StartGameButton
+@onready var new_character_button: Button = %NewCharacterButton
+@onready var character_summary_label: Label = %CharacterSummaryLabel
 @onready var settings_button: Button = %SettingsButton
 @onready var how_to_play_button: Button = %HowToPlayButton
 @onready var title: Label = %Title
@@ -17,6 +25,7 @@ signal how_to_play_requested
 
 func _ready() -> void:
 	start_game_button.pressed.connect(_on_start_game_pressed)
+	new_character_button.pressed.connect(_on_new_character_pressed)
 	settings_button.pressed.connect(func() -> void: settings_requested.emit())
 	how_to_play_button.pressed.connect(func() -> void: how_to_play_requested.emit())
 	hero_view.setup_visual(PlayerVisualCatalog.ASHEN_WANDERER, "ASH")
@@ -35,7 +44,7 @@ func _ready() -> void:
 
 
 func _configure_button_motion() -> void:
-	for button: Button in [start_game_button, settings_button, how_to_play_button]:
+	for button: Button in [start_game_button, new_character_button, settings_button, how_to_play_button]:
 		button.mouse_entered.connect(_animate_button.bind(button, true))
 		button.mouse_exited.connect(_animate_button.bind(button, false))
 		button.focus_entered.connect(_animate_button.bind(button, true))
@@ -53,4 +62,32 @@ func _animate_button(button: Button, active: bool) -> void:
 
 func _on_start_game_pressed() -> void:
 	start_game_button.disabled = true
+	new_character_button.disabled = true
 	start_game_requested.emit()
+
+
+func _on_new_character_pressed() -> void:
+	start_game_button.disabled = true
+	new_character_button.disabled = true
+	new_character_requested.emit()
+
+
+## Profile System startup UX (approved design): 0 characters -> NUEVA
+## PARTIDA; 1 -> CONTINUAR directly (no selector shown) with a name/level
+## summary and a NUEVO PERSONAJE option; 2-3 -> SELECCIONAR PERSONAJE.
+func configure_for_characters(characters: Array) -> void:
+	var count: int = characters.size()
+	new_character_button.visible = count == 1
+	if count == 0:
+		start_game_button.text = "NUEVA PARTIDA"
+		character_summary_label.visible = false
+	elif count == 1:
+		start_game_button.text = "CONTINUAR"
+		var entry: Dictionary = characters[0]
+		var display_name: String = String(entry.get("display_name", ""))
+		var level: int = int(entry.get("player_level", 1))
+		character_summary_label.text = "%s  ·  NIVEL %d" % [display_name, level]
+		character_summary_label.visible = not display_name.is_empty()
+	else:
+		start_game_button.text = "SELECCIONAR PERSONAJE"
+		character_summary_label.visible = false

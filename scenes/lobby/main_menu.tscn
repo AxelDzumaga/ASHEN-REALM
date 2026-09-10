@@ -157,6 +157,15 @@ layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 2
 
+[node name="CharacterSummaryLabel" type="Label" parent="MenuFrame/Buttons"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.72, 0.78, 1)
+theme_override_font_sizes/font_size = 16
+text = ""
+horizontal_alignment = 1
+
 [node name="StartGameButton" type="Button" parent="MenuFrame/Buttons"]
 unique_name_in_owner = true
 theme_type_variation = &"TitlePrimaryButton"
@@ -178,6 +187,15 @@ offset_bottom = 22.0
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_icon")
+
+[node name="NewCharacterButton" type="Button" parent="MenuFrame/Buttons"]
+unique_name_in_owner = true
+visible = false
+theme_type_variation = &"TitleSecondaryButton"
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "NUEVO PERSONAJE"
 
 [node name="SecondaryRow" type="HBoxContainer" parent="MenuFrame/Buttons"]
 layout_mode = 2
