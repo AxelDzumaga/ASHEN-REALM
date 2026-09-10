@@ -9,6 +9,7 @@ enum TileType {
 	EVENT,
 	TREASURE,
 	ELITE,
+	FORK,
 }
 
 @export var type: TileType = TileType.EMPTY

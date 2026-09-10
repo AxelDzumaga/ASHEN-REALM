@@ -6,6 +6,7 @@ extends RefCounted
 ## en este proyecto se corre siempre headless por CLI, así que preload
 ## evita depender de ese timing.
 const _EquipmentSetResolver = preload("res://scripts/equipment/equipment_set_resolver.gd")
+const _RouteBranchData = preload("res://scripts/board/route_branch_data.gd")
 
 const BASE_MAX_HEALTH := 100
 const BASE_CURRENT_HEALTH_OFFSET := 20
@@ -39,6 +40,12 @@ var route_option_b: int = -1
 var chosen_destination: int = -1
 var chosen_tile_type: int = -1
 var route_choice_cooldown: bool = false
+## Bifurcaciones pre-generadas de esta run: fork_index -> RouteBranchData.
+var route_branches: Dictionary = {}
+## Carril activo mientras board_position está dentro de una bifurcación
+## (RouteBranchData.NONE/ROUTE_A/ROUTE_B). No migra perfil.
+var active_branch: int = _RouteBranchData.NONE
+var active_fork_index: int = -1
 var combats_won: int = 0
 var elites_won: int = 0
 var events_resolved: int = 0

@@ -154,6 +154,14 @@ func _build_platform(material: Material) -> void:
 			cylinder.radial_segments = 10
 			mesh = cylinder
 			collision_shape = _cylinder_shape(2.55, 1.4)
+		BoardTileData.TileType.FORK:
+			var cylinder := CylinderMesh.new()
+			cylinder.top_radius = 1.35
+			cylinder.bottom_radius = 1.55
+			cylinder.height = 0.5
+			cylinder.radial_segments = 8
+			mesh = cylinder
+			collision_shape = _cylinder_shape(1.8, 1.1)
 		BoardTileData.TileType.TREASURE:
 			var cylinder := CylinderMesh.new()
 			cylinder.top_radius = 1.15
@@ -264,13 +272,20 @@ func _add_type_detail(material: Material) -> void:
 			marker.size = Vector3(0.7, 0.9, 0.7)
 			mesh = marker
 			detail.position.y = 0.8
+		BoardTileData.TileType.FORK:
+			# Cuña simple; una segunda copia rotada (agregada más abajo, igual
+			# que HEAL) forma el glifo de "bifurcación" legible desde arriba.
+			var wedge := PrismMesh.new()
+			wedge.size = Vector3(0.4, 0.55, 1.1)
+			mesh = wedge
+			detail.position.y = 0.75
 		_:
 			return
 	mesh.material = material
 	detail.mesh = mesh
 	add_child(detail)
 	_register_dimmable(detail)
-	if tile_type == BoardTileData.TileType.HEAL:
+	if tile_type == BoardTileData.TileType.HEAL or tile_type == BoardTileData.TileType.FORK:
 		var second := detail.duplicate() as MeshInstance3D
 		second.rotation.y = PI * 0.5
 		add_child(second)

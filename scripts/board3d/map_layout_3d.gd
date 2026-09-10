@@ -28,6 +28,24 @@ static func get_positions(count: int = POSITION_COUNT) -> Array[Vector3]:
 	return result
 
 
+## Posición de una casilla de rama (fork/merge no incluidos). `side` es +1
+## para una ruta y -1 para la otra: divergen desde el fork y vuelven a
+## converger en el merge, formando dos caminos físicamente separados en vez
+## de compartir el mismo trazo. Geometría conceptual/procedural — sin arte
+## final. Desconoce a propósito RouteBranchData (helper puramente geométrico).
+static func get_branch_position(fork_index: int, merge_index: int, side: int, local_position: int, branch_length: int, main_positions: Array[Vector3]) -> Vector3:
+	if fork_index < 0 or merge_index < 0 or merge_index >= main_positions.size():
+		return main_positions[clampi(fork_index, 0, main_positions.size() - 1)]
+	var fork_point: Vector3 = main_positions[fork_index]
+	var merge_point: Vector3 = main_positions[merge_index]
+	var t: float = float(local_position) / float(branch_length + 1)
+	var base: Vector3 = fork_point.lerp(merge_point, t)
+	var forward: Vector3 = merge_point - fork_point
+	var lateral: Vector3 = Vector3(forward.z, 0.0, -forward.x).normalized() if forward.length() > 0.001 else Vector3.RIGHT
+	var bulge: float = sin(t * PI)
+	return base + lateral * float(side) * bulge * 3.6 + Vector3(0.0, bulge * 0.4, 0.0)
+
+
 static func get_bounds(positions: Array[Vector3]) -> AABB:
 	if positions.is_empty():
 		return AABB()

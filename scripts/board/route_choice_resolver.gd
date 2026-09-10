@@ -1,9 +1,24 @@
 class_name RouteChoiceResolver
 extends RefCounted
 
-## Agency acotada sobre el tablero lineal: el D4 fija el destino base y una
-## bifurcacion puede ofrecer el tile inmediatamente posterior. No muta la run.
+## get_base_destination() es la única fórmula usada por el gameplay real
+## (BoardTurnController / Board2D / Map3D): el D4 sigue siendo la autoridad
+## total sobre el destino. Un FORK pre-generado (ver RouteBranchData) puede
+## pausar el recorrido a mitad de camino, pero nunca cambia este número.
+##
+## get_destinations()/is_meaningful() y el gate de abajo son el mecanismo de
+## bifurcación DINÁMICA anterior a MAP3D-HUMAN-004 (base+1 + probabilidad).
+## Quedan retenidos únicamente porque tools/simulation/full_run_simulation.gd
+## (fuera de alcance de esta feature — es economía/balance, no routing) los
+## sigue usando para sus propias corridas batch; el BoardTurnController real
+## ya NO los llama. No usar este mecanismo para nueva UI/gameplay de routing.
 const DEFAULT_BRANCH_PERCENT := 45
+
+
+static func get_base_destination(sequence_size: int, current_position: int, roll: int) -> int:
+	if sequence_size <= 0:
+		return current_position
+	return mini(current_position + clampi(roll, DiceRoller.MIN_RESULT, DiceRoller.MAX_RESULT), sequence_size - 1)
 
 
 static func get_destinations(

@@ -1,8 +1,53 @@
 class_name BoardGenerator
 extends RefCounted
 
+## preload (no class_name directo): mismo motivo documentado en RunState —
+## este proyecto corre siempre headless por CLI, y BoardGenerator se usa
+## desde el arranque de una run, antes de que el editor haya escaneado el
+## global class cache para scripts class_name nuevos.
+const _RouteBranchData = preload("res://scripts/board/route_branch_data.gd")
+
 const MAX_GENERATION_ATTEMPTS := 16
 const NO_SEED := -1
+## L0 (2026-09-08): antes este archivo tenía su propia copia de BRANCH_LENGTH
+## (duplicada con RouteBranchData.BRANCH_LENGTH, mismo valor a mano en dos
+## lugares). Referenciar la constante única evita que vuelvan a divergir.
+## Cantidad de forks por run. INITIAL TUNING — un solo fork por run para el
+## MVP de MAP3D-HUMAN-004; validar en el próximo Human Playtest antes de
+## considerar más de uno.
+const FORK_COUNT := 1
+## Tipos permitidos dentro de una rama. ELITE y BOSS quedan excluidos del
+## contenido de rama en este MVP (alcance aprobado explícitamente).
+const BRANCH_ALLOWED_TYPES: Array[int] = [
+	BoardTileData.TileType.EMPTY,
+	BoardTileData.TileType.COMBAT,
+	BoardTileData.TileType.EVENT,
+	BoardTileData.TileType.TREASURE,
+	BoardTileData.TileType.HEAL,
+]
+## Tendencias de ruta: pesos relativos por tipo dentro de las 4 casillas de
+## la rama. Son tendencias, no plantillas rígidas — el D4 sigue siendo la
+## autoridad sobre cuáles de estas casillas realmente se resuelven.
+## Números: INITIAL TUNING.
+const ROUTE_ARCHETYPES: Dictionary = {
+	&"combat": {
+		BoardTileData.TileType.COMBAT: 5, BoardTileData.TileType.EVENT: 1,
+		BoardTileData.TileType.TREASURE: 2, BoardTileData.TileType.HEAL: 1, BoardTileData.TileType.EMPTY: 1,
+	},
+	&"recovery": {
+		BoardTileData.TileType.COMBAT: 1, BoardTileData.TileType.EVENT: 3,
+		BoardTileData.TileType.TREASURE: 1, BoardTileData.TileType.HEAL: 3, BoardTileData.TileType.EMPTY: 2,
+	},
+	&"treasure": {
+		BoardTileData.TileType.COMBAT: 2, BoardTileData.TileType.EVENT: 2,
+		BoardTileData.TileType.TREASURE: 4, BoardTileData.TileType.HEAL: 1, BoardTileData.TileType.EMPTY: 1,
+	},
+	&"balanced": {
+		BoardTileData.TileType.COMBAT: 2, BoardTileData.TileType.EVENT: 2,
+		BoardTileData.TileType.TREASURE: 2, BoardTileData.TileType.HEAL: 2, BoardTileData.TileType.EMPTY: 2,
+	},
+}
+const ARCHETYPE_IDS: Array[StringName] = [&"combat", &"recovery", &"treasure", &"balanced"]
 const FALLBACK_PATTERN: Array[int] = [
 	BoardTileData.TileType.COMBAT,
 	BoardTileData.TileType.EVENT,
@@ -56,25 +101,34 @@ static func generate_for_run(run: RunState, biome: BiomeData, requested_seed: in
 	var rng := RandomNumberGenerator.new()
 	rng.seed = actual_seed
 
+	# El fork se decide una sola vez por seed, antes de los reintentos de
+	# contenido: su posición no depende del contenido generado, y mantenerlo
+	# fijo entre reintentos preserva "mismo seed -> mismos forks".
+	var fork_index: int = _choose_fork_index(biome, rng)
+
 	for _attempt in MAX_GENERATION_ATTEMPTS:
-		var counts: Dictionary = _choose_counts(biome, rng)
+		var counts: Dictionary = _choose_counts(biome, rng, fork_index)
 		if counts.is_empty():
 			continue
-		var generated: Array[int] = _build_sequence(biome, counts, rng)
-		if validate(generated, biome):
+		var generated: Array[int] = _build_sequence(biome, counts, rng, fork_index)
+		if not generated.is_empty() and validate(generated, biome, fork_index):
 			run.board_seed = actual_seed
 			run.board_tile_sequence = generated
+			run.route_branches = _generate_branches(fork_index, rng)
 			return
 
 	push_warning("Board generation used the safe fallback for biome %s." % biome.id)
 	run.board_seed = actual_seed
 	run.board_tile_sequence = get_fallback(biome.board_length)
+	run.route_branches = {}
 
 
-static func validate(tiles: Array[int], biome: BiomeData) -> bool:
+static func validate(tiles: Array[int], biome: BiomeData, fork_index: int = -1) -> bool:
 	if tiles.size() != biome.board_length or tiles.size() < 2:
 		return false
 	if tiles[0] != BoardTileData.TileType.EMPTY or tiles[-1] != BoardTileData.TileType.BOSS:
+		return false
+	if fork_index >= 0 and tiles[fork_index] != BoardTileData.TileType.FORK:
 		return false
 
 	var counts: Dictionary = {}
@@ -83,6 +137,15 @@ static func validate(tiles: Array[int], biome: BiomeData) -> bool:
 	var previous_type: BoardTileData.TileType = BoardTileData.TileType.EMPTY
 	for index in tiles.size():
 		var type: BoardTileData.TileType = tiles[index] as BoardTileData.TileType
+		# La ventana reservada de un fork (el tile FORK y sus 4 casillas de
+		# rama) no representa contenido jugable del spine: su contenido real
+		# vive en los overlays de RouteBranchData, así que queda fuera de
+		# los cupos/streaks del bioma para no contar contenido fantasma.
+		if _is_reserved(index, fork_index):
+			previous_type = BoardTileData.TileType.EMPTY
+			combat_streak = 0
+			danger_streak = 0
+			continue
 		counts[type] = int(counts.get(type, 0)) + 1
 		combat_streak = combat_streak + 1 if type == BoardTileData.TileType.COMBAT else 0
 		danger_streak = danger_streak + 1 if _is_dangerous(type) else 0
@@ -102,6 +165,72 @@ static func validate(tiles: Array[int], biome: BiomeData) -> bool:
 		and _count_is_valid(counts, BoardTileData.TileType.ELITE, biome.elite_min, biome.elite_max)
 		and int(counts.get(BoardTileData.TileType.BOSS, 0)) == 1
 	)
+
+
+## Rango de índices "consumidos" por un fork: el propio tile FORK más sus
+## BRANCH_LENGTH casillas de rama reservadas.
+static func _is_reserved(index: int, fork_index: int) -> bool:
+	return fork_index >= 0 and index >= fork_index and index <= fork_index + _RouteBranchData.BRANCH_LENGTH
+
+
+## Elige, de forma determinística, en qué índice del spine va el fork (o -1
+## si el bioma es demasiado corto para alojar uno). Reutiliza el mismo
+## criterio de "no demasiado pronto" que ya usa ELITE (_elite_start_index) y
+## exige separación suficiente antes del boss para que el MERGE nunca quede
+## pegado a él (mismo espíritu que la exclusión de ELITE en el índice
+## tiles.size()-2).
+static func _choose_fork_index(biome: BiomeData, rng: RandomNumberGenerator) -> int:
+	if FORK_COUNT <= 0:
+		return -1
+	var lower_bound: int = _elite_start_index(biome.board_length)
+	var upper_bound: int = biome.board_length - 1 - _RouteBranchData.BRANCH_LENGTH - 3
+	if upper_bound < lower_bound:
+		return -1
+	return rng.randi_range(lower_bound, upper_bound)
+
+
+static func _generate_branches(fork_index: int, rng: RandomNumberGenerator) -> Dictionary:
+	if fork_index < 0:
+		return {}
+	var archetype_a: StringName = ARCHETYPE_IDS[rng.randi_range(0, ARCHETYPE_IDS.size() - 1)]
+	var archetype_b: StringName = ARCHETYPE_IDS[rng.randi_range(0, ARCHETYPE_IDS.size() - 1)]
+	if archetype_b == archetype_a:
+		archetype_b = ARCHETYPE_IDS[(ARCHETYPE_IDS.find(archetype_a) + 1) % ARCHETYPE_IDS.size()]
+	var route_a: Array[int] = _build_branch_content(archetype_a, rng)
+	var route_b: Array[int] = _build_branch_content(archetype_b, rng)
+	var data := _RouteBranchData.new(fork_index, route_a, route_b, archetype_a, archetype_b)
+	return {fork_index: data}
+
+
+## Genera las BRANCH_LENGTH casillas de una ruta según la tendencia del
+## arquetipo, con la misma regla de racha peligrosa (<=2 seguidas) que ya usa
+## el spine principal. ELITE/BOSS quedan fuera del pool permitido (MVP).
+static func _build_branch_content(archetype: StringName, rng: RandomNumberGenerator) -> Array[int]:
+	var weights: Dictionary = ROUTE_ARCHETYPES.get(archetype, ROUTE_ARCHETYPES[&"balanced"])
+	var tiles: Array[int] = []
+	var danger_streak := 0
+	for _index: int in _RouteBranchData.BRANCH_LENGTH:
+		var candidates: Array[int] = []
+		for type: int in BRANCH_ALLOWED_TYPES:
+			if danger_streak >= 2 and _is_dangerous(type):
+				continue
+			candidates.append(type)
+		var chosen: int = _weighted_pick_from_weights(candidates, weights, rng)
+		tiles.append(chosen)
+		danger_streak = danger_streak + 1 if _is_dangerous(chosen) else 0
+	return tiles
+
+
+static func _weighted_pick_from_weights(candidates: Array[int], weights: Dictionary, rng: RandomNumberGenerator) -> int:
+	var total_weight := 0
+	for type: int in candidates:
+		total_weight += maxi(1, int(weights.get(type, 1)))
+	var roll: int = rng.randi_range(1, total_weight)
+	for type: int in candidates:
+		roll -= maxi(1, int(weights.get(type, 1)))
+		if roll <= 0:
+			return type
+	return candidates[-1]
 
 
 static func get_fallback(board_length: int) -> Array[int]:
@@ -139,7 +268,8 @@ static func _place_fallback_elite(tiles: Array[int], preferred_index: int) -> vo
 			return
 
 
-static func _choose_counts(biome: BiomeData, rng: RandomNumberGenerator) -> Dictionary:
+static func _choose_counts(biome: BiomeData, rng: RandomNumberGenerator, fork_index: int = -1) -> Dictionary:
+	var reserved: int = _RouteBranchData.BRANCH_LENGTH + 1 if fork_index >= 0 else 0
 	for _attempt in MAX_GENERATION_ATTEMPTS:
 		var counts: Dictionary = {
 			BoardTileData.TileType.COMBAT: rng.randi_range(biome.combat_min, biome.combat_max),
@@ -148,7 +278,7 @@ static func _choose_counts(biome: BiomeData, rng: RandomNumberGenerator) -> Dict
 			BoardTileData.TileType.HEAL: rng.randi_range(biome.heal_min, biome.heal_max),
 			BoardTileData.TileType.ELITE: rng.randi_range(biome.elite_min, biome.elite_max),
 		}
-		var occupied: int = 1
+		var occupied: int = 1 + reserved
 		for value: int in counts.values():
 			occupied += value
 		var empty_count: int = biome.board_length - occupied
@@ -158,10 +288,15 @@ static func _choose_counts(biome: BiomeData, rng: RandomNumberGenerator) -> Dict
 	return {}
 
 
-static func _build_sequence(biome: BiomeData, requested_counts: Dictionary, rng: RandomNumberGenerator) -> Array[int]:
+static func _build_sequence(biome: BiomeData, requested_counts: Dictionary, rng: RandomNumberGenerator, fork_index: int = -1) -> Array[int]:
 	var tiles: Array[int] = [BoardTileData.TileType.EMPTY]
 	var remaining: Dictionary = requested_counts.duplicate()
 	for index in range(1, biome.board_length - 1):
+		if _is_reserved(index, fork_index):
+			# La ventana del fork no consume cupos del bioma: su contenido
+			# real vive en los overlays de RouteBranchData (_generate_branches).
+			tiles.append(BoardTileData.TileType.FORK if index == fork_index else BoardTileData.TileType.EMPTY)
+			continue
 		var candidates: Array[int] = []
 		for type: int in remaining:
 			if int(remaining[type]) > 0 and _is_allowed(type, index, biome.board_length, tiles):

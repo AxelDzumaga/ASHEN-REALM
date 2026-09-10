@@ -91,21 +91,38 @@ func _add_section(section: StringName) -> void:
 		_add_offer(offer)
 
 
+## L0 (2026-09-08): antes toda oferta usaba el mismo ícono color TREASURE y el
+## texto de rareza era plano, sin relación visual con el resto de la UI donde
+## la rareza ya tiene un color/ícono/borde canónico (VisualTheme.rarity_color,
+## rarity_card_style — ver item_card_view.gd/run_result.gd). Reusa esa misma
+## fuente de verdad acá en vez de inventar una paleta nueva para la tienda.
 func _add_offer(offer: ShopOfferData) -> void:
+	var equipment_item: EquipmentData = (
+		EquipmentCatalog.get_by_id(String(offer.reward_id))
+		if offer.reward_type == ShopOfferData.RewardType.EQUIPMENT
+		else null
+	)
+	var accent_color: Color = VisualTheme.rarity_color(equipment_item.rarity) if equipment_item != null else VisualTheme.TREASURE
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(0, 92)
-	panel.add_theme_stylebox_override("panel", VisualTheme.elevated_panel_style(VisualTheme.CARD, VisualTheme.BORDER, 2, 10))
+	panel.add_theme_stylebox_override(
+		"panel",
+		VisualTheme.rarity_card_style(equipment_item.rarity, false) if equipment_item != null
+		else VisualTheme.elevated_panel_style(VisualTheme.CARD, VisualTheme.BORDER, 2, 10),
+	)
 	_content.add_child(panel)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	panel.add_child(row)
 	var icon := AshenIcon.new()
-	icon.configure(offer.icon_id, VisualTheme.TREASURE, AshenIcon.DisplaySize.LARGE)
+	icon.configure(offer.icon_id, accent_color, AshenIcon.DisplaySize.LARGE)
 	row.add_child(icon)
 	var info := Label.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.text = "%s\n%s  ·  NIV %d" % [offer.display_name.to_upper(), _reward_hint(offer), offer.required_level]
 	info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if equipment_item != null:
+		info.modulate = accent_color.lightened(0.35)
 	row.add_child(info)
 	var buy := Button.new()
 	buy.custom_minimum_size = Vector2(154, 64)

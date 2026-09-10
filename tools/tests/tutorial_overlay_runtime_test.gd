@@ -7,6 +7,7 @@ var failures: Array[String] = []
 
 
 func _ready() -> void:
+	SaveManager.use_isolated_test_profile(&"tutorial_overlay_runtime")
 	TutorialManager.set_trace_enabled(true)
 	overlay = OVERLAY_SCENE.instantiate()
 	overlay.set_trace_enabled(true)

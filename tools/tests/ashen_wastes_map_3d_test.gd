@@ -24,7 +24,13 @@ func _ready() -> void:
 	var camera: Camera3D = map.get_node("%Camera3D")
 	_check(failures, "orthographic_camera", camera.projection == Camera3D.PROJECTION_ORTHOGONAL)
 	var mesh_count: int = map.find_children("*", "MeshInstance3D", true, false).size()
-	_check(failures, "mesh_budget", mesh_count < 100)
+	# Presupuesto ajustado tras MAP3D-HUMAN-004 (true routing): un fork agrega
+	# hasta 8 tiles completos más (2 carriles x 4 nodos), cada uno con su
+	# propia plataforma/detalle/glow — antes del fork el presupuesto real era
+	# ~93 con 30 tiles; con un fork activo puede alcanzar ~117-120. Sigue
+	# siendo geometría procedural liviana (sin arte final); si vuelve a
+	# crecer, ajustar el número, no borrar el check. INITIAL TUNING.
+	_check(failures, "mesh_budget", mesh_count < 150)
 	var multimesh_count: int = map.find_children("*", "MultiMeshInstance3D", true, false).size()
 	_check(failures, "multimesh_used", multimesh_count >= 2)
 	var touch_targets_large := true

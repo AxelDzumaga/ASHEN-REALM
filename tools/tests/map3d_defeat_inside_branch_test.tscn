@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/tests/map3d_defeat_inside_branch_test.gd" id="1"]
+
+[node name="Map3DDefeatInsideBranchTest" type="Node"]
+script = ExtResource("1")
