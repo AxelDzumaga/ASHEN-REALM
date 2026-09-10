@@ -275,6 +275,49 @@ and file:line citations for all of the above: see the implementation
 session that produced commit(s) on `feature/map3d-true-routing` dated
 2026-09-08, after `51b3013`.
 
+UPDATE (2026-09-10, L0 CLOSURE):
+
+TECHNICAL STATUS:
+PASS
+
+AUTOMATED/RENDER VALIDATION:
+PASS — full regression subset (board_turn_contract_test,
+board_generator_fork_test, board2d_true_routing_test,
+board_presentations_contract_test, ashen_wastes_map_3d_test,
+map3d_route_mouse_input_test, map3d_layout_test, map3d_long_session_test,
+map3d_return_flow_test, map3d_complete_run_test, map3d_defeat_flow_test,
+map3d_defeat_inside_branch_test, map3d_boss_result_visibility_test,
+combat_hp_continuity_test, save_isolation_regression_test,
+equipment2_phase1_test, stage78_economy_runtime_test,
+combined_progression_runtime_test) re-run headless against commit `983a20d`
+— 18/18 green, zero attributable regressions.
+
+HUMAN VISUAL ACCEPTANCE:
+DEFERRED UNTIL VISUAL VERTICAL SLICE. Product decision (2026-09-10):
+prototype/placeholder graphics do not yet represent target presentation
+closely enough for repeated subjective visual/feel playtesting to be worth
+the cost. This does not weaken bug/regression/render-smoke requirements —
+only subjective human "does it feel right" sign-off is deferred. The final
+build under this branch (`build/map3d_true_routing_finalcheck_v14_2026-09-08/`)
+was never human-played and MUST NOT be recorded as "HUMAN PASS".
+
+MAP3D-HUMAN-004 (branch length / route feel):
+Its underlying technical routing defect (deterministic A/B fork, D4-safe
+BRANCH_LENGTH 6, mandatory fork interception, reconvergence, Boss excluded)
+is solved and automated-test-covered. Remaining subjective branch
+feel/presentation is explicitly deferred to the Visual Vertical Slice
+milestone — do not classify it as human-approved.
+
+KNOWN UX FEEDBACK (backlog, unchanged, still open):
+MAP3D-HUMAN-005 (no clear final reward after boss) — DESIGN ISSUE /
+CONTENT GAP, not addressed this session.
+
+SAVE_VERSION: 14 (unchanged).
+
+NEXT MILESTONE: Profile System (`feature/profile-system`, branched from
+`main` after this merge) — see `docs/claude_context/ASHEN_REALM_DECISIONS.md`
+for the approved design.
+
 ---
 
 ## COMBAT

@@ -190,6 +190,33 @@ Design
 
 No feature gigantesca sin fases.
 
+UPDATE (2026-09-10) — HUMAN PLAYTEST GATE, SCOPE CLARIFIED:
+
+Subjective human visual/feel playtest of placeholder/prototype art
+is NO LONGER a merge blocker for logic-development milestones, until
+Ashen Realm reaches its Visual Vertical Slice milestone. Reason: repeated
+subjective testing of non-representative placeholder visuals does not
+provide enough value to justify blocking logic architecture work on it.
+
+This does NOT remove or weaken:
+
+- automated logic test coverage;
+- regression coverage;
+- non-headless render/functional smoke validation when UI is involved;
+- documentation of known UX/feel feedback as backlog.
+
+Workflow for logic milestones until the Visual Vertical Slice becomes:
+
+Design
+→ implementation
+→ tests (+ real-render smoke where UI is involved)
+→ report.
+
+Human playtest resumes as a gate once the project reaches the Visual
+Vertical Slice milestone. Do not record deferred human validation as
+"HUMAN PASS" in any status doc — use "HUMAN VISUAL ACCEPTANCE: DEFERRED
+UNTIL VISUAL VERTICAL SLICE" instead.
+
 ---
 
 ## PUBLIC REPOSITORY
