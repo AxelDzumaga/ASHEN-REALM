@@ -22,6 +22,9 @@ func _ready() -> void:
 	_test_tile_landing_checkpoint_phase_for_combat()
 	_test_tile_landing_checkpoint_phase_for_empty()
 	_test_no_callback_does_not_crash()
+	_test_resumed_fork_pause_reopens_choice()
+	_test_resumed_non_fork_position_does_not_pause()
+	_test_resumed_fork_with_branch_already_chosen_does_not_pause()
 	for key: String in _checks:
 		if not bool(_checks[key]):
 			_failures.append(key)
@@ -135,3 +138,45 @@ func _test_no_callback_does_not_crash() -> void:
 		controller.advance_one_step()
 	var resolved: Dictionary = controller.request_tile_resolution()
 	_check("no_callback_still_resolves_normally", not resolved.is_empty())
+
+
+## Simulates a real interruption: a RunState reconstructed from disk
+## (RunState.from_dictionary(), not a live session) sitting exactly on an
+## unresolved fork — active_branch is still NONE. A fresh
+## BoardTurnController must reopen the same A/B choice, not silently let
+## the next roll move past it.
+func _test_resumed_fork_pause_reopens_choice() -> void:
+	var run: RunState = _make_run(12)
+	run.board_tile_sequence[5] = BoardTileData.TileType.FORK
+	run.board_position = 5
+	var route_a: Array[int] = [BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY]
+	run.route_branches = {5: RouteBranchDataSource.new(5, route_a, route_a, &"balanced", &"balanced")}
+	# Note: route_choice_required fires synchronously inside _init() itself,
+	# so a signal connected after construction (as board.gd/map3d.gd never
+	# do — they read controller.state directly, exactly what's asserted
+	# below) would miss it; that's a test-timing artifact, not something
+	# production code relies on.
+	var controller := BoardTurnControllerSource.new(run, run.board_tile_sequence)
+	_check("resumed_fork_state_is_route_decision", controller.state == BoardTurnControllerSource.State.ROUTE_DECISION)
+	var chosen: bool = controller.choose_branch(RouteBranchDataSource.ROUTE_A)
+	_check("resumed_fork_choice_can_be_committed", chosen)
+	_check("resumed_fork_choice_recorded_on_run", run.active_branch == RouteBranchDataSource.ROUTE_A and run.active_fork_index == 5)
+
+
+func _test_resumed_non_fork_position_does_not_pause() -> void:
+	var run: RunState = _make_run(12)
+	run.board_position = 4
+	var controller := BoardTurnControllerSource.new(run, run.board_tile_sequence)
+	_check("resumed_non_fork_stays_idle", controller.state == BoardTurnControllerSource.State.IDLE)
+
+
+func _test_resumed_fork_with_branch_already_chosen_does_not_pause() -> void:
+	var run: RunState = _make_run(12)
+	run.board_tile_sequence[5] = BoardTileData.TileType.FORK
+	run.board_position = 6  # already inside the branch, past the fork tile itself
+	run.active_branch = RouteBranchDataSource.ROUTE_A
+	run.active_fork_index = 5
+	var route_a: Array[int] = [BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY, BoardTileData.TileType.EMPTY]
+	run.route_branches = {5: RouteBranchDataSource.new(5, route_a, route_a, &"balanced", &"balanced")}
+	var controller := BoardTurnControllerSource.new(run, run.board_tile_sequence)
+	_check("resumed_already_chosen_branch_stays_idle", controller.state == BoardTurnControllerSource.State.IDLE)

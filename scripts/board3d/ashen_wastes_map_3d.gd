@@ -100,6 +100,11 @@ func _ready() -> void:
 	_update_hud()
 	await get_tree().process_frame
 	camera_rig.focus_navigation(_run.board_position, _positions, 0.0)
+	if is_instance_valid(self) and int(_turn_controller.get("state")) == BoardTurnControllerSource.State.ROUTE_DECISION:
+		# Active Run Persistence resume: same reasoning as Board2D — the
+		# controller detected we're sitting on an unresolved fork, reopen
+		# the same A/B choice immediately.
+		await _handle_fork_pause()
 
 
 func _resolve_context() -> void:

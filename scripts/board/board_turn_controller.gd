@@ -67,6 +67,33 @@ func _init(run_state: RunState, tile_sequence: Array[int], roller: DiceRoller = 
 	sequence = tile_sequence
 	dice_roller = roller if roller != null else DiceRoller.new()
 	checkpoint_callback = checkpoint
+	_detect_resumed_fork_pause()
+
+
+## Active Run Persistence resume correctness: a fresh controller can be
+## constructed (show_board() after a screen transition, or a genuine app
+## restart) while `run` is sitting exactly on an unresolved FORK — its own
+## board_position already advanced onto the fork tile (advance_one_step()
+## sets it before pausing) but no branch chosen yet. Without this, the
+## next roll would silently move past the fork without ever offering the
+## A/B choice — the choice would just vanish. Re-enters ROUTE_DECISION
+## directly from persisted state; genuinely mid-choice, this is never
+## reachable during normal live play (the choice resolves synchronously
+## within the same movement loop, never yielding back to a fresh
+## show_board() call), so this only ever fires on a real interruption.
+func _detect_resumed_fork_pause() -> void:
+	if run == null or sequence.is_empty() or run.active_branch != _RouteBranchData.NONE:
+		return
+	var position: int = run.board_position
+	if position < 0 or position >= sequence.size() or sequence[position] != BoardTileData.TileType.FORK:
+		return
+	var branch: RefCounted = run.route_branches.get(position)
+	if branch == null:
+		return
+	_pending_fork_index = position
+	_selected_destination = position
+	state = State.ROUTE_DECISION
+	route_choice_required.emit(position, branch)
 
 
 func _checkpoint(phase: String, reason: String) -> void:

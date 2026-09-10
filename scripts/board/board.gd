@@ -116,6 +116,15 @@ func _ready() -> void:
 	)
 	if not board_intro_resolved or not is_inside_tree():
 		return
+	if int(_turn_controller.get("state")) == BoardTurnControllerSource.State.ROUTE_DECISION:
+		# Active Run Persistence resume: the controller detected we're
+		# sitting on an unresolved fork (see
+		# BoardTurnController._detect_resumed_fork_pause()) — reopen the
+		# same A/B choice immediately, exactly as if the roll that landed
+		# here had just happened, before allowing any further input.
+		await _handle_fork_pause()
+		if not is_inside_tree():
+			return
 	roll_button.disabled = RunManager.current_run.board_locked
 	if not roll_button.disabled:
 		roll_button.grab_focus()
