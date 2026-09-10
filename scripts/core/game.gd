@@ -589,7 +589,18 @@ func show_settings(return_action: Callable = Callable()) -> void:
 func show_board() -> void:
 	AudioManager.set_music_state(AudioManager.MusicState.BOARD)
 	if not is_instance_valid(board_screen):
-		board_screen = MAP3D_SCENE.instantiate() if FeatureFlagsSource.USE_3D_BOARD or _map3d_prototype_mode else BOARD_SCENE.instantiate()
+		# Production selection is FeatureFlags.USE_3D_BOARD alone (Map3D
+		# Production Runtime §2/§28) — the --map3d-prototype QA flag never
+		# participates in this decision. Previously this ternary also OR'd
+		# in _map3d_prototype_mode, which show_main_menu()/show_lobby()
+		# silently clear on every menu transition; any return-to-menu
+		# (e.g. a defeat's RunResult -> Refuge) could flip a session that
+		# had been showing Map3D back to Board2D on the very next
+		# expedition, with no code path the player took causing it. Now
+		# that USE_3D_BOARD alone decides, that class of bug is
+		# structurally impossible: the production selector cannot change
+		# mid-session from any normal navigation.
+		board_screen = MAP3D_SCENE.instantiate() if FeatureFlagsSource.USE_3D_BOARD else BOARD_SCENE.instantiate()
 		if _map3d_prototype_mode and board_screen.has_method("configure_playtest_mode"):
 			board_screen.call("configure_playtest_mode", true)
 		_connect_board_screen(board_screen)
@@ -607,6 +618,17 @@ func _launch_map3d_prototype() -> void:
 	_run_terminal_transition_started = false
 	_map3d_prototype_mode = true
 	TelemetryManager.analytics_enabled = false
+	# Map3D Production Runtime §6: routing a prototype defeat away from the
+	# real RunResult (see _on_combat_lost()) only closes the reward-deposit
+	# leak. Other incidental writes fire independently of deposit/defeat —
+	# e.g. DiscoveryTracker.discover() persists a codex entry the instant a
+	# monster is first shown in combat, regardless of outcome — and every
+	# one of them targets whichever SaveManager.profile happens to be
+	# loaded, since --map3d-prototype never selects a character. Isolating
+	# SaveManager itself (the same isolation primitive ~17 runtime tests
+	# already rely on) closes the whole class at the source instead of
+	# chasing each write site individually.
+	SaveManager.use_isolated_test_profile(&"map3d_prototype_sandbox")
 	RunManager.current_run = MapSandboxContextSource.create_run()
 	_discard_board()
 	show_board()
@@ -892,6 +914,17 @@ func _on_combat_lost(_is_boss: bool, _is_elite: bool) -> void:
 	if is_instance_valid(board_screen) and board_screen.has_method("terminate_after_defeat"):
 		board_screen.call("terminate_after_defeat")
 	_discard_board()
+	# Map3D Production Runtime §6 data-safety fix: a --map3d-prototype
+	# defeat used to fall through to the real show_run_result(false),
+	# which unconditionally calls SaveManager.deposit_run() — writing XP/
+	# Ash/equipment/milestones into the real, currently-loaded
+	# SaveManager.profile even though no character was ever selected for
+	# this session. Victory already avoided this via
+	# _show_map3d_prototype_result(); defeat needs the exact same branch,
+	# not a parallel reimplementation of RunResult's logic.
+	if _map3d_prototype_mode:
+		_show_map3d_prototype_result(false)
+		return
 	show_run_result(false)
 
 
