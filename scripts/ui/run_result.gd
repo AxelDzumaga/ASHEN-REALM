@@ -249,12 +249,27 @@ func _update_milestone_progress(run: RunState) -> void:
 		for unlock_id: StringName in available_unlocks:
 			unlock_names.append(MetaUnlockCatalog.get_display_name(unlock_id).to_upper())
 		unlock_text = "\nNUEVA OPCIÓN DISPONIBLE · %s" % " / ".join(unlock_names)
-	milestone_progress_label.text = "%s\nASHEN RANK %d  ·  %s\n%s%s" % [
+	# Core Loop / Final Reward §12 — announced only when THIS run's deposit
+	# actually flipped a biome from locked to unlocked (run.
+	# newly_unlocked_biome_ids, computed once in SaveManager.deposit_run()),
+	# never re-derived from "is it unlocked now" — that would also be true
+	# on every later replay of the same region.
+	var region_unlock_text: String = ""
+	if not run.newly_unlocked_biome_ids.is_empty():
+		var region_names: Array[String] = []
+		for biome_id: StringName in run.newly_unlocked_biome_ids:
+			var biome: BiomeData = BiomeCatalog.get_by_id(biome_id)
+			if biome != null:
+				region_names.append(biome.display_name.to_upper())
+		if not region_names.is_empty():
+			region_unlock_text = "\nNUEVA REGIÓN DESBLOQUEADA · %s" % " / ".join(region_names)
+	milestone_progress_label.text = "%s\nASHEN RANK %d  ·  %s\n%s%s%s" % [
 		completed_text,
 		MilestoneResolverSource.get_ashen_rank(SaveManager.profile),
 		MilestoneResolverSource.get_rank_progress_text(SaveManager.profile),
 		goal_text,
 		unlock_text,
+		region_unlock_text,
 	]
 
 
@@ -274,7 +289,10 @@ func _update_boss_reward() -> void:
 	]
 	if run.boss_chest_awarded:
 		var chest: ChestData = ChestCatalog.get_by_id(run.boss_chest_id)
-		boss_reward_label.text += "\nCOFRE · %s\nSIGILOS +%d" % [
+		# Core Loop / Final Reward §10 — the chest is deliberately deferred
+		# (opened later in Refuge, never auto-resolved here); say so
+		# explicitly so the deferral reads as intentional, not forgotten.
+		boss_reward_label.text += "\nCOFRE · %s\nDISPONIBLE PARA ABRIR EN EL REFUGIO\nSIGILOS +%d" % [
 			chest.display_name.to_upper() if chest != null else "RELIQUIA DE BOSS",
 			run.guardian_sigils_awarded,
 		]

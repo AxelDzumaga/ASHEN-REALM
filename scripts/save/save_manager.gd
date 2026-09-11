@@ -270,7 +270,20 @@ func deposit_run(run_state: RunState) -> bool:
 		# guards are one atomic write — never two writes that could land
 		# on opposite sides of a crash.
 		profile.last_deposited_run_id = run_state.run_id
+	# Core Loop / Final Reward — "did THIS run unlock a biome" is a diff
+	# across the SAME milestone evaluation below, not a second read of
+	# BiomeCatalog.is_unlocked() afterward (which would also be true on
+	# every later run and could never distinguish "just unlocked" from
+	# "already unlocked"). No separate save/transaction: both snapshots
+	# read profile.completed_milestone_ids, which evaluate_milestones()
+	# below is the only thing that mutates.
+	var unlocked_before: Dictionary[StringName, bool] = {}
+	for biome: BiomeData in BiomeCatalog.get_all():
+		unlocked_before[biome.id] = BiomeCatalog.is_unlocked(biome, profile.completed_milestone_ids)
 	var milestone_result: MilestoneResolverSource.CompletionResult = MilestoneResolverSource.evaluate(profile)
+	for biome: BiomeData in BiomeCatalog.get_all():
+		if not unlocked_before.get(biome.id, false) and BiomeCatalog.is_unlocked(biome, profile.completed_milestone_ids):
+			run_state.newly_unlocked_biome_ids.append(biome.id)
 	profile_changed.emit()
 	save_profile()
 	var saved: bool = end_save_transaction()
