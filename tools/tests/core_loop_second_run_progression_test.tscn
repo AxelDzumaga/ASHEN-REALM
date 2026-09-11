@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/tests/core_loop_second_run_progression_test.gd" id="1"]
+
+[node name="CoreLoopSecondRunProgressionTest" type="Node"]
+script = ExtResource("1")
