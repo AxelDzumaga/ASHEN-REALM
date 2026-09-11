@@ -1,13 +1,21 @@
 extends Node
 
-## Prueba de regresión (2026-09-03): demuestra con evidencia de ejecución
-## real — no solo lectura de código — que un test que ejecuta gameplay real
-## y persiste (deposit_run vía derrota real) queda completamente aislado del
-## profile real del jugador (user://profile.json) al usar
-## SaveManager.use_isolated_test_profile(). Mismo patrón que
-## tools/tests/map3d_defeat_flow_test.gd (el test que originalmente causó
-## mutaciones reales), reutilizado acá deliberadamente como "peor caso"
-## conocido.
+## Prueba de regresión (2026-09-03, actualizada 2026-09-10 para Map3D
+## Production Runtime §29/§39): demuestra con evidencia de ejecución real —
+## no solo lectura de código — que un test que ejecuta gameplay real y
+## persiste (deposit_run vía derrota real) queda completamente aislado del
+## profile real del jugador (user://profile.json).
+##
+## Antes usaba el launcher --map3d-prototype como "peor caso" porque ese
+## launcher no seleccionaba personaje. Map3D Production Runtime §6 corrigió
+## exactamente esa ruta: una derrota en modo prototipo ya NO deposita nada
+## (ver map3d_defeat_flow_test.gd y map3d_prototype_data_safety_test.gd),
+## así que ya no representa un caso de depósito real. Este test ahora recorre
+## el flujo de PRODUCCIÓN normal (selección de personaje real vía
+## CharacterProfileRepository, aislado con use_isolated_test_root() — mismo
+## patrón que active_run_*_test.gd) para probar la misma invariante donde
+## sigue siendo relevante: un depósito real de recompensas nunca toca
+## user://profile.json cuando corre bajo aislamiento de test.
 
 const GAME_SCENE := preload("res://scenes/core/game.tscn")
 const REAL_PROFILE_PATH := "user://profile.json"
@@ -19,37 +27,37 @@ func _ready() -> void:
 	var real_existed_before: bool = FileAccess.file_exists(REAL_PROFILE_PATH)
 	var real_hash_before: String = _hash_file(REAL_PROFILE_PATH)
 
-	SaveManager.use_isolated_test_profile(&"save_isolation_regression")
-	var isolated_path: String = SaveManager.save_path
-	_check("isolated_path_is_not_real_profile", isolated_path != REAL_PROFILE_PATH)
-	var isolated_hash_before: String = _hash_file(isolated_path)
-
-	SaveManager.profile.completed_tutorials.clear()
-	for tutorial_id: StringName in TutorialCatalog.ALL_IDS:
-		SaveManager.profile.completed_tutorials.append(String(tutorial_id))
+	CharacterProfileRepository.use_isolated_test_root("save_isolation_regression")
+	ActiveRunRepository.use_isolated_test_root("save_isolation_regression")
 
 	var game: Control = GAME_SCENE.instantiate()
 	add_child(game)
 	await get_tree().process_frame
-	game.call("_launch_map3d_prototype")
-	await _frames(3)
-	var map: Control = game.get("board_screen")
+	await get_tree().process_frame
+	_press(game, "%StartGameButton")
+	await get_tree().process_frame
+	var name_edit: LineEdit = game.current_screen.get_node("%NameEdit")
+	name_edit.text = "Isolation Hero"
+	_press(game, "%ConfirmButton")
+	await get_tree().process_frame
+	game.call("_on_start_run_requested")
+	await get_tree().process_frame
+
+	var isolated_path: String = SaveManager.save_path
+	_check("isolated_path_is_not_real_profile", isolated_path != REAL_PROFILE_PATH)
+	var isolated_hash_before: String = _hash_file(isolated_path)
+
+	# Real production entry: no --map3d-prototype involved, so this is
+	# also live proof of §29 ("no normal path requires the prototype arg")
+	# and confirms the real character flow reaches Map3D by default.
+	_check("entered_via_map3d", game.get("board_screen").name == "AshenWastesMap3D")
 	var run: RunState = RunManager.current_run
-	map.call("_request_external_interaction", &"combat", false, false)
-	await _frames(3)
-	_check("entered_combat_from_map3d", game.get("current_screen").name == "Combat")
-	var combat: Control = game.get("current_screen")
-	var frames: int = 0
-	while int(combat.get("_phase")) != 1 and frames < 600:
-		await get_tree().process_frame
-		frames += 1
-	var player_actor: CombatActor = combat.get("player_actor")
-	player_actor.set_current_hp(0)
-	run.current_health = 0
-	await combat.call("_finish_defeat")
-	await get_tree().create_timer(0.7).timeout
+
+	game.call("_on_combat_lost", false, false)
+	await get_tree().create_timer(0.1).timeout
 	await _frames(3)
 
+	_check("run_result_visible", game.current_screen.name == "RunResult")
 	_check("run_deposited", run.rewards_deposited)
 	_check("isolated_total_runs_incremented", SaveManager.profile.total_runs >= 1)
 	_check("isolated_total_defeats_incremented", SaveManager.profile.total_defeats >= 1)
@@ -81,6 +89,11 @@ func _ready() -> void:
 	RunManager.current_run = null
 	await get_tree().process_frame
 	get_tree().quit(0 if _failures.is_empty() else 1)
+
+
+func _press(game: Control, unique_path: String) -> void:
+	var button: BaseButton = game.current_screen.get_node(unique_path)
+	button.emit_signal("pressed")
 
 
 func _hash_file(path: String) -> String:
