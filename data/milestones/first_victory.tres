@@ -6,7 +6,7 @@
 script = ExtResource("1")
 milestone_id = &"first_victory"
 display_name = "Primera Victoria"
-description = "Completá una región por primera vez."
+description = "Ganá una expedición por primera vez."
 condition_type = 1
 target_count = 1
 reward_ash = 10
