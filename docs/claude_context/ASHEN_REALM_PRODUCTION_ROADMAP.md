@@ -55,6 +55,18 @@ Goals:
 - update technical documentation;
 - confirm current outstanding elemental content decisions.
 
+UPDATE (2026-09-10): Map3D is now the production expedition default
+(`feature/map3d-production-runtime`, merged to `main`). Core Loop /
+Final Reward completion audited and implemented
+(`feature/core-loop-final-rewards`, not yet merged) — region-unlock
+gating fixed (Ember Marsh now requires defeating Ashen Warden, not
+merely finishing any expedition), RunResult reward accounting
+completed (Guardian Sigils, Boss Chest, new-region-unlock all
+correctly shown once and only when earned). FUNCTIONAL reward flow is
+complete; human economy/feel playtest remains a separate, still-open
+goal of this tier, deferred to the Visual Vertical Slice policy like
+every other subjective-feel sign-off this session.
+
 Do not start major 3D production yet.
 
 Do not jump to Combat3D or Character3D

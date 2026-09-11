@@ -593,6 +593,95 @@ merged to `main` as of this session. See
 
 ---
 
+## CORE LOOP / FINAL REWARD
+
+STATUS (2026-09-10, branch `feature/core-loop-final-rewards`):
+IMPLEMENTED, TESTED, NOT MERGED. Local commits only, not pushed.
+
+EMBER MARSH GATE: `warden_defeated` (BOSS_DEFEATED, target
+`ashen_warden`) — was `first_expedition` (TOTAL_RUNS, i.e. any
+completed run including a defeat), a bug this milestone fixes.
+`ember_marsh.tres`'s `required_milestone_id` is the single source of
+truth; `BiomeCatalog.is_unlocked()` reads it, unchanged.
+
+`first_expedition` (TOTAL_RUNS): generic "finished an expedition"
+milestone — win or lose. Unchanged behavior, no longer a region gate.
+`first_victory` (TOTAL_VICTORIES): generic "won an expedition"
+milestone — any boss, not region-specific. Copy corrected this session
+("Ganá una expedición por primera vez", previously implied a
+region-completion meaning it never had in code). Neither is used as a
+gate anywhere in the current 2-biome catalog; only a boss's own
+BOSS_DEFEATED milestone is.
+
+BIOME CLEAR: boss-defeat-derived, not a separate persisted bool — a
+cleared biome remains fully replayable (no lockout, no redirect).
+Verified live: `RunManager.start_new_run()` for an already-cleared
+biome works identically to a fresh one.
+
+DEFEAT REWARDS (unchanged from audit, confirmed intentional): partial
+progression is always kept — accumulated run Ash, player/run XP
+(`PlayerProgressionConfig.calculate_run_xp()` grants a flat baseline
+even at zero combats won), biome materials, a (worse-odds) loot roll,
+and non-victory milestones (`first_expedition`) all deposit normally
+on defeat. Only boss-exclusive rewards (total_victories, boss_defeat
+count, Boss Chest, Guardian Sigils, `BOSS_COMBAT_XP`, Boss Reward card
+effects) require an actual win — enforced by the existing
+`if run_state.run_completed: ... else: ...` branch in
+`SaveManager.deposit_run()`, untouched by this milestone.
+
+NEW-BIOME-UNLOCK TRACKING: `RunState.newly_unlocked_biome_ids` (new
+field, included in `to_dictionary()`/`from_dictionary()` like every
+other RunState field) — computed as a before/after diff of
+`BiomeCatalog.is_unlocked()` across the exact same milestone-evaluation
+call inside `SaveManager.deposit_run()`'s existing transaction, not a
+second save and not a duplicated "unlocked" bool. Answers "did THIS
+run unlock it", which a direct `is_unlocked()` re-check cannot (that
+stays true on every later run too). RunResult announces it once
+(`milestone_progress_label`, "NUEVA REGIÓN DESBLOQUEADA"); a second
+Warden victory reports an empty list and shows nothing extra —
+verified live via `core_loop_render_smoke.gd`.
+
+RUNRESULT ACCOUNTING: Guardian Sigils and Boss Chest were already
+displayed pre-session (folded into `boss_reward_label`, sourced from
+`run.guardian_sigils_awarded`/`run.boss_chest_awarded`/
+`run.boss_chest_id` — real transaction fields, not hardcoded); this
+session added the explicit "DISPONIBLE PARA ABRIR EN EL REFUGIO" copy
+so the chest's deferral reads as intentional, plus the new-biome-unlock
+line. Boss Chest remains unopened at RunResult — opening stays a
+separate Refuge/meta-progression action (`SaveManager.open_chest()`),
+not auto-resolved here.
+
+BOSS SET (`ashen_warden_set` = `wardens_edge` + `warden_plate`):
+unchanged this session. Existing 35% soft-bias + missing-piece
+preference in `ChestResolver._roll_item()` is now regression-locked
+(`core_loop_boss_set_loot_test.gd`, seeded/deterministic). No hard pity
+— explicitly deferred (BALANCE/TUNING debt, not Core Loop correctness).
+`EquipmentData.boss_source_id` remains authored-but-unused — a content
+seam for a future acquisition system, not touched this milestone.
+
+FIRST-CLEAR REWARD: none added. The existing victory package (Boss
+Reward choice + loot + Boss Chest + Guardian Sigils + XP/Ash +
+milestones + next-biome unlock, now all correctly gated and
+communicated) is the approved 1.0 package — this milestone fixed
+gating and accounting, not reward quantity.
+
+SIMULATOR PARITY: `tools/simulation/full_run_simulation.gd` still does
+not call `deposit_run()`/`BoardTurnController`/`ActiveRunRepository` —
+confirmed unchanged, intentionally out of scope (KNOWN DEBT, a future
+Balance/Simulation milestone's concern).
+
+FUNCTIONAL REWARD FLOW: COMPLETE (verified by automated tests +
+non-headless real-render smoke). VISUAL/FEEL ACCEPTANCE: DEFERRED —
+same Visual Vertical Slice policy as every prior milestone this
+session; do not record "HUMAN PASS".
+
+SAVE_VERSION: 14 (unchanged). ACTIVE_RUN_VERSION: 1 (unchanged) — the
+new `RunState.newly_unlocked_biome_ids` field is additive and
+defensively defaulted to `[]` by the existing `_read_string_name_array()`
+reader on missing/older data, needing no version bump.
+
+---
+
 ## COMBAT
 
 CURRENT:
