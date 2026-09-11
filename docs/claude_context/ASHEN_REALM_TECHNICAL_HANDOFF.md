@@ -271,13 +271,23 @@ Preserve this invariant.
 
 ## FEATURE FLAGS
 
-Confirmed:
+UPDATE (2026-09-10, Map3D Production Runtime):
 
-FeatureFlags.USE_3D_BOARD = false.
+FeatureFlags.USE_3D_BOARD = true.
 
-Board2D remains default.
+Map3D is now the production default expedition presentation.
+Board2D is retained temporarily as a debug/fallback and domain-parity
+regression adapter (see BOARD2D below) — flip the constant to false
+locally for Board2D triage; there is no user-facing selector.
 
-Map3D exists in parallel.
+show_board()'s selector now reads FeatureFlags.USE_3D_BOARD alone.
+It previously also OR'd in an ephemeral --map3d-prototype session flag
+(_map3d_prototype_mode), which show_main_menu()/show_lobby() silently
+cleared on every menu transition — the exact, traced root cause of a
+previously observed bug where a first expedition in Map3D, followed by
+a defeat/Refuge/second-expedition sequence, silently fell back to
+Board2D. Regression-locked by map3d_production_entry_test.gd
+(second-expedition-after-defeat/victory both assert Map3D).
 
 ---
 
@@ -505,9 +515,81 @@ CONTENT GAP, not addressed this session.
 
 SAVE_VERSION: 14 (unchanged).
 
-NEXT MILESTONE: Profile System (`feature/profile-system`, branched from
-`main` after this merge) — see `docs/claude_context/ASHEN_REALM_DECISIONS.md`
-for the approved design.
+UPDATE (2026-09-10, MAP3D PRODUCTION RUNTIME):
+
+Map3D is now the production expedition presentation
+(FeatureFlags.USE_3D_BOARD = true). Normal flow: Main Menu -> selected
+character -> Refuge -> Start Expedition -> Map3D -> encounters -> Map3D
+-> Boss -> Results -> Refuge, with no --map3d-prototype launcher
+involved. Active Run resume (CONTINUAR EXPEDICIÓN) dispatches into
+Map3D the same way, via game.gd's existing presentation-neutral
+_resume_active_run() — that dispatcher required no changes; it was
+already presentation-neutral before this milestone.
+
+PRODUCTION MAP3D vs MAP3D PROTOTYPE SANDBOX — now explicitly separated:
+- Production Map3D always consumes RunManager.current_run, created via
+  RunManager.start_new_run() (real character/profile loadout) or
+  restored via ActiveRunRepository. AshenWastesMap3D._resolve_context()
+  only falls back to MapSandboxContext when RunManager.has_active_run()
+  is false (isolated tests/tools that instantiate the scene directly).
+- --map3d-prototype (debug-build-only CLI launcher) remains QA/visual-
+  iteration tooling — never a production entry path. It still bypasses
+  CharacterProfileRepository/RunManager.start_new_run()/
+  ActiveRunRepository (no character selected, no active-run checkpoint
+  ever written — the checkpoint guard already no-ops on an empty
+  selected_character_id).
+
+P0 DATA-SAFETY FIX (this session): a defeat during --map3d-prototype
+used to fall through to the real show_run_result(false) ->
+SaveManager.deposit_run(), writing XP/Ash/equipment/milestones into
+whichever profile SaveManager currently had loaded (victory already
+avoided this via its own _show_map3d_prototype_result() screen; defeat
+had no equivalent branch). Fixed in two layers: (1) _on_combat_lost()
+now branches to _show_map3d_prototype_result(false) exactly like
+victory when _map3d_prototype_mode is set; (2)
+_launch_map3d_prototype() now isolates SaveManager itself
+(SaveManager.use_isolated_test_profile(), the same primitive existing
+runtime tests already rely on) before creating the sandbox run — this
+closes the whole class of incidental writes at the source, not just
+reward deposit. It also caught a second, independent leak the same
+mechanism fixes: DiscoveryTracker.discover() (codex/bestiary entries)
+writes to SaveManager.profile immediately on encountering an
+enemy/boss, unconditionally, regardless of victory/defeat/deposit —
+previously reached the real/currently-loaded profile from a prototype
+combat encounter too. Regression-locked with a full permanent-
+ProfileData snapshot (before/after, both outcomes) in
+map3d_prototype_data_safety_test.gd.
+
+BOARD2D LIFECYCLE: KEEP TEMPORARILY as a debug fallback (FeatureFlags
+override) and domain-parity regression adapter
+(board_presentations_contract_test.gd proves BoardTurnController stays
+identical between Board2D and Map3D given the same seed). Removal
+trigger: Map3D reaches real (non-headless) device/human validation
+equivalent to what Board2D already has, AND the domain-parity
+guarantee is preserved another way, AND product confirms no
+accessibility/fallback need — not before.
+
+DEVICE VALIDATION GATES (not yet performed, do not block this
+milestone):
+MAP3D-DEVICE-001 — real Android touch/raycast input validation.
+MAP3D-DEVICE-002 — real Android GPU/node/draw-call profiling
+(structural note: up to ~54 tiles are NOT multimesh-batched — each is
+an independent StaticBody3D/MeshInstance3D pair with a unique
+material, ~200-270 nodes and 100+ unique-material draw calls from
+tiles alone at a full board+2-fork layout — terrain/connections ARE
+already MultiMesh-batched).
+
+HUMAN VISUAL ACCEPTANCE: DEFERRED (same 2026-09-10 product decision as
+L0 — placeholder/prototype visuals do not yet represent target
+presentation closely enough to be worth repeated subjective
+playtesting). This is a runtime-architecture milestone, not a visual
+one — see PHASE 21/27 audit notes: no new functional readability
+blocker, only pre-existing visual debt (MAP3D-HUMAN-001/003/005),
+explicitly out of scope here.
+
+NEXT MILESTONE: Profile System and Active Run Persistence are both
+merged to `main` as of this session. See
+`docs/claude_context/ASHEN_REALM_DECISIONS.md` for design history.
 
 ---
 

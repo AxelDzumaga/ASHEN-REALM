@@ -49,7 +49,8 @@ func _ready() -> void:
 	var resolution_3d: Dictionary = controller_3d.request_tile_resolution()
 	_check(failures, "same_final_position", run_2d.board_position == run_3d.board_position)
 	_check(failures, "same_resolution_request", resolution_2d == resolution_3d)
-	_check(failures, "feature_flag_safe_default", not FeatureFlagsSource.USE_3D_BOARD)
+	# Map3D Production Runtime §2: Map3D is now the production default.
+	_check(failures, "feature_flag_production_default", FeatureFlagsSource.USE_3D_BOARD)
 
 	print(JSON.stringify({
 		"failures": failures,

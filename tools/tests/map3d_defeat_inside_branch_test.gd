@@ -13,14 +13,16 @@ var _failures: Array[String] = []
 
 
 func _ready() -> void:
-	SaveManager.use_isolated_test_profile(&"map3d_defeat_inside_branch")
-	SaveManager.profile.completed_tutorials.clear()
-	for tutorial_id: StringName in TutorialCatalog.ALL_IDS:
-		SaveManager.profile.completed_tutorials.append(String(tutorial_id))
 	var game: Control = GAME_SCENE.instantiate()
 	add_child(game)
 	await get_tree().process_frame
 	game.call("_launch_map3d_prototype")
+	# Map3D Production Runtime §6: _launch_map3d_prototype() now isolates
+	# SaveManager.profile itself — set tutorial-skip state on the profile
+	# it actually isolates to, after the call, not before.
+	SaveManager.profile.completed_tutorials.clear()
+	for tutorial_id: StringName in TutorialCatalog.ALL_IDS:
+		SaveManager.profile.completed_tutorials.append(String(tutorial_id))
 	await _frames(3)
 	var map: Control = game.get("board_screen")
 	var run: RunState = RunManager.current_run
@@ -51,8 +53,13 @@ func _ready() -> void:
 	await _frames(3)
 
 	var current: Control = game.get("current_screen")
-	_check("run_result_defeat_visible", current.name == "RunResult" and current.visible)
+	# Map3D Production Runtime §6: prototype defeat now stays sandboxed
+	# (Map3DPrototypeResult), not the real RunResult — see
+	# map3d_defeat_flow_test.gd's "no_profile_deposit"-style checks for the
+	# dedicated data-safety regression.
+	_check("prototype_result_visible", current.name == "Map3DPrototypeResult" and current.visible)
 	_check("map3d_not_restored", game.get("board_screen") == null and not is_instance_valid(map))
+	_check("no_reward_deposit", not run.rewards_deposited)
 	_check("run_locked_after_defeat", run.board_locked)
 	# El estado de rama queda "congelado" en el run terminado; lo importante
 	# es que la run ya no sea jugable (board_locked) y no exista Map3D vivo

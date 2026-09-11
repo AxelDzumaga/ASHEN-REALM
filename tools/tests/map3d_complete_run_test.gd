@@ -7,14 +7,16 @@ const RouteBranchDataSource = preload("res://scripts/board/route_branch_data.gd"
 
 
 func _ready() -> void:
-	SaveManager.use_isolated_test_profile(&"map3d_complete_run")
-	for tutorial_id: StringName in TutorialCatalog.ALL_IDS:
-		SaveManager.profile.completed_tutorials.append(String(tutorial_id))
 	var failures: Array[String] = []
 	var game: Control = GAME_SCENE.instantiate()
 	add_child(game)
 	await get_tree().process_frame
 	game.call("_launch_map3d_prototype")
+	# Map3D Production Runtime §6: _launch_map3d_prototype() now isolates
+	# SaveManager.profile itself — set tutorial-skip state on the profile
+	# it actually isolates to, after the call, not before.
+	for tutorial_id: StringName in TutorialCatalog.ALL_IDS:
+		SaveManager.profile.completed_tutorials.append(String(tutorial_id))
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var map: Control = game.get("board_screen") as Control
