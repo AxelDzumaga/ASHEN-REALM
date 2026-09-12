@@ -48,6 +48,31 @@ lateral 3/4.
 Combat3D todavía no se considera implementado
 hasta confirmación técnica.
 
+COMBAT DOMAIN M1 (2026-09-12) — APPROVED Y EXTRAÍDO:
+
+CombatTurnController (scripts/combat/combat_turn_controller.gd)
+es la única autoridad de secuenciación de turnos
+(ronda, bloque de equipo, orden estable, elegibilidad),
+presentation-independent, sin _process()/timers/polling.
+
+Orden actual confirmado y preservado:
+PLAYER -> COMPANION (si vivo/presente) -> ENEMY 1..N -> próxima ronda.
+Sin Speed, sin iniciativa, sin turn meter — orden estable únicamente.
+
+Defeat semantics siguen atadas al protagonista
+(no al Player Team completo) — la migración a
+derrota a nivel de equipo queda diferida a M2,
+no se combinó con esta extracción.
+
+Cooldown bug confirmado y corregido en M1:
+el cooldown de skills solo avanzaba en turnos de ataque
+básico, nunca al usar otra skill. Ahora avanza en cada
+turno del jugador sin importar la acción elegida.
+
+M2 (team/controller taxonomy), M3 (action resolution),
+M4 (structured combat events), M5 (5v5 formation)
+siguen sin implementar — M1 fue solo extracción.
+
 ---
 
 ## EQUIPMENT
