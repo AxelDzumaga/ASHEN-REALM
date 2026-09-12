@@ -121,6 +121,24 @@ Definition of Done:
 existing Combat2D behavior preserved
 and regression-tested.
 
+M1 (turn sequencing extraction only):
+IMPLEMENTED 2026-09-12, local branch
+feature/combat-domain-m1, NOT MERGED.
+CombatTurnController is the round/team-block/
+actor-turn authority; combat.gd no longer runs
+its own manual while-loop or per-enemy for-loop
+for sequencing. Cooldown-tied-to-basic-attack bug
+found during the extraction and fixed. Existing
+Combat2D behavior preserved (regression suite +
+non-headless real-renderer smoke, zero attributable
+failures). See ASHEN_REALM_DECISIONS.md and the
+TECHNICAL_HANDOFF COMBAT section for the exact
+contract.
+
+Still ahead: M2 (team/controller taxonomy cleanup),
+M3 (action resolution extraction), M4 (structured
+combat events), M5 (5v5 formation) — none started.
+
 ---
 
 # TIER 4 — EQUIPMENT 2.0 CONTINUATION

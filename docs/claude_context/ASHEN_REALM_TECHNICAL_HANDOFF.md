@@ -699,17 +699,98 @@ player/companion below.
 Important:
 
 scripts/combat/combat.gd
-has grown to approximately 2360 lines
-in the latest audit (2026-09-07).
+was approximately 2360 lines
+in the 2026-09-07 audit.
 
-This is the largest architectural risk
-for future Combat3D.
+Combat Domain M1 (2026-09-12):
+STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED.
 
-Future recommended direction:
+Turn authority:
+CombatTurnController
+(scripts/combat/combat_turn_controller.gd).
+RefCounted, no _process(), no timers, no polling,
+no UI/scene-node access. Pull-based: Combat2D
+drives it by calling start()/complete_current_turn()/
+stop(); round_started/team_block_started/
+actor_turn_started/actor_turn_ended/
+combat_sequence_stopped are observability signals only,
+not the driving mechanism.
 
-extract presentation-independent
-combat orchestration/domain
-before building Combat3D.
+Round/team-block model:
+ROUND -> PLAYER block -> ENEMY block -> next ROUND.
+No round counter existed before M1 — round boundary was
+implicit in combat.gd's while loop. Team blocks are
+snapshotted (duplicated) from the SAME array references
+combat.gd owns (player_actors / enemy_actors) at each
+block start, matching the pre-M1 behavior where a boss
+summon mid-round never acts before the following round.
+
+Current runtime composition:
+UNCHANGED — player + optional companion vs current
+supported enemy count. No 5v5, no formation UI, no
+summon/revive architecture changes.
+
+Team defeat semantics:
+UNCHANGED / DEFERRED TO M2. Defeat is still keyed
+specifically to player_actor (the protagonist), not the
+whole Player Team — companion death never ends combat.
+Victory was already team-level (no living Enemy Team
+actor) before M1, so no change there.
+
+Cooldown semantics (bug found and fixed in M1):
+Before M1, CombatSkillController.on_basic_attack_completed()
+was the ONLY call site that decremented skill cooldowns,
+and combat.gd only called it from the BASIC_ATTACK branch
+of the player's action — never from ACTIVE_SKILL. A player
+turn spent using a skill silently froze the cooldown of
+every OTHER equipped skill.
+FIX: CombatSkillController.advance_cooldowns(exclude) is
+now the generic per-turn hook, called on every player turn
+regardless of action chosen (BASIC_ATTACK: exclude=null;
+ACTIVE_SKILL: exclude=the skill just used, so its own
+freshly-set cooldown does not lose a tick the same turn
+it activated). on_basic_attack_completed() still exists
+unchanged (energy gain + calls advance_cooldowns()
+internally) for backward compatibility with
+tools/simulation/full_run_simulation.gd, an independent
+balance-simulation tool intentionally left out of scope.
+Regression test: tools/tests/combat_skill_cooldown_regression_test.gd.
+
+Status/intent/energy/boss timing:
+PRESERVED, unchanged call order and boundaries — only WHO
+calls _process_actor_turn_start / _statuses.process_turn_end
+/ _plan_all_enemy_intents changed (moved from a manual
+while-loop + per-enemy for-loop into wrapper functions
+driven by the controller), never WHEN relative to each
+other. ashen_warden_phase3_curse_test produces
+byte-identical output before/after M1 (same failures, same
+JSON) — confirmed still PRE-EXISTING/UNRELATED, not an M1
+regression.
+
+Combat Events (structured DamageEvent/HealEvent/etc.):
+NOT YET — M4 scope. M1 only added plain signals for
+sequencing observability, not a domain event stream.
+
+Domain/integration tests added in M1:
+tools/tests/combat_turn_controller_test.gd (pure
+controller unit tests, no Combat2D needed) and
+tools/tests/combat_skill_cooldown_regression_test.gd.
+Broader existing suite (enemy intent, HP continuity,
+weak/resist, equipment, Map3D defeat/return/boss-result,
+Active Run encounter resume, boss set loot, core loop
+reward accounting) re-run against the new controller with
+zero attributable regressions. Non-headless engineering
+smoke (core_loop_render_smoke, real D3D12 renderer)
+passed: defeat, boss victory with full reward accounting,
+replay, and no duplicate unlock announcement all verified
+end-to-end through the new turn controller.
+
+This remains the largest architectural risk
+for future Combat3D — M1 is extraction only;
+M2 (team/controller taxonomy cleanup),
+M3 (action resolution extraction),
+M4 (structured combat events),
+M5 (5v5 formation) are still ahead of Combat3D.
 
 Do not duplicate Combat logic
 into a second full 3D implementation.

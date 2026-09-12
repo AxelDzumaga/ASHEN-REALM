@@ -109,6 +109,7 @@ var _skill_loadout: CombatSkillController
 var _focused_skill: ActiveSkillController
 var _skill_buttons: Array[CombatSkillButton] = []
 var _result_resolved: bool = false
+var _turn_controller: CombatTurnController
 var _phase: CombatPhase = CombatPhase.INTRO
 var _pending_player_action: PlayerAction = PlayerAction.NONE
 var _committed_target_actor: CombatActor
@@ -897,14 +898,47 @@ func _run_combat() -> void:
 	await _wait(TURN_DELAY)
 	_plan_all_enemy_intents()
 
-	while player_actor.is_alive() and has_alive_enemies():
+	_turn_controller = CombatTurnController.new()
+	_turn_controller.team_block_started.connect(_on_turn_block_started)
+	_turn_controller.start(player_actors, enemy_actors)
+
+	while not _turn_controller.is_stopped():
+		var acting_actor: CombatActor = _turn_controller.current_actor
+		if acting_actor == null:
+			break
+		if acting_actor == player_actor:
+			if await _run_player_turn():
+				return
+		elif acting_actor == companion_actor:
+			if await _run_companion_turn():
+				return
+		else:
+			if await _run_enemy_turn(acting_actor):
+				return
+
+
+## Hook mínimo de CombatTurnController (sección 24 del handoff M1) — solo
+## reacciona a un cambio de bloque de equipo para mover el _phase de
+## presentación; no conduce lógica de secuenciación.
+func _on_turn_block_started(team: CombatTurnController.TeamBlock) -> void:
+	if team == CombatTurnController.TeamBlock.ENEMY:
+		_phase = CombatPhase.ENEMY_ACTION
+		_refresh_action_bar()
+
+
+## Frontera de turno del jugador (sección 8 del handoff M1): el controller
+## se detiene en current_actor == player_actor hasta que esta función llame
+## a complete_current_turn() — nunca inspecciona botones/UI/mouse/teclado,
+## eso sigue siendo enteramente responsabilidad de Combat2D.
+func _run_player_turn() -> bool:
+	while true:
 		await _wait_for_player_action()
 		if _result_resolved:
-			return
+			return true
 		match _pending_player_action:
 			PlayerAction.BASIC_ATTACK:
 				if await _run_player_basic_action(_committed_target_actor):
-					return
+					return true
 				var energy_gained: int = _skill_loadout.on_basic_attack_completed()
 				_update_skill_ui()
 				var companion_tutorial_pending: bool = (
@@ -914,28 +948,35 @@ func _run_combat() -> void:
 				)
 				if energy_gained > 0 and not companion_tutorial_pending:
 					if not await TutorialManager.request_and_wait(TutorialCatalog.ENERGY_GAIN, TutorialManager.CONTEXT_COMBAT, self):
-						return
+						return true
 			PlayerAction.ACTIVE_SKILL:
 				if await _execute_active_skill(_committed_skill, _committed_target_actor):
-					return
+					return true
+				# Combat Domain M1 fix: el cooldown de las DEMÁS skills debe
+				# avanzar en este turno del jugador aunque no haya elegido
+				# ataque básico. La skill recién usada (_committed_skill) ya
+				# tiene su cooldown recién fijado por activate() y no debe
+				# perder un tick en este mismo turno.
+				_skill_loadout.advance_cooldowns(_committed_skill)
 			_:
 				continue
-		_player_actions_completed += 1
-		_statuses.process_turn_end(player_actor)
-		if await _run_companion_action():
-			return
-		_pending_player_action = PlayerAction.NONE
-		_committed_target_actor = null
-		_committed_skill = null
-		_phase = CombatPhase.ENEMY_ACTION
-		_refresh_action_bar()
-		if await _run_enemy_round():
-			return
+		break
+	_player_actions_completed += 1
+	_statuses.process_turn_end(player_actor)
+	_pending_player_action = PlayerAction.NONE
+	_committed_target_actor = null
+	_committed_skill = null
+	_turn_controller.complete_current_turn()
+	return false
 
 
-func _run_companion_action() -> bool:
-	if companion_actor == null or not companion_actor.is_alive() or _companion_runtime == null:
-		return false
+## Turno del aliado IA (sección 9 del handoff M1): CombatTurnController ya
+## garantiza que companion_actor está vivo cuando esta función se llama
+## (solo se invoca cuando current_actor == companion_actor, y el controller
+## nunca selecciona un actor no elegible) — este código no re-implementa esa
+## decisión, solo ejecuta QUÉ hace el aliado (CompanionActionResolver, sin
+## cambios) y avisa al controller cuándo terminó.
+func _run_companion_turn() -> bool:
 	if not await TutorialManager.request_and_wait(TutorialCatalog.COMPANION_COMBAT, TutorialManager.CONTEXT_COMBAT, self):
 		return true
 	if _result_resolved:
@@ -944,9 +985,11 @@ func _run_companion_action() -> bool:
 		_statuses.process_turn_end(companion_actor)
 		await _present_companion_death()
 		_update_combatants()
+		_turn_controller.complete_current_turn()
 		return false
 	var companion_data: CompanionData = companion_actor.source_data as CompanionData
 	if companion_data == null:
+		_turn_controller.complete_current_turn()
 		return false
 	var plan: CompanionActionResolver.ActionPlan = CompanionActionResolver.build_plan(
 		companion_actor,
@@ -1026,6 +1069,7 @@ func _run_companion_action() -> bool:
 		await _present_enemy_death(target_actor)
 		refresh_primary_enemy_actor()
 	_update_combatants()
+	_turn_controller.complete_current_turn()
 	return false
 
 
@@ -1221,23 +1265,36 @@ func _run_player_basic_action(captured_target: CombatActor) -> bool:
 	return false
 
 
-func _run_enemy_round() -> bool:
-	_phase = CombatPhase.ENEMY_ACTION
-	_refresh_action_bar()
-	var round_actors: Array[CombatActor] = []
-	for round_actor: CombatActor in enemy_actors:
-		round_actors.append(round_actor)
-	for attacking_actor: CombatActor in round_actors:
-		if not attacking_actor.is_alive():
-			continue
-		if await _run_enemy_action(attacking_actor):
-			return true
-	if not _result_resolved and player_actor.is_alive() and has_alive_enemies():
+## Ex-_run_enemy_round(): la iteración "quién es el próximo enemigo" ya no
+## vive acá — CombatTurnController la posee (sección 10 del handoff M1).
+## Este helper solo conserva el efecto de borde que _run_enemy_round()
+## producía al terminar de recorrer a todos los enemigos de la ronda:
+## replanificar intents para la próxima ronda. Se llama desde cada salida
+## "normal" (no terminal) de _run_enemy_turn(); complete_current_turn()
+## sincrónicamente cruza a current_team == PLAYER exactamente cuando el
+## enemigo que acaba de terminar era el último del bloque, igual que el
+## viejo `for` terminaba su último ciclo.
+func _complete_enemy_turn() -> bool:
+	_turn_controller.complete_current_turn()
+	if (
+		_turn_controller.current_team == CombatTurnController.TeamBlock.PLAYER
+		and not _result_resolved
+		and player_actor.is_alive()
+		and has_alive_enemies()
+	):
 		_plan_all_enemy_intents()
 	return false
 
 
-func _run_enemy_action(attacking_actor: CombatActor) -> bool:
+## Turno de un enemigo IA (sección 10 del handoff M1): CombatTurnController
+## decide QUIÉN de los enemigos actúa ahora (garantiza que attacking_actor
+## está vivo); EnemyActionResolver / EnemyIntentPlanner (sin cambios) siguen
+## decidiendo QUÉ hace. Cada salida "sigue la secuencia normal" pasa por
+## _complete_enemy_turn(); las salidas terminales (victoria/derrota, o un
+## tutorial interrumpido) no le avisan al controller — el combate ya está
+## deteniéndose por otra vía (_finish_victory/_finish_defeat llaman a
+## _turn_controller.stop()) o la escena se está destruyendo.
+func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 	if await _process_actor_turn_start(attacking_actor):
 		if not attacking_actor.is_alive():
 			_statuses.process_turn_end(attacking_actor)
@@ -1250,7 +1307,7 @@ func _run_enemy_action(attacking_actor: CombatActor) -> bool:
 			if not has_alive_enemies():
 				await _finish_victory(attacking_actor)
 				return true
-		return false
+		return _complete_enemy_turn()
 	var ai_state: EnemyAIRuntimeState = _get_enemy_ai_state(attacking_actor)
 	ai_state.begin_turn()
 	_update_combatants()
@@ -1260,25 +1317,27 @@ func _run_enemy_action(attacking_actor: CombatActor) -> bool:
 	var decision: EnemyActionResolver.Decision = EnemyActionResolver.Decision.new()
 	if intent == null or not intent.can_execute():
 		_statuses.process_turn_end(attacking_actor)
-		return false
+		return _complete_enemy_turn()
 	decision.action = intent.action
 	decision.target = intent.resolve_execution_target(get_alive_player_actors())
 	if decision.action.is_special():
 		if not await TutorialManager.request_and_wait(TutorialCatalog.ENEMY_AI, TutorialManager.CONTEXT_COMBAT, self):
 			return true
-		if _result_resolved or not attacking_actor.is_alive():
-			return _result_resolved
+		if _result_resolved:
+			return true
+		if not attacking_actor.is_alive():
+			return _complete_enemy_turn()
 	if decision.action.action_type == EnemyAIEnums.ActionType.SUMMON:
 		_consume_enemy_intent(attacking_actor)
 		await _run_boss_summon_action(attacking_actor, decision.action, ai_state)
 		_statuses.process_turn_end(attacking_actor)
-		return false
+		return _complete_enemy_turn()
 	if decision.action.action_type == EnemyAIEnums.ActionType.SELF_BUFF:
 		_consume_enemy_intent(attacking_actor)
 		await _run_enemy_self_buff_action(attacking_actor, decision.action, ai_state)
 		ai_state.record_action(decision.action)
 		_statuses.process_turn_end(attacking_actor)
-		return false
+		return _complete_enemy_turn()
 	if decision.target == null:
 		intent.invalidate(&"no_valid_target")
 		_consume_enemy_intent(attacking_actor)
@@ -1286,7 +1345,7 @@ func _run_enemy_action(attacking_actor: CombatActor) -> bool:
 			await _finish_defeat()
 			return true
 		_statuses.process_turn_end(attacking_actor)
-		return false
+		return _complete_enemy_turn()
 	_consume_enemy_intent(attacking_actor)
 	var target_actor: CombatActor = decision.target
 	var target_view: CombatCharacterView = target_actor.visual_view
@@ -1450,7 +1509,7 @@ func _run_enemy_action(attacking_actor: CombatActor) -> bool:
 		await _present_enemy_death(attacking_actor)
 		refresh_primary_enemy_actor()
 		_update_combatants()
-	return false
+	return _complete_enemy_turn()
 
 
 func _run_enemy_self_buff_action(
@@ -1670,6 +1729,8 @@ func _finish_victory(defeated_actor: CombatActor) -> void:
 	if _result_resolved:
 		return
 	_result_resolved = true
+	if _turn_controller != null:
+		_turn_controller.stop()
 	_invalidate_enemy_intent(defeated_actor, &"source_dead", true)
 	for intent: EnemyIntent in _enemy_intents.values():
 		if intent != null:
@@ -1784,6 +1845,8 @@ func _finish_defeat() -> void:
 	if _result_resolved:
 		return
 	_result_resolved = true
+	if _turn_controller != null:
+		_turn_controller.stop()
 	_track_combat_result(&"defeat")
 	if _boss_controller != null:
 		_boss_controller.finish_encounter()
