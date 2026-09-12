@@ -136,6 +136,33 @@ con identidad propia.
 
 No simples recolors.
 
+APPROVED (2026-09-10, Core Loop / Final Reward):
+
+Región completada = boss de esa región derrotado
+(milestone BOSS_DEFEATED específico del boss, no
+"cualquier expedición terminada").
+
+Ember Marsh se desbloquea con `warden_defeated`
+(Ashen Warden derrotado en Ashen Wastes),
+no con `first_expedition` (bug corregido esta sesión —
+antes cualquier expedición terminada, incluso por derrota,
+desbloqueaba Ember Marsh).
+
+Una región "despejada" sigue siendo rejugable
+(farming de set de boss, cofre de boss, Guardian Sigils,
+materiales de bioma, botín, build experimentation).
+No es "deshabilitada" ni "terminada para siempre".
+
+`first_expedition` (TOTAL_RUNS) y `first_victory`
+(TOTAL_VICTORIES) permanecen como hitos genéricos
+("completá una expedición" / "ganá una expedición
+por primera vez") — ninguno de los dos actúa como
+gate de región específica; ese rol es exclusivo
+de los hitos BOSS_DEFEATED por boss.
+
+New Game+, tiers de dificultad, prestige o modo
+infinito quedan explícitamente fuera de este milestone.
+
 ---
 
 ## ALLIES

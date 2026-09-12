@@ -82,6 +82,7 @@ func _build_fixture() -> RunState:
 	run.player_levels_gained = 1
 	run.completed_milestone_ids_this_run = [&"first_expedition"]
 	run.milestone_ash_awarded = 25
+	run.newly_unlocked_biome_ids = [&"ember_marsh"]
 	run.loot_rolled = true
 	run.pending_loot_id = "wardens_edge"
 	run.duplicate_converted_id = &"old_cloak"
@@ -190,6 +191,7 @@ func _test_full_round_trip() -> void:
 	_check("player_levels_gained", restored.player_levels_gained == original.player_levels_gained)
 	_check("completed_milestone_ids_this_run", restored.completed_milestone_ids_this_run == original.completed_milestone_ids_this_run)
 	_check("milestone_ash_awarded", restored.milestone_ash_awarded == original.milestone_ash_awarded)
+	_check("newly_unlocked_biome_ids", restored.newly_unlocked_biome_ids == original.newly_unlocked_biome_ids)
 	_check("loot_rolled", restored.loot_rolled == original.loot_rolled)
 	_check("pending_loot_id", restored.pending_loot_id == original.pending_loot_id)
 	_check("duplicate_converted_id", restored.duplicate_converted_id == original.duplicate_converted_id)

@@ -76,6 +76,17 @@ var player_xp_after: int = 0
 var player_levels_gained: int = 0
 var completed_milestone_ids_this_run: Array[StringName] = []
 var milestone_ash_awarded: int = 0
+## Core Loop / Final Reward — biomes whose BiomeCatalog.is_unlocked()
+## flipped from false to true as a direct consequence of THIS deposit's
+## milestone evaluation (see SaveManager.deposit_run()). Diff-based, not
+## a second "unlocked" bool duplicating milestone truth — recomputing
+## "is Ember Marsh unlocked now" would be true on every later run too,
+## so this exists specifically to answer "did THIS run unlock it".
+## Result-scoped like player_xp_earned/duplicate_converted_id: computed
+## once at deposit time, read once by RunResult, included in
+## to_dictionary() only so a crash between deposit and the terminal
+## checkpoint doesn't lose the one-time announcement.
+var newly_unlocked_biome_ids: Array[StringName] = []
 var loot_rolled: bool = false
 var pending_loot_id: String = ""
 var duplicate_converted_id: StringName = &""
@@ -427,6 +438,7 @@ func to_dictionary() -> Dictionary:
 		"player_levels_gained": player_levels_gained,
 		"completed_milestone_ids_this_run": _string_names_to_strings(completed_milestone_ids_this_run),
 		"milestone_ash_awarded": milestone_ash_awarded,
+		"newly_unlocked_biome_ids": _string_names_to_strings(newly_unlocked_biome_ids),
 		"loot_rolled": loot_rolled,
 		"pending_loot_id": pending_loot_id,
 		"duplicate_converted_id": String(duplicate_converted_id),
@@ -530,6 +542,7 @@ static func from_dictionary(data: Dictionary) -> RunState:
 	run.player_levels_gained = _read_int(data, "player_levels_gained", 0, 0, 2_000_000_000)
 	run.completed_milestone_ids_this_run = _read_string_name_array(data, "completed_milestone_ids_this_run")
 	run.milestone_ash_awarded = _read_int(data, "milestone_ash_awarded", 0, 0, 2_000_000_000)
+	run.newly_unlocked_biome_ids = _read_string_name_array(data, "newly_unlocked_biome_ids")
 	run.loot_rolled = _read_bool(data, "loot_rolled")
 	run.pending_loot_id = _read_string(data, "pending_loot_id")
 	run.duplicate_converted_id = StringName(_read_string(data, "duplicate_converted_id"))

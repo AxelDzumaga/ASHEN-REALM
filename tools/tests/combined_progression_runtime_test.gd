@@ -41,7 +41,10 @@ func _test_region_data() -> void:
 	_check("regions_ordered", ordered.size() == 2 and ordered[0] == wastes and ordered[1] == marsh)
 	_check("regions_difficulty_increases", marsh.progression_order > wastes.progression_order and marsh.difficulty_tier > wastes.difficulty_tier)
 	_check("regions_route_pressure_increases", marsh.combat_min > wastes.combat_min and marsh.combat_weight > wastes.combat_weight and marsh.empty_weight < wastes.empty_weight and marsh.treasure_weight < wastes.treasure_weight)
-	_check("regions_unlock_requirement", wastes.required_milestone_id.is_empty() and marsh.required_milestone_id == &"first_expedition")
+	# Core Loop / Final Reward — Ember Marsh's gate is warden_defeated
+	# (defeat the Ashen Wastes boss), not first_expedition (finishing any
+	# expedition, win or lose — the previous, incorrect gate).
+	_check("regions_unlock_requirement", wastes.required_milestone_id.is_empty() and marsh.required_milestone_id == &"warden_defeated")
 	_check("regions_distinct_pools", wastes.normal_enemy_pool != marsh.normal_enemy_pool and wastes.elite_enemy_pool != marsh.elite_enemy_pool and wastes.boss != marsh.boss)
 
 
@@ -57,8 +60,11 @@ func _test_region_runtime() -> void:
 	add_child(screen)
 	await get_tree().process_frame
 	var marsh_button: Button = screen.get_node("%EmberMarshButton")
-	_check("locked_region_visible", marsh_button.disabled and "LOCK" in marsh_button.text and "PRIMERA EXPEDICI" in marsh_button.text)
-	SaveManager.profile.completed_milestone_ids.append("first_expedition")
+	# Locked text is derived dynamically from the gating milestone's own
+	# display_name (region_selection.gd), so this follows the same fix —
+	# warden_defeated's display_name is "Vigilia Rota".
+	_check("locked_region_visible", marsh_button.disabled and "LOCK" in marsh_button.text and "VIGILIA ROTA" in marsh_button.text)
+	SaveManager.profile.completed_milestone_ids.append("warden_defeated")
 	SaveManager.profile_changed.emit()
 	await get_tree().process_frame
 	_check("milestone_unlocks_region", not marsh_button.disabled)
