@@ -77,7 +77,10 @@ func activate() -> void:
 	runtime_state.ready_announced = false
 
 
-func on_basic_attack_completed() -> void:
+## Combat Domain M1 — renombrado desde on_basic_attack_completed(): el
+## cooldown avanza por turno del dueño, no por elegir ataque básico
+## específicamente. Ver CombatSkillController.advance_cooldowns().
+func advance_cooldown() -> void:
 	if cooldown_remaining > 0:
 		cooldown_remaining = maxi(0, cooldown_remaining - 1)
 

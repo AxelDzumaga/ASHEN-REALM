@@ -55,9 +55,25 @@ func try_use(controller: ActiveSkillController) -> bool:
 
 
 func on_basic_attack_completed() -> int:
-	for controller: ActiveSkillController in skills:
-		controller.on_basic_attack_completed()
+	advance_cooldowns()
 	return add_energy(int(_simulation_overrides.get("basic_energy", BASIC_ATTACK_ENERGY)))
+
+
+## Combat Domain M1 — fix de cooldown: antes de esta extracción, el único
+## punto que decrementaba cooldown_remaining era on_basic_attack_completed(),
+## así que un turno donde el jugador usaba una skill (en vez de ataque
+## básico) nunca hacía avanzar el cooldown de NINGUNA skill, incluidas las
+## que no se usaron ese turno. El contrato correcto es que el cooldown
+## avanza en cada turno del dueño (el jugador), sin importar qué acción
+## eligió. `exclude` es la skill recién activada este mismo turno (si la
+## hubo): su cooldown_remaining ya se acaba de fijar en activate() y no debe
+## perder un tick en el mismo turno en que se usó (ver handoff M1 sección
+## "Cooldown semantics").
+func advance_cooldowns(exclude: ActiveSkillController = null) -> void:
+	for controller: ActiveSkillController in skills:
+		if controller == exclude:
+			continue
+		controller.advance_cooldown()
 
 
 func on_damage_received(damage: int) -> int:
