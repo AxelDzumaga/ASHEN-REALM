@@ -96,8 +96,8 @@ CombatSkillController/energía de combate siguen siendo
 singulares del protagonista — deuda explícita, no se toca
 en M2 (ninguna segunda skill de héroe planeada todavía).
 
-COMBAT DOMAIN M3 (2026-09-12) — APPROVED E IMPLEMENTADO
-(local, branch feature/combat-domain-m3, no mergeado):
+COMBAT DOMAIN M3 (2026-09-12) — APPROVED, IMPLEMENTADO Y
+MERGEADO (main @ 19c6ca0):
 
 Los 5 ActiveSkillType.TargetType (SELF, SINGLE_ENEMY,
 SINGLE_ALLY, ALL_ENEMIES, ALL_ALLIES) ahora tienen
@@ -128,8 +128,60 @@ aplicándose solo a las propias estadísticas del
 protagonista al atacar, nunca como bonus a un target aliado
 o enemigo.
 
-M4 (structured combat events), M5 (5v5 formation), M6
-(final Combat2D adapter cleanup) siguen sin implementar.
+COMBAT DOMAIN M4 (2026-09-13) — APPROVED E IMPLEMENTADO
+(local, branch feature/combat-domain-m4, no mergeado):
+
+Se agrega un registro semántico de "qué pasó" en combate,
+independiente de presentación: 8 tipos de evento (ActionEvent,
+DamageEvent, HealEvent, StatusEvent, ReactionEvent, DeathEvent,
+BossPhaseEvent, SummonEvent) emitidos sincrónicamente por un
+CombatEventStream nuevo, uno por encuentro, sin historial
+retenido (nadie acumula un array de eventos pasados — un
+futuro combat log sería su propio consumidor).
+
+CombatTurnController sigue siendo la única autoridad de
+round_started/team_block_started/actor_turn_started/
+actor_turn_ended/combat_sequence_stopped — esos NO se
+duplican como CombatEvent. combat_won/combat_lost y el flujo
+de RunResult/recompensas siguen siendo la única autoridad
+terminal — no existe VictoryEvent ni DefeatEvent, y
+CombatEventStream nunca puede disparar esos caminos (no
+conoce CombatTurnController ni _finish_victory/_finish_defeat).
+Tampoco se agregaron EnergyChangedEvent ni CooldownChangedEvent.
+
+action_id es un entero monótonamente creciente por encuentro
+(empieza en 1); NO_ACTION_ID=0 marca efectos sin acción
+causante (p. ej. un tick de estado). Warden's Rebuke recibe
+siempre su propio action_id nuevo, nunca el del ataque básico
+que lo disparó — es una acción causal distinta. Multi-target
+es 1 ActionEvent + N eventos de efecto compartiendo ese mismo
+action_id.
+
+DeathEvent se determina por la transición hp_before>0 y
+hp_after<=0 (nunca por el flag death_presented, que sigue
+siendo responsabilidad exclusiva de presentación/animación).
+Acciones inválidas/rechazadas (energía insuficiente, cooldown,
+target inválido) no emiten ningún evento — el resto de la
+arquitectura de commit-antes-que-resolución de M3 ya lo
+garantiza estructuralmente.
+
+ReactionEvent cubre WET+CHILLED (bonus de stacks) y WET+SHOCK
+(salto en cadena) reusando exactamente la detección que
+CombatStatusController ya tenía (last_reaction, un campo de
+"último resultado" consultado por el llamador, mismo patrón
+que ActiveSkillController.last_guard_reduction) — sin crear un
+detector de reacciones paralelo ni cambiar reglas/stacks/daño/
+duración/RNG.
+
+Adaptador de presentación mínimo: Combat2D escucha
+event_emitted solo para redibujar el número flotante de un
+tick de estado (StatusEvent.kind=TICK) — un único call site
+síncrono migrado sin await, sin duplicar el resto de la
+coreografía existente (animaciones/impactos siguen totalmente
+en combat.gd, sin pasar detrás de un listener genérico).
+
+M5 (5v5 formation), M6 (final Combat2D adapter cleanup)
+siguen sin implementar.
 
 ---
 

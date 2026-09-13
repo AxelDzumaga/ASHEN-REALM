@@ -884,8 +884,7 @@ passed for both the new team-defeat scenarios and the
 existing Map3D return-flow smoke.
 
 Combat Domain M3 (2026-09-12):
-STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
-(branch feature/combat-domain-m3).
+STATUS: IMPLEMENTED AND MERGED (main @ 19c6ca0).
 
 No generic ActionIntent class:
 deliberately not introduced. The repository's existing
@@ -1006,11 +1005,172 @@ smoke) re-run with zero attributable failures;
 ashen_warden_phase3_curse_test stayed byte-identical to the
 established baseline.
 
+Combat Domain M4 (2026-09-13):
+STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
+(branch feature/combat-domain-m4).
+
+CombatEventStream
+(scripts/combat/combat_event_stream.gd, one instance per
+encounter, same lifecycle as CombatTurnController — created
+and connected in _run_combat()): the single place Combat2D
+reports "what happened" as a presentation-independent record.
+signal event_emitted(event: RefCounted) is emitted
+synchronously — connected handlers run in the same call stack/
+frame as the emitting code, so this is not an async
+sequencing mechanism. No history is retained: the stream has
+no events array, no getter for past events — a future combat
+log would be its own consumer with its own bounded buffer.
+next_action_id() returns a per-encounter monotonically
+increasing int starting at 1; NO_ACTION_ID=0 is the sentinel
+used by effects with no causing action (status ticks, a boss
+phase transition detected outside of a player/enemy action).
+
+8 event types (scripts/combat/events/, all RefCounted, no
+methods besides _init, no Control/Node2D/Node3D/
+CombatCharacterView/scene/animation/audio references —
+CombatActor is domain identity, not presentation): ActionEvent
+(source_actor, action_kind, action_data_id, targets — a
+duplicate()'d snapshot, never the live array), DamageEvent
+(authoritative already-applied amount + hp_before/hp_after,
+is_critical, affinity_relation, and a caused_death field
+computed once in _init from hp_before>0 and hp_after<=0 —
+never recalculates the damage formula), HealEvent
+(requested_amount vs. actual_amount — actual is always the
+post-clamp/post-Decay applied amount, never the theoretical
+ask), StatusEvent (one class for both APPLIED and TICK,
+distinguished by a Kind enum, since both share the same
+shape), ReactionEvent, DeathEvent (source_actor nullable —
+null when the domain cannot prove a cause, e.g. an unattributed
+tick), BossPhaseEvent, and SummonEvent (summoned_actors also a
+duplicate()'d snapshot).
+
+DeathEvent uniqueness:
+deliberately NOT based on the death_presented flag (that flag
+remains exclusively Combat2D's presentation/animation
+idempotency mechanism, unchanged by M4). Detection is the
+hp_before>0 && hp_after<=0 transition, computed inside
+DamageEvent itself (caused_death) and checked by a shared
+_emit_damage() helper that also emits the paired DeathEvent
+when true. This naturally handles a same-action second hit on
+an already-dead target (e.g. Burning Strike's bonus hit after
+a killing main hit): hp_before is already 0 for that second
+hit, so caused_death correctly stays false — verified by
+combat_event_order_test's
+_test_death_event_no_duplicate_on_burning_strike_overkill.
+
+Reaction detection (WET+CHILLED bonus stacks, WET+SHOCK single-
+jump chain):
+CombatStatusController gained a LastReactionInfo nested class
+and a `last_reaction` field — the same "last outcome" query
+pattern the repository already used elsewhere (
+ActiveSkillController.last_guard_reduction,
+BoonController.was_inferno_triggered()). apply_status()/
+_chain_shock() populate it at the exact two points they
+already detected these reactions; no new detection logic, no
+parallel reaction system, no change to reaction rules, stacks,
+damage, duration, or RNG. _chain_shock() deliberately
+overwrites last_reaction AFTER its own recursive apply_status()
+call returns, so the outer caller sees the chain-jump fact
+rather than the inner recursive call's own reset.
+
+action_id / causal grouping:
+one action_id per resolved player/companion/enemy action,
+generated once and threaded through every effect event that
+action produces (main hit, equipment statuses, Burning Strike
+bonus hit, its own burn application, boss-phase-transition
+event) — verified end-to-end for the basic attack + Burning
+Strike sequence, and for a synthetic ALL_ENEMIES multi-target
+skill (1 ActionEvent + N DamageEvent sharing one action_id, no
+target hit twice, stable order matching input order).
+
+Warden's Rebuke gets its OWN new action_id:
+_resolve_warden_counter() calls
+_event_stream.next_action_id() itself rather than reusing the
+triggering basic attack's — it is a causally distinct action
+(the boss responding), not a side effect of the player's
+attack. Verified by combat_event_order_test's
+_test_warden_counter_own_action_id (two ActionEvents, two
+different action_ids, correct action_kind on each).
+
+No terminal/lifecycle duplication (explicit user override of
+this feature's original audit, which had proposed reusing
+death_presented and considered Victory/Defeat events):
+round_started/team_block_started/actor_turn_started/
+actor_turn_ended/combat_sequence_stopped remain
+CombatTurnController's alone — never re-emitted as a
+CombatEvent. combat_won/combat_lost and the RunResult/reward
+pipeline remain the only terminal authority — there is no
+VictoryEvent or DefeatEvent, and CombatEventStream cannot
+trigger either path (it holds no reference to
+CombatTurnController and never calls
+_finish_victory()/_finish_defeat()). No EnergyChangedEvent or
+CooldownChangedEvent were added. Rejected/invalid actions
+(insufficient energy, on cooldown, invalid target) emit
+nothing — M3's commit-before-resolution ordering already
+guarantees _execute_active_skill()/_execute_active_skill_multi_target()/
+_run_player_basic_action() are only reached after a successful
+try_use()/target validation, so there was no separate gate to
+add. An AI turn with no valid target (already an early return
+in _run_enemy_turn before M4) does not emit an
+ActionSkippedEvent — no such event type exists.
+
+Presentation adapter — deliberately minimal:
+Combat2D connects exactly one handler, _on_combat_event(),
+which reacts only to StatusEvent(kind=TICK) to draw that tick's
+floating damage/heal number — the one inline
+vfx.show_damage_number() call this replaced had no await
+before or after it and no interleaved branches, making it the
+one safe call site to move behind a signal listener without
+inverting choreography order. The handler itself contains no
+await. Every other animation/impact/choreography call
+(approach, impact_and_return, play_attack/play_hit/play_idle,
+AudioManager.play_event, death presentation) remains exactly
+where it already lived in combat.gd — CombatTurnController's
+progression and Combat2D's existing awaited choreography were
+not restructured behind CombatEventStream.
+
+Tests added in M4:
+tools/tests/combat_event_stream_test.gd (43 checks, no scene:
+CombatEventStream action_id monotonicity/NO_ACTION_ID/no-
+history, field-correctness construction tests for all 8 event
+types including ActionEvent/SummonEvent snapshot-not-reference
+and DamageEvent caused_death transition/no-duplicate-on-corpse,
+and a reaction regression suite exercising
+CombatStatusController.apply_status()/_chain_shock() directly
+for WET+CHILLED and WET+SHOCK) and
+tools/tests/combat_event_order_test.gd (66 checks, real
+Combat2D: basic attack action/damage grouping, forced-crit
+flag, affinity relation via a real weak-tagged fixture,
+Burning Strike's full 4-event sequence sharing one action_id,
+overkill no-duplicate-death, a synthetic ALL_ENEMIES multi-
+target grouping, status-tick and status-tick-death events,
+companion-turn and enemy-turn action_id sharing driven through
+a real round via _on_attack_pressed(), Warden's Rebuke's
+separate action_id, a real boss's (Sunken Pyre / Ember Marsh)
+phase transition and its Ember Spawn summon using real catalog
+data rather than synthetic fixtures, and a final sweep
+asserting every event captured across the whole file is one of
+the 8 authorized types). Full M1/M2/M3 regression suite
+(combat_turn_controller_test, combat_skill_cooldown_regression_test,
+combat_actor_controller_type_test, combat_team_utils_test,
+combat_team_defeat_test, combat_target_resolver_test,
+combat_action_atomicity_test, enemy_intent_runtime_test,
+combat_hp_continuity_test, weak_resist_verification,
+map3d_production_return_flow_test,
+active_run_checkpoint_wiring_test,
+active_run_encounter_snapshot_test) re-run sequentially with
+zero attributable failures. ashen_warden_phase3_curse_test's
+two pre-existing basic-attack-observation failures were
+confirmed present BYTE-FOR-BYTE IDENTICAL on the pre-M4
+baseline (verified by temporarily stashing the M4 diff and
+re-running the same seed) — not a regression introduced by
+this milestone.
+
 This remains the largest architectural risk
-for future Combat3D — M1/M2/M3 are extraction,
-generalization, and action-resolution work only; M4
-(structured combat events), M5 (5v5 formation), M6 (final
-Combat2D adapter cleanup) are still ahead of Combat3D.
+for future Combat3D — M1/M2/M3/M4 are extraction,
+generalization, action-resolution, and event-reporting work
+only; M5 (5v5 formation), M6 (final Combat2D adapter cleanup)
+are still ahead of Combat3D.
 
 Do not duplicate Combat logic
 into a second full 3D implementation.
