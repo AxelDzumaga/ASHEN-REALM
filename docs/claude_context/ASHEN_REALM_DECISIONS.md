@@ -128,8 +128,8 @@ aplicándose solo a las propias estadísticas del
 protagonista al atacar, nunca como bonus a un target aliado
 o enemigo.
 
-COMBAT DOMAIN M4 (2026-09-13) — APPROVED E IMPLEMENTADO
-(local, branch feature/combat-domain-m4, no mergeado):
+COMBAT DOMAIN M4 (2026-09-13) — APPROVED, IMPLEMENTADO Y
+MERGEADO (main @ 68a3936):
 
 Se agrega un registro semántico de "qué pasó" en combate,
 independiente de presentación: 8 tipos de evento (ActionEvent,
@@ -180,8 +180,92 @@ síncrono migrado sin await, sin duplicar el resto de la
 coreografía existente (animaciones/impactos siguen totalmente
 en combat.gd, sin pasar detrás de un listener genérico).
 
-M5 (5v5 formation), M6 (final Combat2D adapter cleanup)
-siguen sin implementar.
+COMBAT DOMAIN M5 (2026-09-13) — APPROVED E IMPLEMENTADO
+(local, branch feature/combat-domain-m5, no mergeado):
+
+M5 significa CAPACIDAD DE RUNTIME/DOMINIO, no una feature
+de producto: el motor de combate puede resolver correctamente
+hasta 5 actores por equipo. NO significa que el jugador pueda
+equipar cinco héroes en el Refugio, ni un roster persistente
+de cinco personajes, ni múltiples héroes PLAYER_CONTROLLED.
+La composición de producción sigue siendo 1 protagonista +
+0-1 companion equipado — la capacidad extra se prueba con
+actores sintéticos de test, no con contenido nuevo.
+
+CombatRules.MAX_TEAM_SIZE = 5 (scripts/combat/combat_rules.gd)
+es la autoridad canónica única de tamaño de equipo — decisión
+explícita de que viva en un archivo de REGLAS de dominio, no
+en CombatTeamUtils (que sigue siendo solo operaciones de
+equipo: living_actors/has_living_actor/is_defeated/
+validate_team). Los @export_range de datos de contenido
+(EncounterTemplateData.slots, BossEncounterData.max_active_enemies)
+llevan un literal 5 que espeja esta constante — GDScript exige
+literales ahí, no puede referenciar CombatRules directamente —
+pero toda validación real en tiempo de ejecución lee
+CombatRules.MAX_TEAM_SIZE.
+
+Matriz de Player Team soportada: 1 PLAYER_CONTROLLED
+(protagonista) + 0..4 AI_ALLY, size total ≤5. Múltiples
+PLAYER_CONTROLLED queda EXPLÍCITAMENTE FUERA DE ALCANCE —
+CombatSkillController/energía/action bar siguen siendo
+singulares del protagonista, deuda no tocada en M5.
+
+CombatTurnController NO cambió (sigue sin conocer
+MAX_TEAM_SIZE ni formation_slot) — ya era N-genérico desde M1.
+Orden de turno sigue siendo orden de inserción de array, NO
+formation_slot (decisión explícita: no introducir un cambio de
+comportamiento no solicitado).
+
+formation_slot: rango de dominio 0..4, único DENTRO de cada
+equipo (el mismo número puede repetirse entre Player Team y
+Enemy Team sin problema). CombatRules.find_available_formation_slots()
+reemplaza el hardcodeo previo (available_slots=[0,2]) para
+asignación de slots de invocación de boss.
+
+CompanionRuntimeState pasa de un campo singular
+(_companion_runtime) a un Dictionary[actor_id, CompanionRuntimeState]
+(_companion_runtimes) — cada AI_ALLY tiene su propio cadence de
+habilidad, nunca compartido. IDs de aliado pasan de un literal
+fijo ("companion_0") a indexados ("companion_0".."companion_3"),
+mismo patrón que enemy_%d/minion_%d.
+
+BUG DE CORRECCIÓN ENCONTRADO Y CORREGIDO (no solo deuda
+documentada): _present_player_down()/_present_companion_death()
+(dos funciones escalares) asumían que "no es companion_actor ==
+es el protagonista", cierto solo con ≤2 Player Team actors. Con
+un 3er+ AI_ALLY, ese supuesto habría marcado death_presented en
+el protagonista (todavía vivo) y suprimido su presentación de
+muerte real más adelante en el mismo combate. Unificadas en
+_present_player_team_actor_down(actor), que opera exclusivamente
+sobre el actor que realmente murió — sin comparar contra ningún
+actor de referencia.
+
+Un 2do-5to AI_ALLY sintético puede no tener visual_view propio
+(sin HUD/panel dedicado — eso es explícitamente trabajo de M6,
+no de M5): la resolución de daño/estado/eventos sigue firme,
+la presentación se salta de forma segura (is_instance_valid()),
+nunca crashea ni reusa la vista de otro actor.
+
+Enemy Team: MAX_ENEMY_ACTORS/EncounterTemplateData.slots/
+EncounterResolver.MAX_ENEMIES ya no son 3 literales
+independientes — los tres derivan de CombatRules.MAX_TEAM_SIZE.
+EnemyCombatSlot/EnemyFormation (ya genéricos desde antes de M5)
+ahora sirven hasta 5 enemigos funcionalmente visibles/
+targeteables, sin rediseño ni arte nuevo.
+
+Seam de test/composición: _ally_data_override (Array[CompanionData])
+en combat.gd permite que un fixture de test construya hasta 4
+AI_ALLY sintéticos sin tocar RunState ni agregar selección de
+party a producción — producción sigue pasando como mucho el
+companion equipado.
+
+No se tocó: CombatSkillController, RunState, SAVE_VERSION (14),
+ACTIVE_RUN_VERSION (1), tools/simulation/full_run_simulation.gd
+(su divergencia frente al dominio N-actor de producción queda
+documentada, alineación diferida a después de M5/M6).
+
+M6 (final Combat2D adapter cleanup, incluyendo un HUD dinámico
+real de hasta 5 miembros del Player Team) sigue sin implementar.
 
 ---
 
