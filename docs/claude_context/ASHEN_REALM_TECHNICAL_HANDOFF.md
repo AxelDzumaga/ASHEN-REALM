@@ -784,8 +784,7 @@ replay, and no duplicate unlock announcement all verified
 end-to-end through the new turn controller.
 
 Combat Domain M2 (2026-09-12):
-STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
-(branch feature/combat-domain-m2).
+STATUS: MERGED (main @ 835b6f3).
 
 Controller ownership:
 CombatActor.controller_type (PLAYER_CONTROLLED / AI_ALLY /
@@ -861,12 +860,10 @@ CombatTurnController still orders by array insertion order,
 not formation_slot — unchanged from M1, no evidence
 justified changing it in M2.
 
-Dormant TargetTypes (M3 debt, audited not touched):
-ActiveSkillData.TargetType already declares SELF,
-SINGLE_ENEMY, ALL_ENEMIES, SINGLE_ALLY, ALL_ALLIES, but
-combat.gd's _on_skill_requested() only implements SELF and
-SINGLE_ENEMY — any skill authored with the other three
-would silently no-op. M3 owns fixing this.
+Dormant TargetTypes:
+RESOLVED IN M3 — see the Combat Domain M3 block below. As
+of M2 alone, only SELF/SINGLE_ENEMY were implemented; the
+other three silently no-op'd.
 
 Tests added in M2:
 tools/tests/combat_actor_controller_type_test.gd
@@ -886,11 +883,134 @@ failures; non-headless real-D3D12-renderer validation
 passed for both the new team-defeat scenarios and the
 existing Map3D return-flow smoke.
 
+Combat Domain M3 (2026-09-12):
+STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
+(branch feature/combat-domain-m3).
+
+No generic ActionIntent class:
+deliberately not introduced. The repository's existing
+convention (small nested plain-data classes — Decision,
+ActionPlan, TickResult, TransitionResult) already covered
+everything needed; CombatTargetResolver.Resolution follows
+the same pattern rather than adding a new architectural
+style.
+
+CombatTargetResolver
+(scripts/combat/combat_target_resolver.gd, static,
+presentation-independent): the single place all 5
+ActiveSkillData.TargetType values resolve to
+Array[CombatActor]. Team authority is player_actors/
+enemy_actors (or the caller's own ally_team/enemy_team
+arrays), never ActorType — COMPANION+PLAYER are one team,
+BOSS+MINION are the other, matching M2. Dead actors are
+invalid for every TargetType (no revive exists). No
+automatic ally selection: SINGLE_ALLY with no
+explicit_target returns TARGET_SELECTION_REQUIRED rather
+than guessing "the first living ally" — Combat2D has no
+ally-selection UI yet, so this is the honest answer, not a
+bug. SINGLE_ENEMY preserves current behavior exactly:
+Combat2D still decides the currently-selected enemy before
+calling in; the resolver only validates it.
+
+Player action flow (before -> after):
+Before: _on_attack_pressed/_on_skill_requested picked a
+target inline (a match statement, SELF/SINGLE_ENEMY only,
+silent return for the other three), then _commit_player_action
+carried a single CombatActor all the way to
+_run_player_basic_action/_execute_active_skill.
+After: both entry points resolve through
+_resolve_player_target() (wrapping CombatTargetResolver)
+BEFORE any cost/cooldown mutation — target validity is
+established first, matching AI's existing DECIDE-then-
+RESOLVE shape. _committed_targets (Array[CombatActor]) is
+the real multi-target field; _committed_target_actor
+remains targets[0] as a compatibility alias so the ~15
+existing single-target call sites (telemetry,
+_run_player_basic_action, _execute_active_skill) needed
+zero changes. _execute_active_skill() itself — the
+single-target SELF/SINGLE_ENEMY path, 100% of currently
+authored content — was not touched at all; byte-identical
+behavior confirmed by ashen_warden_phase3_curse_test
+staying byte-for-byte identical to the M1/M2 baseline.
+
+No silent retarget:
+_run_player_basic_action's old "if the committed target
+died, silently attack whichever enemy refresh_primary_enemy_actor()
+finds instead" fallback is removed. This path was already
+unreachable in practice (no await exists between target
+validation in _on_attack_pressed and this call, so nothing
+can invalidate the target in between) — the change is
+forward-looking correctness, not a behavior fix for a real
+bug, verified by a direct test that deliberately passes a
+foreign actor to prove the attack fizzles (zero mutation)
+instead of silently retargeting.
+
+Multi-target effect application:
+_execute_active_skill_multi_target() (new, additive — does
+not replace or alter _execute_active_skill) applies the
+existing single-target mechanic (calculate_skill_damage /
+CombatActor.heal / apply_status "guard") once per resolved
+living target, for DAMAGE/HEAL/DEFENSE skill_types. No new
+skill semantics invented for any skill_type x TargetType
+combination — this is the same mechanic each type already
+had, generalized to N targets. Cost/cooldown are paid
+exactly once per cast regardless of target count (they're
+committed in _on_skill_requested, before this function ever
+runs). No authored skill uses ALL_ENEMIES/ALL_ALLIES/
+SINGLE_ALLY — this path is exercised only by synthetic test
+fixtures (ActiveSkillData.new() built in test code), never
+by real loadouts.
+
+Critical hits:
+Confirmed EquipmentEffectResolver.roll_critical()/
+apply_critical_damage() were the sole (and already correct)
+crit mechanism; no formula changed. Added the crit
+regression coverage that was missing (deterministic via
+forced equipment_crit_chance, not RNG-dependent).
+
+CombatMath / protagonist-only layers:
+Unchanged. CombatMath.calculate_damage() remains the one
+authoritative base formula for every damage source. Boons/
+Equipment/Synergy remain applied only to the protagonist's
+own basic-attack/skill damage (they modify the CASTER's
+effective stats, never applied as a bonus to companion/
+enemy targets) — M3 did not generalize or duplicate these.
+
+Boss / Warden's Rebuke:
+Untouched in M3 — _resolve_warden_counter, BossEncounterController,
+BossRuntimeState, summon, and phase transitions were not
+modified. Regression-verified via combat_team_defeat_test's
+existing Warden's Rebuke case (still green).
+
+Turn/terminal boundaries:
+Unchanged. _execute_active_skill_multi_target calls
+_finish_victory()/complete_current_turn() at exactly the
+same call sites and under the same conditions the existing
+single-target path already used — no second victory/defeat
+authority, no resolver-owned turn advancement.
+
+Tests added in M3:
+tools/tests/combat_target_resolver_test.gd (24 checks, no
+scene: SELF, SINGLE_ENEMY/SINGLE_ALLY valid/wrong-team/dead/
+missing-selection, ALL_ENEMIES/ALL_ALLIES multiple/dead-
+excluded/no-living-targets) and
+tools/tests/combat_action_atomicity_test.gd (real Combat2D:
+crit unit checks, insufficient-energy and on-cooldown zero-
+mutation, successful-skill cost/cooldown/effect-exactly-once,
+multi-target damage-each-once-with-dead-excluded, one-cast-
+one-cost-one-cooldown for a 3-target nuke, forced-crit basic
+attack damage match, and the no-silent-retarget stale-target
+case). Full M1/M2 regression suite + non-headless real-
+D3D12-renderer validation (including the full Map3D core-loop
+smoke) re-run with zero attributable failures;
+ashen_warden_phase3_curse_test stayed byte-identical to the
+established baseline.
+
 This remains the largest architectural risk
-for future Combat3D — M1/M2 are extraction and
-generalization only; M3 (action resolution extraction),
-M4 (structured combat events), M5 (5v5 formation) are still
-ahead of Combat3D.
+for future Combat3D — M1/M2/M3 are extraction,
+generalization, and action-resolution work only; M4
+(structured combat events), M5 (5v5 formation), M6 (final
+Combat2D adapter cleanup) are still ahead of Combat3D.
 
 Do not duplicate Combat logic
 into a second full 3D implementation.

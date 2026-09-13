@@ -64,8 +64,8 @@ el cooldown de skills solo avanzaba en turnos de ataque
 básico, nunca al usar otra skill. Ahora avanza en cada
 turno del jugador sin importar la acción elegida.
 
-COMBAT DOMAIN M2 (2026-09-12) — APPROVED E IMPLEMENTADO
-(local, branch feature/combat-domain-m2, no mergeado):
+COMBAT DOMAIN M2 (2026-09-12) — APPROVED, IMPLEMENTADO Y
+MERGEADO (main @ 835b6f3):
 
 CombatActor.controller_type (PLAYER_CONTROLLED / AI_ALLY /
 AI_ENEMY / SCRIPTED) reemplaza la comparación de identidad
@@ -96,8 +96,40 @@ CombatSkillController/energía de combate siguen siendo
 singulares del protagonista — deuda explícita, no se toca
 en M2 (ninguna segunda skill de héroe planeada todavía).
 
-M3 (action resolution), M4 (structured combat events),
-M5 (5v5 formation) siguen sin implementar.
+COMBAT DOMAIN M3 (2026-09-12) — APPROVED E IMPLEMENTADO
+(local, branch feature/combat-domain-m3, no mergeado):
+
+Los 5 ActiveSkillType.TargetType (SELF, SINGLE_ENEMY,
+SINGLE_ALLY, ALL_ENEMIES, ALL_ALLIES) ahora tienen
+semántica de dominio real vía CombatTargetResolver — antes
+solo SELF/SINGLE_ENEMY funcionaban, el resto no-opeaba en
+silencio. Ningún contenido/skill nuevo fue autorado; los
+tres TargetTypes restantes se prueban con fixtures
+sintéticos, no con loadouts jugables.
+
+SINGLE_ALLY sin selección explícita devuelve
+TARGET_SELECTION_REQUIRED — nunca elige "el primer aliado
+vivo" en su lugar. No hay UI de selección de aliado
+todavía; eso queda para cuando esa UI exista.
+
+El ataque básico del protagonista ya no reapunta en
+silencio a otro enemigo si el target comprometido se
+invalida entre el commit y la resolución (camino ya
+inalcanzable en la arquitectura actual, corregido de todas
+formas por corrección a futuro).
+
+No se introdujo una clase ActionIntent genérica — se
+mantuvo la convención ya existente del repositorio (clases
+anidadas de datos planos: Decision, ActionPlan, TickResult).
+
+CombatMath.calculate_damage() sigue siendo la única fórmula
+de daño autoritativa; Boons/Equipment/Synergy siguen
+aplicándose solo a las propias estadísticas del
+protagonista al atacar, nunca como bonus a un target aliado
+o enemigo.
+
+M4 (structured combat events), M5 (5v5 formation), M6
+(final Combat2D adapter cleanup) siguen sin implementar.
 
 ---
 
