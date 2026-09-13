@@ -396,19 +396,11 @@ func _pick_from_pool(pool: Array[EnemyData], rng: RandomNumberGenerator) -> Enem
 
 
 func get_alive_player_actors() -> Array[CombatActor]:
-	var alive_actors: Array[CombatActor] = []
-	for actor: CombatActor in player_actors:
-		if actor.is_targetable():
-			alive_actors.append(actor)
-	return alive_actors
+	return CombatTeamUtils.living_actors(player_actors)
 
 
 func get_alive_enemy_actors() -> Array[CombatActor]:
-	var alive_actors: Array[CombatActor] = []
-	for actor: CombatActor in enemy_actors:
-		if actor.is_alive():
-			alive_actors.append(actor)
-	return alive_actors
+	return CombatTeamUtils.living_actors(enemy_actors)
 
 
 func _get_enemy_ai_profile(actor: CombatActor) -> EnemyAIData:
@@ -784,7 +776,7 @@ func get_enemy_actor_by_id(runtime_id: StringName) -> CombatActor:
 
 
 func has_alive_enemies() -> bool:
-	return not get_alive_enemy_actors().is_empty()
+	return CombatTeamUtils.has_living_actor(enemy_actors)
 
 
 func _apply_character_visuals() -> void:
@@ -906,15 +898,27 @@ func _run_combat() -> void:
 		var acting_actor: CombatActor = _turn_controller.current_actor
 		if acting_actor == null:
 			break
-		if acting_actor == player_actor:
-			if await _run_player_turn():
-				return
-		elif acting_actor == companion_actor:
-			if await _run_companion_turn():
-				return
-		else:
-			if await _run_enemy_turn(acting_actor):
-				return
+		# Combat Domain M2: el despacho ya no infiere quién controla al
+		# actor comparando identidad contra player_actor/companion_actor —
+		# CombatActor.controller_type lo dice explícitamente. Esto es lo que
+		# permite que un protagonista KO deje de bloquear la ronda (el
+		# controller ya lo salteó al elegir current_actor) sin que este
+		# match necesite saber nada sobre "quién es el protagonista".
+		match acting_actor.controller_type:
+			CombatActor.ControllerType.PLAYER_CONTROLLED:
+				if await _run_player_turn():
+					return
+			CombatActor.ControllerType.AI_ALLY:
+				if await _run_companion_turn(acting_actor):
+					return
+			CombatActor.ControllerType.AI_ENEMY:
+				if await _run_enemy_turn(acting_actor):
+					return
+			_:
+				# SCRIPTED no tiene contenido real todavía (sección 12 del
+				# handoff M2) — fallar a salvo en vez de colgar el combate.
+				push_error("Combat: controller_type %s sin manejar para %s" % [acting_actor.controller_type, acting_actor.actor_id])
+				_turn_controller.complete_current_turn()
 
 
 ## Hook mínimo de CombatTurnController (sección 24 del handoff M1) — solo
@@ -932,9 +936,12 @@ func _on_turn_block_started(team: CombatTurnController.TeamBlock) -> void:
 ## eso sigue siendo enteramente responsabilidad de Combat2D.
 func _run_player_turn() -> bool:
 	while true:
-		await _wait_for_player_action()
+		var died_before_acting: bool = await _wait_for_player_action()
 		if _result_resolved:
 			return true
+		if died_before_acting:
+			_turn_controller.complete_current_turn()
+			return false
 		match _pending_player_action:
 			PlayerAction.BASIC_ATTACK:
 				if await _run_player_basic_action(_committed_target_actor):
@@ -970,29 +977,35 @@ func _run_player_turn() -> bool:
 	return false
 
 
-## Turno del aliado IA (sección 9 del handoff M1): CombatTurnController ya
-## garantiza que companion_actor está vivo cuando esta función se llama
-## (solo se invoca cuando current_actor == companion_actor, y el controller
-## nunca selecciona un actor no elegible) — este código no re-implementa esa
-## decisión, solo ejecuta QUÉ hace el aliado (CompanionActionResolver, sin
-## cambios) y avisa al controller cuándo terminó.
-func _run_companion_turn() -> bool:
+## Turno del aliado IA (sección 9 del handoff M1, generalizado en M2
+## sección 10): CombatTurnController ya garantiza que acting_actor está
+## vivo cuando esta función se llama (solo se invoca para
+## ControllerType.AI_ALLY, y el controller nunca selecciona un actor no
+## elegible) — este código no re-implementa esa decisión, solo ejecuta QUÉ
+## hace el aliado (CompanionActionResolver, sin cambios) y avisa al
+## controller cuándo terminó. Recibe acting_actor explícitamente en vez de
+## cerrar sobre companion_actor para que el call site no asuma "el aliado
+## es siempre el mismo objeto" — CompanionRuntimeState/companion_data siguen
+## siendo singulares porque el runtime actual solo admite un AI_ALLY a la
+## vez (ver handoff M2 sección 10), no porque este código lo requiera.
+func _run_companion_turn(acting_actor: CombatActor) -> bool:
 	if not await TutorialManager.request_and_wait(TutorialCatalog.COMPANION_COMBAT, TutorialManager.CONTEXT_COMBAT, self):
 		return true
 	if _result_resolved:
 		return true
-	if await _process_actor_turn_start(companion_actor):
-		_statuses.process_turn_end(companion_actor)
+	if await _process_actor_turn_start(acting_actor):
+		_statuses.process_turn_end(acting_actor)
 		await _present_companion_death()
 		_update_combatants()
 		_turn_controller.complete_current_turn()
 		return false
-	var companion_data: CompanionData = companion_actor.source_data as CompanionData
+	var companion_data: CompanionData = acting_actor.source_data as CompanionData
 	if companion_data == null:
 		_turn_controller.complete_current_turn()
 		return false
+	var acting_view: CombatCharacterView = acting_actor.visual_view
 	var plan: CompanionActionResolver.ActionPlan = CompanionActionResolver.build_plan(
-		companion_actor,
+		acting_actor,
 		companion_data,
 		_companion_runtime,
 		selected_enemy_actor,
@@ -1006,23 +1019,23 @@ func _run_companion_turn() -> bool:
 	var target_actor: CombatActor = plan.target
 	var target_view: CombatCharacterView = target_actor.visual_view
 	var action_name: String = companion_data.ability_name if plan.uses_ability else "ATAQUE"
-	_set_turn(companion_actor.display_name.to_upper(), Color("ed7b32"))
+	_set_turn(acting_actor.display_name.to_upper(), Color("ed7b32"))
 	target_actor.apply_damage(_statuses.get_effective_incoming_damage(target_actor, plan.damage))
 	var burn_applied: bool = false
 	if plan.uses_ability and target_actor.is_alive() and not companion_data.ability_status_id.is_empty():
 		burn_applied = _statuses.apply_status(
 			target_actor,
 			companion_data.ability_status_id,
-			companion_actor,
+			acting_actor,
 			companion_data.ability_status_stacks,
 		) != null
-	companion_view.play_attack(
+	acting_view.play_attack(
 		CombatChoreographyController.AGGRESSIVE_DURATION if plan.uses_ability else CombatChoreographyController.MELEE_DURATION
 	)
 	await choreography.approach(
-		companion_view,
+		acting_view,
 		target_view,
-		companion_actor.actor_type,
+		acting_actor.actor_type,
 		CombatChoreographyController.MotionStyle.AGGRESSIVE if plan.uses_ability else CombatChoreographyController.MotionStyle.MELEE,
 	)
 	AudioManager.play_event(
@@ -1034,7 +1047,7 @@ func _run_companion_turn() -> bool:
 	if burn_applied:
 		feedback.append("QUEMADURA ×%d" % companion_data.ability_status_stacks)
 	action_label.text = "%s · %s\n%s -%d VIDA%s" % [
-		companion_actor.display_name.to_upper(),
+		acting_actor.display_name.to_upper(),
 		action_name.to_upper(),
 		target_actor.display_name.to_upper(),
 		plan.damage,
@@ -1057,9 +1070,9 @@ func _run_companion_turn() -> bool:
 	)
 	await _check_boss_phase_transition()
 	_companion_runtime.record_action()
-	_statuses.process_turn_end(companion_actor)
-	if companion_actor.is_alive():
-		companion_view.play_idle()
+	_statuses.process_turn_end(acting_actor)
+	if acting_actor.is_alive():
+		acting_view.play_idle()
 	if target_actor.is_alive():
 		target_view.play_idle()
 	if not target_actor.is_alive():
@@ -1073,14 +1086,26 @@ func _run_companion_turn() -> bool:
 	return false
 
 
-func _wait_for_player_action() -> void:
+## Devuelve true únicamente cuando el protagonista murió por sus propios
+## efectos de inicio de turno antes de poder elegir una acción — es la
+## señal para que _run_player_turn() complete el turno sin pasar por el
+## match de acción (Combat Domain M2: protagonista KO con aliado vivo ya no
+## termina el combate acá, solo le avisa al controller que este turno no
+## produjo una acción). Cualquier otro return temprano (tutorial
+## interrumpido, sin objetivo válido) sigue significando "reintentar" para
+## el llamador, igual que antes de M2.
+func _wait_for_player_action() -> bool:
 	_synergy_runtime.begin_player_turn()
 	if await _process_actor_turn_start(player_actor):
-		if not player_actor.is_alive():
+		if not CombatTeamUtils.has_living_actor(player_actors):
 			await _finish_defeat()
-		return
+		else:
+			await _present_player_down()
+			_update_combatants()
+			_refresh_action_bar()
+		return true
 	if refresh_primary_enemy_actor() == null:
-		return
+		return false
 	_refresh_intent_estimates()
 	_phase = CombatPhase.TRANSITION
 	_refresh_action_bar()
@@ -1088,28 +1113,28 @@ func _wait_for_player_action() -> void:
 	if _player_actions_completed == 0:
 		if enemy_actors.size() > 1 and not TutorialManager.is_completed(TutorialCatalog.TARGET_SELECTION):
 			if not await TutorialManager.request_and_wait(TutorialCatalog.TARGET_SELECTION, TutorialManager.CONTEXT_COMBAT, self):
-				return
+				return false
 			contextual_tutorial_shown = true
 			TutorialManager.complete_without_presenting(TutorialCatalog.COMBAT_AUTO)
 		elif not TutorialManager.is_completed(TutorialCatalog.COMBAT_AUTO):
 			if not await TutorialManager.request_and_wait(TutorialCatalog.COMBAT_AUTO, TutorialManager.CONTEXT_COMBAT, self):
-				return
+				return false
 			contextual_tutorial_shown = true
 	elif _has_mixed_enemy_roles() and not TutorialManager.is_completed(TutorialCatalog.ENEMY_AI):
 		if not await TutorialManager.request_and_wait(TutorialCatalog.ENEMY_AI, TutorialManager.CONTEXT_COMBAT, self):
-			return
+			return false
 		contextual_tutorial_shown = true
 	if _result_resolved:
-		return
+		return false
 	var ready_skill: ActiveSkillController = null
 	if not contextual_tutorial_shown:
 		ready_skill = _skill_loadout.consume_ready_skill()
 	if ready_skill != null:
 		if not await TutorialManager.request_and_wait(TutorialCatalog.COMBAT_ACTIVE_SKILL, TutorialManager.CONTEXT_COMBAT, self):
-			return
+			return false
 		TutorialManager.complete_without_presenting(TutorialCatalog.SKILL_READY)
 		if _result_resolved:
-			return
+			return false
 		AudioManager.play_event(AudioManager.AudioEvent.SKILL_READY, 1.0, -5.0)
 	_phase = CombatPhase.PLAYER_INPUT
 	_pending_player_action = PlayerAction.NONE
@@ -1125,6 +1150,7 @@ func _wait_for_player_action() -> void:
 	_refresh_action_bar()
 	attack_button.grab_focus.call_deferred()
 	await player_action_committed
+	return false
 
 
 func _has_mixed_enemy_roles() -> bool:
@@ -1341,7 +1367,14 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 	if decision.target == null:
 		intent.invalidate(&"no_valid_target")
 		_consume_enemy_intent(attacking_actor)
-		if not player_actor.is_alive():
+		# Combat Domain M2: resolve_execution_target() solo devuelve null acá
+		# cuando get_alive_player_actors() estaba vacío al planificar — es
+		# decir, el Player Team entero ya estaba muerto (si un aliado
+		# siguiera vivo, el intent se habría reapuntado a él). Igual se
+		# consulta CombatTeamUtils y no player_actor.is_alive() para no
+		# tener una segunda definición de "derrota" basada en una
+		# invariante indirecta.
+		if not CombatTeamUtils.has_living_actor(player_actors):
 			await _finish_defeat()
 			return true
 		_statuses.process_turn_end(attacking_actor)
@@ -1496,12 +1529,23 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 		_last_ember_active = _boons.is_last_ember_active()
 		if _last_ember_active != last_ember_before_hit:
 			vfx.show_last_ember(_last_ember_active)
-	if not player_actor.is_alive():
-		await _finish_defeat()
-		return true
-	if target_actor == companion_actor and not target_actor.is_alive():
-		await _present_companion_death()
+	# Combat Domain M2: única decisión de derrota — el único miembro del
+	# Player Team que pudo haber muerto en esta función es target_actor (la
+	# represalia/reprisal solo golpea a attacking_actor, un enemigo), así
+	# que alcanza con revisarlo a él en vez de re-chequear player_actor sin
+	# importar a quién atacó el enemigo. Reemplaza los dos chequeos viejos
+	# (protagonista siempre / companion solo si era el target) por una sola
+	# rama que cubre ambos casos vía CombatTeamUtils.
+	if target_actor.team == CombatActor.Team.PLAYER and not target_actor.is_alive():
+		if not CombatTeamUtils.has_living_actor(player_actors):
+			await _finish_defeat()
+			return true
+		if target_actor == companion_actor:
+			await _present_companion_death()
+		else:
+			await _present_player_down()
 		_update_combatants()
+		_refresh_action_bar()
 	if not attacking_actor.is_alive():
 		if _is_defeated_boss(attacking_actor) or not has_alive_enemies():
 			await _finish_victory(attacking_actor)
@@ -1682,8 +1726,16 @@ func _resolve_warden_counter(target_boss: CombatActor) -> bool:
 	if _last_ember_active != last_ember_before_counter:
 		vfx.show_last_ember(_last_ember_active)
 	if not player_actor.is_alive():
-		await _finish_defeat()
-		return true
+		# Combat Domain M2: Warden's Rebuke solo golpea al protagonista (es
+		# el castigo por atacar básico, algo que solo el protagonista puede
+		# hacer) — pero la decisión de terminar el combate sigue siendo a
+		# nivel de equipo, no protagonista-específica.
+		if not CombatTeamUtils.has_living_actor(player_actors):
+			await _finish_defeat()
+			return true
+		await _present_player_down()
+		_update_combatants()
+		_refresh_action_bar()
 	return false
 
 
@@ -1731,6 +1783,19 @@ func _finish_victory(defeated_actor: CombatActor) -> void:
 	_result_resolved = true
 	if _turn_controller != null:
 		_turn_controller.stop()
+	# Combat Domain M2 anti-softlock (handoff sección 15): un aliado puede
+	# ganar el combate con el protagonista en 0 HP (Team defeat, no
+	# protagonista-específica — ver los call sites de CombatTeamUtils más
+	# arriba). Antes de que el run vuelva a Map3D, el protagonista nunca
+	# debe volver en un estado de 0/derrota siendo una victoria: se
+	# normaliza al mínimo viable (1), nunca a HP completo ni a un
+	# porcentaje, y solo si de verdad llegó a 0 — un protagonista que
+	# sobrevivió con HP > 0 mantiene su HP exacto. set_current_hp() ya
+	# escribe a través de RunState.current_health (from_player la enlaza en
+	# vivo), así que el checkpoint post-combate existente persiste el 1 sin
+	# ningún campo nuevo.
+	if player_actor.get_current_hp() <= 0:
+		player_actor.set_current_hp(1)
 	_invalidate_enemy_intent(defeated_actor, &"source_dead", true)
 	for intent: EnemyIntent in _enemy_intents.values():
 		if intent != null:
@@ -1828,6 +1893,34 @@ func _present_companion_death() -> void:
 	var death_tween: Tween = create_tween().set_parallel(true)
 	death_tween.tween_property(companion_view, "modulate", Color(0.42, 0.3, 0.3, 0.42), duration)
 	death_tween.tween_property(companion_view, "scale", companion_view.scale * 0.94, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await death_tween.finished
+
+
+## Combat Domain M2 — equivalente de _present_companion_death() para el
+## protagonista: se llama en vez de _finish_defeat() cuando el protagonista
+## llega a 0 HP pero un aliado del Player Team sigue con vida (sección 14
+## del handoff M2). No termina el combate ni revive — solo presenta el KO;
+## is_alive()/is_targetable() ya excluyen al protagonista de objetivos
+## futuros sin código nuevo (Team defeat sigue evaluándose en cada call
+## site correspondiente, no acá). Sin revive dentro del combate: si el
+## Player Team gana igual, _finish_victory() normaliza la vida a 1 recién
+## al terminar, nunca acá.
+func _present_player_down() -> void:
+	if player_actor.death_presented:
+		return
+	player_actor.death_presented = true
+	_statuses.clear_all(player_actor)
+	if not is_instance_valid(player_view):
+		return
+	var duration: float = 0.0 if SettingsManager.reduce_motion else 0.38
+	AudioManager.play_event(AudioManager.AudioEvent.COMPANION_DEATH)
+	player_view.play_death(duration)
+	if SettingsManager.reduce_motion:
+		player_view.modulate = Color(0.45, 0.38, 0.38, 0.55)
+		return
+	var death_tween: Tween = create_tween().set_parallel(true)
+	death_tween.tween_property(player_view, "modulate", Color(0.42, 0.3, 0.3, 0.42), duration)
+	death_tween.tween_property(player_view, "scale", player_view.scale * 0.94, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	await death_tween.finished
 
 
