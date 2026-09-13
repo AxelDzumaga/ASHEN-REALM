@@ -35,6 +35,7 @@ const VISUAL_SLICE_SUPPORT: EnemyData = preload("res://data/enemies/ember_acolyt
 @onready var biome_rules_label: Label = %BiomeRulesLabel
 @onready var combat_stage: CombatStage = %CombatStage
 @onready var enemy_formation: Control = %EnemyFormation
+@onready var player_formation: Control = %PlayerFormation
 @onready var player_name_label: Label = %PlayerNameLabel
 @onready var player_caption: Label = %PlayerCaption
 @onready var player_health_label: AshenBadge = %PlayerHealthLabel
@@ -84,6 +85,7 @@ const VISUAL_SLICE_SUPPORT: EnemyData = preload("res://data/enemies/ember_acolyt
 var _encounter_enemies: Array[EnemyData] = []
 var _encounter_template_id: StringName = &""
 var _enemy_slots: Array[EnemyCombatSlot] = []
+var _player_slots: Array[PlayerCombatSlot] = []
 var player_actor: CombatActor
 var companion_actor: CombatActor
 var enemy_actor: CombatActor
@@ -117,6 +119,19 @@ var _equipment_runtime: EquipmentRuntimeState
 ## lo saca.
 var _companion_runtimes: Dictionary[StringName, CompanionRuntimeState] = {}
 var _enemy_ai_states: Dictionary[StringName, EnemyAIRuntimeState] = {}
+## Combat Domain M6 — única autoridad actor_id -> vista de este Combat2D.
+## Reemplaza CombatActor.visual_view (removido): el dominio ya no guarda
+## ninguna referencia de escena. Player slots, enemy slots y el camino
+## legacy de un solo enemigo registran acá — nunca hay una segunda
+## autoridad. Re-registrar el mismo actor_id (p. ej. _build_enemy_slots()
+## reconstruyendo todo tras un boss summon) simplemente reemplaza la
+## entrada anterior.
+var _actor_views: Dictionary[StringName, CombatCharacterView] = {}
+## Combat Domain M6 — reemplaza CombatActor.death_presented (removido):
+## idempotencia de presentación de muerte, exclusivamente de Combat2D. La
+## verdad de dominio sigue siendo is_alive()/is_targetable(); esto solo
+## evita reproducir la animación/audio de muerte dos veces.
+var _death_presented_ids: Dictionary[StringName, bool] = {}
 var _enemy_intents: Dictionary[StringName, EnemyIntent] = {}
 var _intent_plan_sequence: int = 0
 var _boss_actor: CombatActor
@@ -216,10 +231,10 @@ func _ready() -> void:
 	_set_action_badge(&"combat", "ENCUENTRO", AshenBadge.Variant.DANGER)
 	enemy_intent_badge.hide()
 	energy_bar.max_value = CombatSkillController.MAX_ENERGY
-	player_view.configure_fallback_presence(&"player", VisualTheme.EMBER, _biome.accent_color)
-	companion_view.configure_fallback_presence(&"companion", Color("ed5a1f"), _biome.accent_color)
-	player_panel.add_theme_stylebox_override("panel", CombatStage.hud_style(Color(0.035, 0.03, 0.035, 0.76), Color(0.9, 0.55, 0.2, 0.72), 1))
-	companion_panel.add_theme_stylebox_override("panel", CombatStage.hud_style(Color(0.04, 0.028, 0.025, 0.74), Color(0.93, 0.35, 0.12, 0.72), 1))
+	# Combat Domain M6 — player_view/companion_view/player_panel/companion_panel
+	# quedan permanentemente ocultos en _apply_character_visuals() (PlayerFormation
+	# es la única autoridad); ya no tiene sentido configurarles fallback/estilo
+	# acá, nunca vuelven a mostrarse.
 	var enemy_hud_accent: Color = VisualTheme.BOSS if _is_boss else (VisualTheme.ELITE if _is_elite else VisualTheme.DANGER)
 	var fallback_kind: StringName = &"normal"
 	if _is_boss:
@@ -329,7 +344,6 @@ func _initialize_actors() -> void:
 	elif _is_elite:
 		enemy_type = CombatActor.ActorType.ELITE
 	player_actor = CombatActor.from_player(&"player_0", RunManager.current_run, PlayerVisualCatalog.ASHEN_WANDERER)
-	player_actor.set_visual_view(player_view)
 	companion_actor = null
 	_companion_runtimes.clear()
 	player_actors.clear()
@@ -368,12 +382,14 @@ func _resolve_ally_data_list() -> Array[CompanionData]:
 ## Combat Domain M5 — generaliza la construcción de aliados IA: antes había
 ## como mucho un companion_actor construido a mano. companion_actor se
 ## conserva como alias de COMPATIBILIDAD apuntando siempre al primer aliado
-## (índice 0) — sigue siendo lo único que el HUD legacy de un solo
-## companion (companion_panel/companion_view) presenta; el 2do-5to aliado no
-## tiene panel dedicado todavía (M6), pero es un CombatActor real en
-## player_actors, con su propio CompanionRuntimeState independiente. Nunca
-## se le asigna companion_view a un 2do+ aliado — ver handoff M5 sección 23:
-## reusar la vista de otro actor sería peor que no tener vista.
+## (índice 0). Cada aliado es un CombatActor real en player_actors, con su
+## propio CompanionRuntimeState independiente.
+##
+## Combat Domain M6 — ya no asigna ninguna vista acá: PlayerFormation/
+## _build_player_slots() crea y registra la vista de CADA actor de
+## player_actors (protagonista incluido) recién cuando la presentación se
+## arma, no en construcción. Esto es lo que permite que los 5 actores
+## reciban un slot real en vez de que solo el índice 0 tenga vista.
 func _build_ai_allies(ally_data_list: Array[CompanionData]) -> void:
 	for ally_index: int in range(ally_data_list.size()):
 		var ally_data: CompanionData = ally_data_list[ally_index]
@@ -383,7 +399,6 @@ func _build_ai_allies(ally_data_list: Array[CompanionData]) -> void:
 		ally_actor.formation_slot = ally_index + 1
 		if ally_index == 0:
 			companion_actor = ally_actor
-			ally_actor.set_visual_view(companion_view)
 		player_actors.append(ally_actor)
 		_companion_runtimes[ally_actor.actor_id] = CompanionRuntimeState.new()
 
@@ -854,8 +869,9 @@ func _set_selected_enemy_actor(candidate: CombatActor, play_feedback: bool = tru
 
 func _sync_selected_enemy_adapter() -> void:
 	enemy_actor = selected_enemy_actor
-	if enemy_actor != null and is_instance_valid(enemy_actor.visual_view):
-		enemy_view = enemy_actor.visual_view
+	var registered_view: CombatCharacterView = _get_actor_view(enemy_actor)
+	if is_instance_valid(registered_view):
+		enemy_view = registered_view
 
 
 func _clear_selected_enemy_actor() -> void:
@@ -924,26 +940,53 @@ func has_alive_enemies() -> bool:
 	return CombatTeamUtils.has_living_actor(enemy_actors)
 
 
+## Combat Domain M6 — única forma de asociar un actor con su vista. Nunca
+## escribe en CombatActor (ese campo ya no existe).
+func _register_actor_view(actor: CombatActor, view: CombatCharacterView) -> void:
+	if actor == null:
+		return
+	_actor_views[actor.actor_id] = view
+
+
+func _get_actor_view(actor: CombatActor) -> CombatCharacterView:
+	if actor == null:
+		return null
+	return _actor_views.get(actor.actor_id)
+
+
+func _unregister_actor_view(actor: CombatActor) -> void:
+	if actor == null:
+		return
+	_actor_views.erase(actor.actor_id)
+
+
+func _is_death_presented(actor: CombatActor) -> bool:
+	return actor != null and bool(_death_presented_ids.get(actor.actor_id, false))
+
+
+func _mark_death_presented(actor: CombatActor) -> void:
+	if actor != null:
+		_death_presented_ids[actor.actor_id] = true
+
+
+## Combat Domain M6 — PlayerFormation/PlayerCombatSlot son ahora la única
+## autoridad de presentación del Player Team. Los nodos fijos legacy
+## (PlayerPanel/CompanionPanel/PlayerCharacterView/CompanionCharacterView)
+## quedan permanentemente ocultos, nunca reciben datos en vivo — evita
+## exactamente la doble autoridad que el handoff M6 prohíbe (sección 10).
 func _apply_character_visuals() -> void:
-	player_view.setup_visual(player_actor.visual_data, "ASH")
-	if companion_actor != null:
-		player_view.anchor_right = 0.68
-		companion_view.setup_visual(companion_actor.visual_data, "COMPAÑERO")
-		companion_view.show()
-		companion_panel.show()
-	else:
-		player_view.anchor_right = 0.8
-		companion_view.hide()
-		companion_panel.hide()
-	var run_weapon: EquipmentData = EquipmentCatalog.get_by_id(String(RunManager.current_run.equipped_weapon_id))
-	var run_armor: EquipmentData = EquipmentCatalog.get_by_id(String(RunManager.current_run.equipped_armor_id))
-	player_view.setup_equipment_visuals(run_weapon, run_armor)
+	player_panel.hide()
+	player_view.hide()
+	companion_panel.hide()
+	companion_view.hide()
+	player_formation.show()
+	_build_player_slots()
 	if enemy_actors.size() == 1:
 		enemy_formation.hide()
 		enemy_view.show()
 		enemy_panel.show()
 		enemy_view.setup_visual(enemy_actor.visual_data, enemy_view.fallback_label.text)
-		enemy_actor.set_visual_view(enemy_view)
+		_register_actor_view(enemy_actor, enemy_view)
 		if enemy_actor.visual_data != null:
 			enemy_name_label.modulate = enemy_actor.visual_data.accent
 		return
@@ -952,6 +995,55 @@ func _apply_character_visuals() -> void:
 	enemy_formation.show()
 	_build_enemy_slots()
 	refresh_primary_enemy_actor()
+
+
+## Combat Domain M6 — un PlayerCombatSlot por cada actor de player_actors,
+## en el mismo orden de array (sección 8/9 del handoff: la cantidad de
+## slots SIEMPRE es igual a player_actors.size(), nunca colapsa a un panel
+## fijo por debajo de cierto conteo — 0 aliados = 1 slot para el
+## protagonista solo, 4 aliados = 5 slots). Equipment visuals (arma/
+## armadura) son exclusivamente del protagonista — se aplican solo a su
+## propio slot, nunca a los aliados.
+func _build_player_slots() -> void:
+	for child: Node in player_formation.get_children():
+		player_formation.remove_child(child)
+		child.queue_free()
+	_player_slots.clear()
+	var count: int = player_actors.size()
+	if count <= 0:
+		return
+	var slot_width: float = 1.0 / float(count)
+	for slot_index: int in range(count):
+		var slot_actor: CombatActor = player_actors[slot_index]
+		var slot: PlayerCombatSlot = PlayerCombatSlot.new()
+		slot.name = "PlayerSlot%d" % slot_index
+		slot.anchor_left = slot_width * float(slot_index)
+		slot.anchor_right = slot_width * float(slot_index + 1)
+		slot.anchor_bottom = 1.0
+		slot.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		slot.grow_vertical = Control.GROW_DIRECTION_BOTH
+		player_formation.add_child(slot)
+		slot.setup(slot_actor, VisualTheme.EMBER_BRIGHT)
+		_register_actor_view(slot_actor, slot.character_view)
+		if slot_actor == player_actor:
+			var run_weapon: EquipmentData = EquipmentCatalog.get_by_id(String(RunManager.current_run.equipped_weapon_id))
+			var run_armor: EquipmentData = EquipmentCatalog.get_by_id(String(RunManager.current_run.equipped_armor_id))
+			slot.character_view.setup_equipment_visuals(run_weapon, run_armor)
+		_player_slots.append(slot)
+
+
+func _get_player_slot(actor: CombatActor) -> PlayerCombatSlot:
+	if actor == null:
+		return null
+	for slot: PlayerCombatSlot in _player_slots:
+		if slot.actor == actor:
+			return slot
+	return null
+
+
+func _update_player_slots() -> void:
+	for slot: PlayerCombatSlot in _player_slots:
+		slot.update_actor()
 
 
 func _get_enemy_formation_actors() -> Array[CombatActor]:
@@ -989,6 +1081,7 @@ func _build_enemy_slots() -> void:
 		elif slot_actor.actor_type == CombatActor.ActorType.MINION:
 			hud_mode = EnemyCombatSlot.HUDMode.MINION
 		slot.setup(slot_actor, _biome.accent_color, hud_mode)
+		_register_actor_view(slot_actor, slot.character_view)
 		slot.target_requested.connect(_on_enemy_target_requested)
 		_enemy_slots.append(slot)
 	_update_target_highlights()
@@ -1037,6 +1130,12 @@ func _run_combat() -> void:
 
 	_turn_controller = CombatTurnController.new()
 	_turn_controller.team_block_started.connect(_on_turn_block_started)
+	# Combat Domain M6 — resalte de turno activo (sección 18/20 del handoff):
+	# consume directamente las señales de ciclo de vida ya existentes de
+	# CombatTurnController, nunca un CombatEvent duplicado. Puramente
+	# síncrono, sin await, igual criterio que _on_combat_event().
+	_turn_controller.actor_turn_started.connect(_on_actor_turn_started)
+	_turn_controller.actor_turn_ended.connect(_on_actor_turn_ended)
 	_turn_controller.start(player_actors, enemy_actors)
 
 	# Combat Domain M4 — un CombatEventStream por encuentro, igual ciclo de
@@ -1082,6 +1181,24 @@ func _on_turn_block_started(team: CombatTurnController.TeamBlock) -> void:
 		_refresh_action_bar()
 
 
+## Combat Domain M6 sección 18/39 — resalte funcional de turno activo,
+## Player Team únicamente (sección 19: el lado enemigo no lo necesita para
+## la aceptación funcional de M6 — los enemigos actúan solos, no hay nada
+## que el jugador deba distinguir por resalte). Nunca falla si el actor no
+## tiene slot (enemigo, o Player Team todavía sin construir).
+func _on_actor_turn_started(actor: CombatActor) -> void:
+	var slot: PlayerCombatSlot = _get_player_slot(actor)
+	if slot != null:
+		slot.set_active(true)
+	_refresh_action_bar()
+
+
+func _on_actor_turn_ended(actor: CombatActor) -> void:
+	var slot: PlayerCombatSlot = _get_player_slot(actor)
+	if slot != null:
+		slot.set_active(false)
+
+
 ## Combat Domain M4 — adaptador mínimo (handoff sección 29, Opción B): un
 ## único handler enteramente síncrono, conectado una vez por encuentro.
 ## Solo migra UN caso de presentación ya seguro de mover (el número
@@ -1094,7 +1211,7 @@ func _on_combat_event(event: RefCounted) -> void:
 	if event is StatusEvent and event.kind == StatusEvent.Kind.TICK:
 		var is_damage: bool = event.tick_damage > 0
 		var amount: int = event.tick_damage if is_damage else event.tick_healing
-		var actor_view: CombatCharacterView = event.target_actor.visual_view
+		var actor_view: CombatCharacterView = _get_actor_view(event.target_actor)
 		vfx.show_damage_number(actor_view, amount, false, not is_damage, VisualTheme.DANGER if is_damage else VisualTheme.HEAL)
 
 
@@ -1190,7 +1307,7 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 	if ally_runtime == null:
 		_turn_controller.complete_current_turn()
 		return false
-	var acting_view: CombatCharacterView = acting_actor.visual_view
+	var acting_view: CombatCharacterView = _get_actor_view(acting_actor)
 	var plan: CompanionActionResolver.ActionPlan = CompanionActionResolver.build_plan(
 		acting_actor,
 		companion_data,
@@ -1204,7 +1321,7 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 		await _finish_victory(null)
 		return true
 	var target_actor: CombatActor = plan.target
-	var target_view: CombatCharacterView = target_actor.visual_view
+	var target_view: CombatCharacterView = _get_actor_view(target_actor)
 	var action_name: String = companion_data.ability_name if plan.uses_ability else "ATAQUE"
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(
@@ -1424,7 +1541,7 @@ func _run_player_basic_action(captured_target: CombatActor) -> bool:
 	# reacciones) comparte este mismo id.
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(action_id, player_actor, &"basic_attack", &"", [target_actor]))
-	var target_view: CombatCharacterView = target_actor.visual_view
+	var target_view: CombatCharacterView = _get_actor_view(target_actor)
 	_set_turn("TURNO DEL JUGADOR", VisualTheme.EMBER_BRIGHT)
 	var target_was_burning: bool = target_actor.has_status(&"burn")
 	var effective_attack: int = _statuses.get_effective_attack(player_actor, _boons.before_player_attack())
@@ -1614,12 +1731,12 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 		return _complete_enemy_turn()
 	_consume_enemy_intent(attacking_actor)
 	var target_actor: CombatActor = decision.target
-	var target_view: CombatCharacterView = target_actor.visual_view
+	var target_view: CombatCharacterView = _get_actor_view(target_actor)
 	var target_is_player: bool = target_actor == player_actor
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(action_id, attacking_actor, &"enemy_action", decision.action.action_id, [target_actor]))
 	_set_turn("%s · %s" % [attacking_actor.display_name.to_upper(), decision.action.display_name.to_upper()], VisualTheme.DANGER)
-	var attacking_view: CombatCharacterView = attacking_actor.visual_view
+	var attacking_view: CombatCharacterView = _get_actor_view(attacking_actor)
 	var last_ember_before_hit: bool = _last_ember_active
 	var effective_defense: int = _get_effective_actor_defense(target_actor)
 	var base_enemy_attack: int = attacking_actor.get_attack()
@@ -1799,7 +1916,7 @@ func _run_enemy_self_buff_action(
 	action: EnemyActionData,
 	ai_state: EnemyAIRuntimeState,
 ) -> void:
-	var attacking_view: CombatCharacterView = attacking_actor.visual_view
+	var attacking_view: CombatCharacterView = _get_actor_view(attacking_actor)
 	_set_turn("%s - %s" % [attacking_actor.display_name.to_upper(), action.display_name.to_upper()], VisualTheme.DANGER)
 	await choreography.begin_static(attacking_view)
 	if _boss_controller != null and _boss_controller.is_counter_action(action):
@@ -1876,11 +1993,12 @@ func _run_boss_summon_action(
 	_event_stream.emit_event(SummonEvent.new(action_id, attacking_actor, summoned_actors))
 	_boss_controller.mark_summon_completed()
 	_activate_boss_formation()
-	var boss_view: CombatCharacterView = attacking_actor.visual_view
+	var boss_view: CombatCharacterView = _get_actor_view(attacking_actor)
 	var add_views: Array[Control] = []
 	for summoned_actor: CombatActor in summoned_actors:
-		if is_instance_valid(summoned_actor.visual_view):
-			add_views.append(summoned_actor.visual_view)
+		var summoned_view: CombatCharacterView = _get_actor_view(summoned_actor)
+		if is_instance_valid(summoned_view):
+			add_views.append(summoned_view)
 	_set_turn("%s · %s" % [attacking_actor.display_name.to_upper(), action.display_name.to_upper()], VisualTheme.BOSS)
 	action_label.text = "%s\nEMBER SPAWN ×%d · ACTÚAN EN LA PRÓXIMA RONDA" % [action.display_name.to_upper(), summoned_actors.size()]
 	_set_action_badge(&"ember", "INVOCACIÓN", AshenBadge.Variant.DANGER)
@@ -1922,7 +2040,7 @@ func _check_boss_phase_transition(action_id: int = CombatEventStream.NO_ACTION_I
 	_set_action_badge(&"boss", "FASE %s" % _roman_phase(phase_number), AshenBadge.Variant.DANGER)
 	combat_stage.set_boss_phase_accent(current_phase.visual_accent)
 	_update_combatants()
-	var boss_view: CombatCharacterView = _boss_controller.get_boss_actor().visual_view
+	var boss_view: CombatCharacterView = _get_actor_view(_boss_controller.get_boss_actor())
 	AudioManager.play_event(AudioManager.AudioEvent.BOSS_PHASE)
 	await vfx.boss_phase_transition(boss_view, phase_title, current_phase.visual_accent)
 	if not await TutorialManager.request_and_wait(TutorialCatalog.BOSS_PHASE, TutorialManager.CONTEXT_COMBAT, self):
@@ -1938,7 +2056,7 @@ func _resolve_warden_counter(target_boss: CombatActor) -> bool:
 	# distinta (el boss respondiendo), no un efecto secundario de esa acción.
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(action_id, target_boss, &"boss_counter", &"", [player_actor]))
-	var boss_view: CombatCharacterView = target_boss.visual_view
+	var boss_view: CombatCharacterView = _get_actor_view(target_boss)
 	var last_ember_before_counter: bool = _last_ember_active
 	var base_attack: int = maxi(1, roundi(float(target_boss.get_attack()) * _boss_controller.get_attack_multiplier()))
 	var effective_attack: int = _statuses.get_effective_attack(target_boss, base_attack)
@@ -2117,21 +2235,22 @@ func _cleanup_boss_adds() -> void:
 			continue
 		remaining_actor.set_current_hp(0)
 		_invalidate_enemy_intent(remaining_actor, &"boss_defeated")
-		remaining_actor.death_presented = true
+		_mark_death_presented(remaining_actor)
 		_statuses.clear_all(remaining_actor)
-		if is_instance_valid(remaining_actor.visual_view):
-			add_views.append(remaining_actor.visual_view)
+		var remaining_view: CombatCharacterView = _get_actor_view(remaining_actor)
+		if is_instance_valid(remaining_view):
+			add_views.append(remaining_view)
 	await vfx.boss_add_cleanup(add_views)
 	_update_enemy_slots()
 
 
 func _present_enemy_death(defeated_actor: CombatActor, absorb_to_player: bool = false) -> void:
-	if defeated_actor == null or defeated_actor.death_presented:
+	if defeated_actor == null or _is_death_presented(defeated_actor):
 		return
 	_invalidate_enemy_intent(defeated_actor, &"source_dead", true)
-	defeated_actor.death_presented = true
+	_mark_death_presented(defeated_actor)
 	_statuses.clear_all(defeated_actor)
-	var defeated_view: CombatCharacterView = defeated_actor.visual_view
+	var defeated_view: CombatCharacterView = _get_actor_view(defeated_actor)
 	if not is_instance_valid(defeated_view):
 		return
 	var duration: float = _enemy_death_duration(defeated_actor)
@@ -2167,11 +2286,11 @@ func _present_enemy_death(defeated_actor: CombatActor, absorb_to_player: bool = 
 ## del chequeo de vista, así que la resolución de combate sigue firme aunque
 ## no haya nada que animar.
 func _present_player_team_actor_down(actor: CombatActor) -> void:
-	if actor == null or actor.death_presented:
+	if actor == null or _is_death_presented(actor):
 		return
-	actor.death_presented = true
+	_mark_death_presented(actor)
 	_statuses.clear_all(actor)
-	var actor_view: CombatCharacterView = actor.visual_view
+	var actor_view: CombatCharacterView = _get_actor_view(actor)
 	if not is_instance_valid(actor_view):
 		return
 	var duration: float = 0.0 if SettingsManager.reduce_motion else 0.38
@@ -2243,23 +2362,17 @@ func _track_combat_result(result: StringName) -> void:
 		TelemetryManager.track_boss_finished(RunManager.current_run, _biome.boss.id, result)
 
 
+## Combat Domain M6 — genérico sobre player_actors (sección 15 del
+## handoff): ya no hay "if player_actor / elif companion_actor" para
+## información común (nombre, HP, statuses, estado KO). Reemplaza la
+## actualización escalar de PlayerPanel/CompanionPanel (ambos ocultos
+## permanentemente, ver _apply_character_visuals()) y _update_companion_hud().
+## Atq/Def con bonus temporales de boon/equipo quedan fuera del slot
+## compacto — mismo criterio ya aplicado a EnemyCombatSlot ("silueta + HP
+## en vez de metadata tipo ficha"); ese detalle sigue disponible vía
+## _update_active_effect_badges(), que no cambia.
 func _update_combatants() -> void:
-	player_name_label.text = player_actor.display_name
-	player_caption.text = "ASHEN WANDERER  ·  NV. %d" % RunManager.current_run.run_level
-	player_health_label.configure(&"health", "VIDA", AshenBadge.Variant.HEAL, AshenIcon.DisplaySize.SMALL, "%d / %d" % [player_actor.get_current_hp(), player_actor.get_max_hp()])
-	player_health_bar.max_value = player_actor.get_max_hp()
-	_animate_bar(player_health_bar, player_actor.get_current_hp())
-	var temporary_attack: int = _boons.get_temporary_attack_bonus()
-	var temporary_defense: int = _boons.get_temporary_defense_bonus() + _skill_loadout.get_temporary_defense_bonus()
-	player_attack_badge.configure(&"attack", "ATQ", AshenBadge.Variant.ATTACK, AshenIcon.DisplaySize.SMALL, "%d%s" % [
-		_statuses.get_effective_attack(player_actor, player_actor.get_attack() + temporary_attack),
-		" (+%d)" % temporary_attack if temporary_attack > 0 else "",
-	])
-	player_defense_badge.configure(&"defense", "DEF", AshenBadge.Variant.DEFENSE, AshenIcon.DisplaySize.SMALL, "%d%s" % [
-		_statuses.get_effective_defense(player_actor, player_actor.get_defense() + temporary_defense),
-		" (+%d)" % temporary_defense if temporary_defense > 0 else "",
-	])
-	_update_companion_hud()
+	_update_player_slots()
 	_update_active_effect_badges()
 	if _boss_controller != null:
 		_update_boss_hud()
@@ -2312,37 +2425,6 @@ func _update_boss_hud() -> void:
 	enemy_attack_badge.configure(&"attack", "ATQ", AshenBadge.Variant.ATTACK, AshenIcon.DisplaySize.SMALL, str(_statuses.get_effective_attack(_boss_actor, boss_attack)))
 	enemy_defense_badge.configure(&"defense", "DEF", AshenBadge.Variant.DEFENSE, AshenIcon.DisplaySize.SMALL, str(_get_effective_actor_defense(_boss_actor)))
 	_refresh_status_badges(enemy_status_row, _boss_actor)
-
-
-func _update_companion_hud() -> void:
-	var has_companion: bool = companion_actor != null
-	companion_panel.visible = has_companion
-	companion_view.visible = has_companion
-	if not has_companion:
-		return
-	companion_name_label.text = companion_actor.display_name.to_upper()
-	companion_panel.modulate.a = 1.0 if companion_actor.is_alive() else 0.45
-	companion_health_bar.max_value = companion_actor.get_max_hp()
-	_animate_bar(companion_health_bar, companion_actor.get_current_hp())
-	companion_stats_label.text = "VIDA %d/%d · ATQ %d · DEF %d" % [
-		companion_actor.get_current_hp(),
-		companion_actor.get_max_hp(),
-		_statuses.get_effective_attack(companion_actor, companion_actor.get_attack()),
-		_statuses.get_effective_defense(companion_actor, companion_actor.get_defense()),
-	]
-	# Combat Domain M5 — companion_panel/companion_view siguen siendo el HUD
-	# legacy de UN solo aliado (companion_actor, el primero); un 2do-5to
-	# AI_ALLY no tiene panel dedicado todavía (M6). Se busca su runtime por
-	# actor_id en vez del ex-campo singular _companion_runtime.
-	var companion_runtime: CompanionRuntimeState = _companion_runtimes.get(companion_actor.actor_id)
-	if companion_actor.is_alive() and companion_runtime != null:
-		var companion_data: CompanionData = companion_actor.source_data as CompanionData
-		if companion_data != null:
-			companion_stats_label.text += " · %s EN %d" % [
-				companion_data.ability_name.to_upper(),
-				companion_runtime.actions_until_ability(companion_data),
-			]
-	_refresh_status_badges(companion_status_row, companion_actor)
 
 
 ## Combat Domain M3 — único punto de resolución de target del jugador
@@ -2446,7 +2528,7 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 	_event_stream.emit_event(ActionEvent.new(action_id, player_actor, &"active_skill", active_skill.id, [skill_target]))
 	match active_skill.skill_type:
 		ActiveSkillData.SkillType.DAMAGE:
-			var skill_target_view: CombatCharacterView = skill_target.visual_view
+			var skill_target_view: CombatCharacterView = _get_actor_view(skill_target)
 			var execution_applied: bool = SkillAugmentResolver.execution_multiplier(
 				RunManager.current_run, skill_target.get_current_hp(), skill_target.get_max_hp(),
 			) > 1.0
@@ -2622,12 +2704,17 @@ func _update_skill_ui() -> void:
 		return
 	energy_bar.value = _skill_loadout.current_energy
 	energy_label.text = "%d / %d" % [_skill_loadout.current_energy, CombatSkillController.MAX_ENERGY]
+	# Combat Domain M6 — mismo ownership explícito que _refresh_action_bar():
+	# ver esa función para por qué se exige tanto _phase como controller_type.
+	var current_actor: CombatActor = _turn_controller.current_actor if _turn_controller != null else null
 	var input_enabled: bool = (
 		_phase == CombatPhase.PLAYER_INPUT
 		and not _result_resolved
 		and player_actor != null
 		and player_actor.is_alive()
 		and has_alive_enemies()
+		and current_actor != null
+		and current_actor.controller_type == CombatActor.ControllerType.PLAYER_CONTROLLED
 	)
 	for skill_action_button: CombatSkillButton in _skill_buttons:
 		skill_action_button.refresh(_skill_loadout.current_energy, input_enabled)
@@ -2659,13 +2746,23 @@ func _update_skill_ui() -> void:
 	)
 
 
+## Combat Domain M6 sección 20/21 — ownership del control explícito: ya no
+## se apoya solo en _phase (proxy indirecto) sino que confirma directamente
+## que el actor actual del turn controller es el protagonista
+## PLAYER_CONTROLLED. AI_ALLY/AI_ENEMY nunca habilitan la action bar. Sigue
+## exigiendo _phase == PLAYER_INPUT porque esa fase distingue "esperando
+## elección" de "resolviendo la acción ya elegida" — ambos chequeos son
+## necesarios, no redundantes.
 func _refresh_action_bar() -> void:
+	var current_actor: CombatActor = _turn_controller.current_actor if _turn_controller != null else null
 	var player_can_act: bool = (
 		_phase == CombatPhase.PLAYER_INPUT
 		and not _result_resolved
 		and player_actor != null
 		and player_actor.is_alive()
 		and has_alive_enemies()
+		and current_actor != null
+		and current_actor.controller_type == CombatActor.ControllerType.PLAYER_CONTROLLED
 	)
 	attack_button.disabled = not player_can_act or not _is_valid_enemy_target(selected_enemy_actor)
 	for slot: EnemyCombatSlot in _enemy_slots:
@@ -2776,7 +2873,7 @@ func _process_actor_turn_start(actor: CombatActor) -> bool:
 			amount,
 		]
 		_animate_action_feedback(VisualTheme.DANGER if is_damage else VisualTheme.HEAL)
-		var actor_view: CombatCharacterView = actor.visual_view
+		var actor_view: CombatCharacterView = _get_actor_view(actor)
 		AudioManager.play_event(
 			AudioManager.AudioEvent.BURN_TICK if is_damage else AudioManager.AudioEvent.HEAL,
 			1.0,
