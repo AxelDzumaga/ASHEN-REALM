@@ -222,10 +222,24 @@ No CombatPresentationAdapter/Queue, no SINGLE_ALLY UI, no multiple-
 PLAYER_CONTROLLED support were added. See ASHEN_REALM_DECISIONS.md
 and the TECHNICAL_HANDOFF COMBAT section for the exact contract.
 
-Still ahead: Combat3D, a Visual Vertical Slice pass, and simulator
-alignment — none started. The M1-M6 combat domain refactor is
-complete: Combat2D is now a presentation/input/choreography
-adapter over a domain a future Combat3D can reuse unchanged.
+Still ahead: Combat3D and a Visual Vertical Slice pass — neither
+started. The M1-M6 combat domain refactor is complete: Combat2D is
+now a presentation/input/choreography adapter over a domain a
+future Combat3D can reuse unchanged.
+
+Simulator Alignment A (tools/simulation/full_run_simulation.gd):
+COMPLETE. Turn sequencing (CombatTurnController), target
+validation (CombatTargetResolver), and team-based terminal
+semantics (CombatTeamUtils, ally-saved 1 HP normalization
+mirroring combat.gd's _finish_victory) now reuse the real
+production domain instead of a hand-rolled duplicate. See
+tools/simulation/README.md's "Simulator Alignment A" section for
+the full contract and tools/tests/simulator_domain_parity_test.gd
+for the parity fixtures. Simulator Alignment B (the still-
+duplicated action-resolution recipe between combat.gd and
+_execute_player_action/_run_enemy_action) is explicitly deferred,
+not started — see the same README section for the exact remaining
+seam.
 
 ---
 
