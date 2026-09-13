@@ -119,3 +119,41 @@ Inferno Rhythm).
 - Algunas sinergias reactivas no se modelan con toda la riqueza de presentación/runtime. Las activaciones y sus fuentes sí se registran.
 - Los RNG que en pantallas UI se inicializan con `randomize()` se reemplazan por RNG derivado para conservar probabilidades con reproducibilidad.
 - Win rate condicionado por upgrade/equipment es correlación descriptiva, no causalidad.
+- La cohorte nunca entra a combate con arma equipada ni `equipment_crit_chance > 0` (`_cohort_gear_assumption_holds()`, comprobado por autotest) — el simulador no modela afinidad elemental (`AffinityResolver`) ni crítico de equipo. Es matemáticamente neutro solo mientras eso siga siendo cierto; si un futuro cohort equipa gear a mitad de run, ese guard debe fallar en vez de invalidar el balance en silencio.
+
+## Simulator Alignment A (Combat Domain post-M1-M6)
+
+Turn sequencing, target validation, and team-based terminal semantics now
+reuse the real production domain directly instead of a hand-rolled
+duplicate:
+
+- **Turn sequencing:** `CombatTurnController` (Combat Domain M1) drives
+  Player Team → Enemy Team, stable order, dead-actor skipping, and
+  next-block-only eligibility for mid-round summons — replacing the old
+  hand-written `player → companion → enemy round` loop.
+- **Target validation:** `CombatTargetResolver` (Combat Domain M3)
+  validates the player policy's chosen target; the policy itself
+  (`_choose_target`/`_choose_player_action`) is unchanged and stays
+  simulator-owned.
+- **Terminal semantics:** `CombatTeamUtils` (Combat Domain M2) decides
+  victory/defeat by whole-team liveness, not a protagonist-only check — a
+  protagonist KO with the companion still alive no longer ends combat as a
+  defeat. An ally-saved victory normalizes the protagonist to 1 HP
+  (mirroring `combat.gd`'s `_finish_victory` anti-softlock rule), which
+  persists into the rest of the simulated run via `RunState.current_health`.
+- **Parity fixtures:** `tools/tests/simulator_domain_parity_test.gd`
+  exercises these three seams directly against the real production
+  classes, plus two known-seed regression fixtures (`seed=1353165`/
+  `policy=random`/`biome=ashen_wastes` for the ally-saved-victory
+  correction, `seed=620062` for a Warden's Rebuke counter surviving the
+  migration).
+
+**Remaining, explicitly out of scope for Alignment A (see Simulator
+Alignment B):** `_execute_player_action`/`_run_enemy_action` still
+independently re-sequence the same underlying primitives
+(`CombatMath`/`EquipmentEffectResolver`/`BoonController`/
+`CombatStatusController`) that `combat.gd`'s own basic-attack/skill/enemy
+resolution encodes — there is still no single presentation-independent
+callable for "resolve one action" that both consumers share. A future
+change to that sequence in `combat.gd` would not automatically propagate
+here.

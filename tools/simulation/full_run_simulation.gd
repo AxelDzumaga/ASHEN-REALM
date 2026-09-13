@@ -532,13 +532,38 @@ func _resolve_combat_tile(run: RunState, biome: BiomeData, policy: StringName, r
 	return true
 
 
+## Simulator Alignment A §23 — this simulator does not model elemental
+## affinity (AffinityResolver weak/resist) or equipment critical hits at
+## all (see module notes at the top of this file). That omission is
+## mathematically neutral ONLY because the current cohort never enters
+## combat with equipment: combat.gd derives the player's damage element
+## from RunManager.current_run.equipped_weapon_id (defaulting to PHYSICAL
+## with none, combat.gd:635-638) and crit chance from
+## run.equipment_crit_chance (equipment_effect_resolver.gd:36-37) — both
+## stay at RunState's own zero-value defaults (run_state.gd:128,132) for a
+## cohort that never equips gear mid-run. If a future cohort ever does,
+## this silently under-reports balance output rather than erroring — this
+## guard exists so that stays a loud failure, not a silent one.
+func _cohort_gear_assumption_holds(run: RunState) -> bool:
+	return run.equipped_weapon_id == &"" and run.equipment_crit_chance <= 0.0
+
+
 func _simulate_combat(run: RunState, enemy_data: Array[EnemyData], is_elite: bool, is_boss: bool, policy: StringName, rng: RandomNumberGenerator, metrics: Dictionary) -> Dictionary:
+	if not _cohort_gear_assumption_holds(run):
+		push_error("Simulator: combat started with equipped_weapon_id=%s equipment_crit_chance=%s — affinity/critical-hit damage are NOT modeled by this simulator (§23 scope guard); balance output for this run is not trustworthy until that's added." % [run.equipped_weapon_id, run.equipment_crit_chance])
 	var start_hp: int = run.current_health
 	var player: CombatActor = CombatActor.from_player(&"player_0", run, null)
 	var companion_data: CompanionData = null if bool(_balance_overrides.get("disable_companion", false)) else CompanionCatalog.get_by_id(run.equipped_companion_id)
 	var companion: CombatActor = CombatActor.from_companion(&"companion_0", companion_data) if companion_data != null else null
 	if companion != null:
 		companion.formation_slot = 1
+	# Simulator Alignment A — player_team is the authoritative Player Team
+	# array CombatTurnController/CombatTeamUtils consume. Always [player]
+	# with the companion appended when present (current cohort caps at one
+	# companion; see full_run_simulation.gd module notes for scope).
+	var player_team: Array[CombatActor] = [player]
+	if companion != null:
+		player_team.append(companion)
 	var enemies: Array[CombatActor] = []
 	var ai_states: Dictionary = {}
 	for index: int in range(enemy_data.size()):
@@ -565,7 +590,8 @@ func _simulate_combat(run: RunState, enemy_data: Array[EnemyData], is_elite: boo
 		boss_controller = BossEncounterController.new((boss.source_data as EnemyData).boss_encounter, boss)
 	var state: Dictionary = {
 		"run": run, "player": player, "companion": companion, "companion_data": companion_data,
-		"companion_runtime": companion_runtime, "enemies": enemies, "ai_states": ai_states,
+		"companion_runtime": companion_runtime, "player_team": player_team,
+		"enemies": enemies, "ai_states": ai_states,
 		"statuses": statuses, "skills": skills, "boons": boons, "boss": boss,
 		"synergy_runtime": synergy_runtime,
 		"boss_controller": boss_controller, "intents": {}, "next_minion": 0,
@@ -579,33 +605,48 @@ func _simulate_combat(run: RunState, enemy_data: Array[EnemyData], is_elite: boo
 		_record_trigger(metrics, &"phoenix_blood")
 	if _effect_enabled(&"mire_bloom"):
 		SynergyEffectResolver.apply_combat_start(run, player, statuses)
-	_plan_all_intents(state, metrics)
-	while player.is_alive() and not _alive_enemies(state).is_empty() and int(state["turns"]) < MAX_COMBAT_TURNS:
-		state["turns"] += 1
-		synergy_runtime.begin_player_turn()
-		_apply_turn_start(state, player)
-		if not player.is_alive():
+	# Simulator Alignment A — CombatTurnController (Combat Domain M1) is now
+	# the sequencing authority: Player Team block (stable order) -> Enemy
+	# Team block (stable order), dead actors skipped, a mid-round summon
+	# joins next block only (see _summon_from_intent/§25 of the alignment
+	# design). round_started is connected before start() so it also fires
+	# for round 1 (start() emits it synchronously), replacing the old
+	# "plan once before the loop, replan after every round" pattern with
+	# "replan whenever a new round actually begins" — the real authority's
+	# own notion of round boundary, not an approximation of it.
+	var turn_controller: CombatTurnController = CombatTurnController.new()
+	turn_controller.round_started.connect(func(_round_number: int) -> void: _plan_all_intents(state, metrics))
+	turn_controller.start(player_team, enemies)
+	while not turn_controller.is_stopped():
+		if turn_controller.current_round > MAX_COMBAT_TURNS:
+			turn_controller.stop()
 			break
-		var usable_skills: int = 0
-		for controller: ActiveSkillController in skills.skills:
-			if _effect_enabled(controller.skill.id) and skills.can_use(controller):
-				usable_skills += 1
-		if usable_skills == 0:
-			metrics["turns_without_usable_skill"] += 1
-		var choice: Dictionary = _choose_player_action(state, policy, rng)
-		_record_energy_decision(state, choice, usable_skills, metrics)
-		_execute_player_action(state, choice, rng, metrics)
-		statuses.process_turn_end(player)
-		if _alive_enemies(state).is_empty():
+		var acting_actor: CombatActor = turn_controller.current_actor
+		if acting_actor == null:
 			break
-		_run_companion_turn(state, metrics)
-		if _alive_enemies(state).is_empty():
+		state["turns"] = turn_controller.current_round
+		_dispatch_actor_turn(state, acting_actor, policy, rng, metrics)
+		turn_controller.complete_current_turn()
+		if CombatTeamUtils.is_defeated(player_team) or CombatTeamUtils.is_defeated(enemies):
+			turn_controller.stop()
 			break
-		_run_enemy_round(state, metrics)
-		if player.is_alive() and not _alive_enemies(state).is_empty():
-			_plan_all_intents(state, metrics)
-	var victory: bool = player.is_alive() and _alive_enemies(state).is_empty()
+	# Simulator Alignment A — Team semantics (Combat Domain M2), not
+	# protagonist-only: victory/defeat are decided by whether either whole
+	# team still has a living actor, so a protagonist KO with the companion
+	# still alive no longer ends combat as a defeat.
+	var victory: bool = not CombatTeamUtils.is_defeated(player_team) and CombatTeamUtils.is_defeated(enemies)
 	if victory:
+		# Combat Domain M2 anti-softlock (combat.gd:_finish_victory,
+		# ASHEN_REALM_TECHNICAL_HANDOFF.md's M2 section): an ally can win
+		# combat with the protagonist at 0 HP. Production never lets a run
+		# continue with an unusable dead protagonist — normalize to the
+		# minimum viable HP (1), never full/percentage, only when it was
+		# actually 0. set_current_hp() writes through RunState.current_health
+		# (from_player links live, combat_actor.gd:100/163-164), so this
+		# persists into the outer board loop and any post-combat checkpoint
+		# with no extra plumbing.
+		if player.get_current_hp() <= 0:
+			player.set_current_hp(1)
 		var ember_heal: int = boons.on_enemy_defeated()
 		state["healing"] += ember_heal
 		metrics["healing_ember_blood"] += ember_heal
@@ -643,6 +684,47 @@ func _simulate_combat(run: RunState, enemy_data: Array[EnemyData], is_elite: boo
 		"phase_reached": state["phase_reached"],
 		"turn_cap_reached": int(state["turns"]) >= MAX_COMBAT_TURNS,
 	}
+
+
+## Simulator Alignment A — single dispatch point CombatTurnController drives
+## for every current_actor, regardless of team. Turn-start status ticking
+## (and its "died before acting" check) happens here once, uniformly, for
+## PLAYER_CONTROLLED/AI_ALLY/AI_ENEMY alike — matching production
+## combat.gd's own per-actor-turn pattern (e.g. combat.gd's
+## _process_actor_turn_start() gate before every actor's action) rather
+## than the old code's player-only "break the whole combat" special case.
+func _dispatch_actor_turn(state: Dictionary, actor: CombatActor, policy: StringName, rng: RandomNumberGenerator, metrics: Dictionary) -> void:
+	_apply_turn_start(state, actor)
+	if not actor.is_alive():
+		return
+	match actor.controller_type:
+		CombatActor.ControllerType.PLAYER_CONTROLLED:
+			_run_player_controlled_turn(state, policy, rng, metrics)
+		CombatActor.ControllerType.AI_ALLY:
+			_run_companion_turn(state, metrics)
+		_:
+			_run_enemy_action(state, actor, metrics)
+
+
+## Simulator Alignment A — extracted from the old hand-rolled combat loop's
+## inline player-turn body; dispatch-by-ControllerType (above) is now the
+## only caller. Turn-start ticking/death-check moved to _dispatch_actor_turn.
+func _run_player_controlled_turn(state: Dictionary, policy: StringName, rng: RandomNumberGenerator, metrics: Dictionary) -> void:
+	var player: CombatActor = state["player"]
+	var skills: CombatSkillController = state["skills"]
+	var statuses: CombatStatusController = state["statuses"]
+	var synergy_runtime: SynergyRuntimeState = state["synergy_runtime"]
+	synergy_runtime.begin_player_turn()
+	var usable_skills: int = 0
+	for controller: ActiveSkillController in skills.skills:
+		if _effect_enabled(controller.skill.id) and skills.can_use(controller):
+			usable_skills += 1
+	if usable_skills == 0:
+		metrics["turns_without_usable_skill"] += 1
+	var choice: Dictionary = _choose_player_action(state, policy, rng)
+	_record_energy_decision(state, choice, usable_skills, metrics)
+	_execute_player_action(state, choice, rng, metrics)
+	statuses.process_turn_end(player)
 
 
 func _plan_all_intents(state: Dictionary, metrics: Dictionary) -> void:
@@ -815,17 +897,40 @@ func _choose_target(state: Dictionary, policy: StringName, rng: RandomNumberGene
 	return chosen
 
 
+## Simulator Alignment A — CombatTargetResolver (Combat Domain M3) is now the
+## target-legality authority; _choose_target() (policy) only ever picks a
+## candidate, never validates it. An invalid candidate here is defensive-
+## only (mirrors combat.gd's own M3-documented equivalent check,
+## combat.gd:1527-1538): this simulator is synchronous with no await
+## between choosing and executing a target, so a dead/foreign candidate
+## should never actually reach this point in practice. On failure:
+## zero mutation — skip the action entirely (no fallback retarget, no
+## energy cost, no cooldown, no damage/status) rather than re-evaluating
+## the policy, since nothing here is expected to legitimately trigger it.
 func _execute_player_action(state: Dictionary, choice: Dictionary, rng: RandomNumberGenerator, metrics: Dictionary) -> void:
-	var target: CombatActor = choice["target"]
-	if target == null or not target.is_alive():
-		target = _alive_enemies(state)[0] if not _alive_enemies(state).is_empty() else null
-	if target == null:
+	var player: CombatActor = state["player"]
+	# Second Wind/Ashen Guard are SELF-targeted (ActiveSkillData.target_type
+	# on the real skill resource, same field CombatTargetResolver's own
+	# SELF/SINGLE_ENEMY branches key on) — whatever _choose_player_action put
+	# in choice["target"] for those is not "the enemy attacked" and must not
+	# be validated as one.
+	var target_type: ActiveSkillData.TargetType = ActiveSkillData.TargetType.SINGLE_ENEMY
+	var candidate_target: CombatActor = choice["target"]
+	if choice["type"] == "skill":
+		target_type = (choice["skill"] as ActiveSkillController).skill.target_type
+		if target_type == ActiveSkillData.TargetType.SELF:
+			candidate_target = player
+	var resolution: CombatTargetResolver.Resolution = CombatTargetResolver.resolve(
+		target_type, player, state["player_team"], state["enemies"], candidate_target,
+	)
+	if not resolution.ok():
+		push_error("Simulator: player action target failed CombatTargetResolver validation (status=%d) — skipping action, zero mutation." % resolution.status)
 		return
+	var target: CombatActor = resolution.targets[0]
 	if state["last_target_id"] != &"" and state["last_target_id"] != target.actor_id:
 		metrics["target_switches"] += 1
 	state["last_target_id"] = target.actor_id
 	var run: RunState = state["run"]
-	var player: CombatActor = state["player"]
 	var statuses: CombatStatusController = state["statuses"]
 	var skills: CombatSkillController = state["skills"]
 	var boons: BoonController = state["boons"]
@@ -925,14 +1030,14 @@ func _execute_player_action(state: Dictionary, choice: Dictionary, rng: RandomNu
 		state["intents"].erase(target.actor_id)
 
 
+## Simulator Alignment A — turn-start ticking and the post-tick death check
+## now happen once, centrally, in _dispatch_actor_turn() for every
+## ControllerType uniformly (production combat.gd's own per-actor-turn
+## pattern) — this function is only ever called for a companion already
+## confirmed alive after its own turn-start tick.
 func _run_companion_turn(state: Dictionary, metrics: Dictionary) -> void:
 	var companion: CombatActor = state["companion"]
-	if companion == null or not companion.is_alive():
-		return
 	var statuses: CombatStatusController = state["statuses"]
-	_apply_turn_start(state, companion)
-	if not companion.is_alive():
-		return
 	var selected: CombatActor = _alive_enemies(state)[0] if not _alive_enemies(state).is_empty() else null
 	var plan: CompanionActionResolver.ActionPlan = CompanionActionResolver.build_plan(companion, state["companion_data"], state["companion_runtime"], selected, state["enemies"], statuses, _enemy_defense_bonus(state, selected))
 	if plan.target == null:
@@ -951,19 +1056,15 @@ func _run_companion_turn(state: Dictionary, metrics: Dictionary) -> void:
 		state["intents"].erase(plan.target.actor_id)
 
 
-func _run_enemy_round(state: Dictionary, metrics: Dictionary) -> void:
-	var round_enemies: Array[CombatActor] = state["enemies"].duplicate()
-	for enemy: CombatActor in round_enemies:
-		if not enemy.is_alive() or not (state["player"] as CombatActor).is_alive():
-			continue
-		_run_enemy_action(state, enemy, metrics)
-
-
+## Simulator Alignment A — CombatTurnController now owns Enemy Team
+## sequencing (stable order, dead-actor skipping, snapshotted block so a
+## mid-round summon isn't inserted into the round already in progress —
+## combat_turn_controller.gd:34-39/§25 of the alignment design), replacing
+## the old hand-rolled _run_enemy_round() duplicate() loop. Turn-start
+## ticking and its death check happen centrally in _dispatch_actor_turn()
+## before this is ever called (see _run_companion_turn's note above).
 func _run_enemy_action(state: Dictionary, enemy: CombatActor, metrics: Dictionary) -> void:
 	var statuses: CombatStatusController = state["statuses"]
-	_apply_turn_start(state, enemy)
-	if not enemy.is_alive():
-		return
 	var ai_state: EnemyAIRuntimeState = state["ai_states"][enemy.actor_id]
 	ai_state.begin_turn()
 	var intent: EnemyIntent = state["intents"].get(enemy.actor_id) as EnemyIntent
@@ -1191,23 +1292,17 @@ func _enemy_profile(state: Dictionary, actor: CombatActor) -> EnemyAIData:
 	return controller.get_active_ai_profile(fallback) if controller != null and controller.owns_actor(actor) else fallback
 
 
+## Simulator Alignment A — CombatTeamUtils (Combat Domain M2) is the single
+## production definition of "living members of a team"; combat.gd's own
+## get_alive_player_actors()/has_alive_enemies() delegate to the same
+## helper (combat.gd:492-493,939-940). Replaces two independently
+## hand-rolled loops with the real shared one.
 func _alive_enemies(state: Dictionary) -> Array[CombatActor]:
-	var result: Array[CombatActor] = []
-	for actor: CombatActor in state["enemies"]:
-		if actor.is_alive():
-			result.append(actor)
-	return result
+	return CombatTeamUtils.living_actors(state["enemies"])
 
 
 func _alive_players(state: Dictionary) -> Array[CombatActor]:
-	var result: Array[CombatActor] = []
-	var player: CombatActor = state["player"]
-	var companion: CombatActor = state["companion"]
-	if player.is_targetable():
-		result.append(player)
-	if companion != null and companion.is_targetable():
-		result.append(companion)
-	return result
+	return CombatTeamUtils.living_actors(state["player_team"])
 
 
 func _threat_summary(state: Dictionary) -> Dictionary:
@@ -1672,6 +1767,16 @@ func _run_tests() -> int:
 	SynergyResolver.use_stage62_baseline_rules = _reward_rules == &"baseline"
 	var failures: Array[String] = []
 	var resource_iron_skin_value: int = UpgradeCatalog.IRON_SKIN.primary_value
+	# §23 scope guard — the default no-gear cohort must hold the assumption,
+	# and the guard itself must actually detect a geared RunState.
+	var default_cohort_run: RunState = RunState.new()
+	if not _cohort_gear_assumption_holds(default_cohort_run):
+		failures.append("cohort_gear_assumption_should_hold_for_default_cohort")
+	var geared_probe_run: RunState = RunState.new()
+	geared_probe_run.equipped_weapon_id = &"ember_fang"
+	geared_probe_run.equipment_crit_chance = 0.1
+	if _cohort_gear_assumption_holds(geared_probe_run):
+		failures.append("cohort_gear_assumption_guard_did_not_detect_equipped_weapon")
 	var first: Dictionary = _simulate_run(&"ashen_wastes", &"tactical", 620001)
 	var second: Dictionary = _simulate_run(&"ashen_wastes", &"tactical", 620001)
 	if first["result_hash"] != second["result_hash"]:
