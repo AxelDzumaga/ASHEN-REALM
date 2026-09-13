@@ -23,7 +23,9 @@ enum PlayerAction {
 const TURN_DELAY := 0.75
 const RESULT_DELAY := 1.1
 const DEFAULT_ENEMY_AI: EnemyAIData = preload("res://data/enemy_ai_profiles/brute_primary.tres")
-const MAX_ENEMY_ACTORS: int = 3
+## Combat Domain M5 — deriva de CombatRules.MAX_TEAM_SIZE (autoridad
+## canónica) en vez de un literal propio; ver combat_rules.gd.
+const MAX_ENEMY_ACTORS: int = CombatRules.MAX_TEAM_SIZE
 const VISUAL_SLICE_WRETCH: EnemyData = preload("res://data/enemies/ember_wretch.tres")
 const VISUAL_SLICE_CRAWLER: EnemyData = preload("res://data/enemies/ash_crawler.tres")
 const VISUAL_SLICE_BRUTE: EnemyData = preload("res://data/enemies/elites/ashbound_brute.tres")
@@ -89,6 +91,15 @@ var enemy_actor: CombatActor
 var selected_enemy_actor: CombatActor
 var player_actors: Array[CombatActor] = []
 var enemy_actors: Array[CombatActor] = []
+## Combat Domain M5 — semilla de composición de aliados IA para pruebas de
+## capacidad N-actor. Producción sigue pasando 0 o 1 CompanionData (el
+## companion equipado, si hay uno); un fixture de test puede asignar acá
+## hasta CombatRules.MAX_TEAM_SIZE - 1 antes de que el combate se inicialice
+## para probar 1 PLAYER_CONTROLLED + N AI_ALLY reales sin tocar RunState ni
+## agregar un sistema de selección de party a producción (ver handoff M5
+## sección 11/47). Vacío (comportamiento por defecto) = solo el companion
+## equipado, exactamente como antes de M5.
+var _ally_data_override: Array[CompanionData] = []
 var _biome: BiomeData
 var _is_boss := false
 var _is_elite := false
@@ -96,7 +107,15 @@ var _boons: BoonController
 var _statuses: CombatStatusController
 var _synergy_runtime: SynergyRuntimeState
 var _equipment_runtime: EquipmentRuntimeState
-var _companion_runtime: CompanionRuntimeState
+## Combat Domain M5 — reemplaza el campo singular _companion_runtime.
+## Clave: CombatActor.actor_id (uno por cada AI_ALLY vivo del Player Team,
+## nunca compartido) — antes de M5 esto era un único CompanionRuntimeState
+## que cualquier AI_ALLY leía/escribía, lo cual habría mezclado el cadence
+## de habilidad de un aliado con el de otro apenas hubiera 2+ (ver handoff
+## M5 sección 13/14). CompanionActionResolver no cambia: ya recibía el
+## runtime_state como parámetro explícito, solo cambia de dónde el llamador
+## lo saca.
+var _companion_runtimes: Dictionary[StringName, CompanionRuntimeState] = {}
 var _enemy_ai_states: Dictionary[StringName, EnemyAIRuntimeState] = {}
 var _enemy_intents: Dictionary[StringName, EnemyIntent] = {}
 var _intent_plan_sequence: int = 0
@@ -159,6 +178,7 @@ func _ready() -> void:
 	)
 	_initialize_actors()
 	_initialize_boss_encounter()
+	_validate_team_composition()
 	if _is_boss:
 		TelemetryManager.track_boss_started(RunManager.current_run, _biome.boss.id)
 	var discovery_category: StringName = CodexCatalog.BOSSES if _is_boss else (CodexCatalog.ELITES if _is_elite else CodexCatalog.ENEMIES)
@@ -311,20 +331,14 @@ func _initialize_actors() -> void:
 	player_actor = CombatActor.from_player(&"player_0", RunManager.current_run, PlayerVisualCatalog.ASHEN_WANDERER)
 	player_actor.set_visual_view(player_view)
 	companion_actor = null
-	_companion_runtime = null
+	_companion_runtimes.clear()
 	player_actors.clear()
 	enemy_actors.clear()
 	_enemy_ai_states.clear()
 	_enemy_intents.clear()
 	_intent_plan_sequence = 0
 	player_actors.append(player_actor)
-	var companion_data: CompanionData = CompanionCatalog.get_by_id(RunManager.current_run.equipped_companion_id)
-	if companion_data != null:
-		companion_actor = CombatActor.from_companion(&"companion_0", companion_data)
-		companion_actor.formation_slot = 1
-		companion_actor.set_visual_view(companion_view)
-		player_actors.append(companion_actor)
-		_companion_runtime = CompanionRuntimeState.new()
+	_build_ai_allies(_resolve_ally_data_list())
 	for enemy_index: int in range(_encounter_enemies.size()):
 		var created_actor: CombatActor = CombatActor.from_enemy(
 			StringName("enemy_%d" % enemy_index), _encounter_enemies[enemy_index], enemy_type,
@@ -334,6 +348,44 @@ func _initialize_actors() -> void:
 		_enemy_ai_states[created_actor.actor_id] = EnemyAIRuntimeState.new()
 	selected_enemy_actor = enemy_actors[0]
 	enemy_actor = selected_enemy_actor
+
+
+## Combat Domain M5 — producción sigue pidiendo a lo sumo un companion
+## (RunManager.current_run.equipped_companion_id); un fixture de test puede
+## poblar _ally_data_override con hasta CombatRules.MAX_TEAM_SIZE - 1
+## CompanionData para probar capacidad N-actor real sin un sistema de
+## selección de party en producción (handoff M5 sección 11/47).
+func _resolve_ally_data_list() -> Array[CompanionData]:
+	if not _ally_data_override.is_empty():
+		return _ally_data_override
+	var result: Array[CompanionData] = []
+	var companion_data: CompanionData = CompanionCatalog.get_by_id(RunManager.current_run.equipped_companion_id)
+	if companion_data != null:
+		result.append(companion_data)
+	return result
+
+
+## Combat Domain M5 — generaliza la construcción de aliados IA: antes había
+## como mucho un companion_actor construido a mano. companion_actor se
+## conserva como alias de COMPATIBILIDAD apuntando siempre al primer aliado
+## (índice 0) — sigue siendo lo único que el HUD legacy de un solo
+## companion (companion_panel/companion_view) presenta; el 2do-5to aliado no
+## tiene panel dedicado todavía (M6), pero es un CombatActor real en
+## player_actors, con su propio CompanionRuntimeState independiente. Nunca
+## se le asigna companion_view a un 2do+ aliado — ver handoff M5 sección 23:
+## reusar la vista de otro actor sería peor que no tener vista.
+func _build_ai_allies(ally_data_list: Array[CompanionData]) -> void:
+	for ally_index: int in range(ally_data_list.size()):
+		var ally_data: CompanionData = ally_data_list[ally_index]
+		if ally_data == null:
+			continue
+		var ally_actor: CombatActor = CombatActor.from_companion(StringName("companion_%d" % ally_index), ally_data)
+		ally_actor.formation_slot = ally_index + 1
+		if ally_index == 0:
+			companion_actor = ally_actor
+			ally_actor.set_visual_view(companion_view)
+		player_actors.append(ally_actor)
+		_companion_runtimes[ally_actor.actor_id] = CompanionRuntimeState.new()
 
 
 func _initialize_boss_encounter() -> void:
@@ -348,6 +400,22 @@ func _initialize_boss_encounter() -> void:
 	_boss_actor = enemy_actors[0]
 	_boss_actor.formation_slot = 1
 	_boss_controller = BossEncounterController.new(boss_data.boss_encounter, _boss_actor)
+
+
+## Combat Domain M5 — red de seguridad de composición (sección 9 del
+## handoff M5): en juego real, la construcción de arriba nunca debería
+## producir un equipo inválido — esto es "corrupción de programador
+## imposible", no un caso de contenido esperable, así que un push_error()
+## observable alcanza (no bloquea el combate, que ya arrancó con lo que
+## haya). Existe principalmente para que un fixture de test sintético (o un
+## futuro validador de contenido) tenga una sola función a la que apuntar.
+func _validate_team_composition() -> void:
+	var player_result: CombatTeamUtils.ValidationResult = CombatTeamUtils.validate_team(player_actors, CombatActor.Team.PLAYER)
+	if not player_result.valid:
+		push_error("Combat: invalid Player Team composition: %s" % ", ".join(player_result.errors))
+	var enemy_result: CombatTeamUtils.ValidationResult = CombatTeamUtils.validate_team(enemy_actors, CombatActor.Team.ENEMY)
+	if not enemy_result.valid:
+		push_error("Combat: invalid Enemy Team composition: %s" % ", ".join(enemy_result.errors))
 
 
 func _setup_boss_hud() -> void:
@@ -621,10 +689,15 @@ func _populate_intent_estimate(intent: EnemyIntent) -> void:
 		var summon_phase: BossPhaseData = _boss_controller.get_pending_summon_phase()
 		if summon_phase != null and summon_phase.summon_data != null:
 			intent.summon_type = summon_phase.summon_data.id
-			intent.summon_count = mini(
+			# Combat Domain M5 — misma fórmula de capacidad que
+			# _run_boss_summon_action() (mini contra CombatRules.MAX_TEAM_SIZE,
+			# clampeado a 0): un Enemy Team ya lleno debe mostrar "0 a
+			# invocar", nunca un número negativo.
+			var estimate_capacity: int = mini(_boss_controller.data.max_active_enemies, CombatRules.MAX_TEAM_SIZE)
+			intent.summon_count = maxi(0, mini(
 				_boss_controller.get_pending_summon_count(),
-				_boss_controller.data.max_active_enemies - enemy_actors.size(),
-			)
+				estimate_capacity - enemy_actors.size(),
+			))
 		return
 	if intent.action.action_type not in [EnemyAIEnums.ActionType.ATTACK, EnemyAIEnums.ActionType.ATTACK_STATUS]:
 		return
@@ -1084,17 +1157,17 @@ func _run_player_turn() -> bool:
 	return false
 
 
-## Turno del aliado IA (sección 9 del handoff M1, generalizado en M2
-## sección 10): CombatTurnController ya garantiza que acting_actor está
-## vivo cuando esta función se llama (solo se invoca para
-## ControllerType.AI_ALLY, y el controller nunca selecciona un actor no
+## Turno del aliado IA (sección 9 del handoff M1, generalizado en M2 sección
+## 10, generalizado a N aliados en M5): CombatTurnController ya garantiza
+## que acting_actor está vivo cuando esta función se llama (solo se invoca
+## para ControllerType.AI_ALLY, y el controller nunca selecciona un actor no
 ## elegible) — este código no re-implementa esa decisión, solo ejecuta QUÉ
 ## hace el aliado (CompanionActionResolver, sin cambios) y avisa al
 ## controller cuándo terminó. Recibe acting_actor explícitamente en vez de
-## cerrar sobre companion_actor para que el call site no asuma "el aliado
-## es siempre el mismo objeto" — CompanionRuntimeState/companion_data siguen
-## siendo singulares porque el runtime actual solo admite un AI_ALLY a la
-## vez (ver handoff M2 sección 10), no porque este código lo requiera.
+## cerrar sobre companion_actor porque, desde M5, el aliado NO es siempre el
+## mismo objeto: puede ser cualquiera de hasta CombatRules.MAX_TEAM_SIZE - 1
+## AI_ALLY, cada uno con su propio CompanionRuntimeState (_companion_runtimes,
+## indexado por actor_id).
 func _run_companion_turn(acting_actor: CombatActor) -> bool:
 	if not await TutorialManager.request_and_wait(TutorialCatalog.COMPANION_COMBAT, TutorialManager.CONTEXT_COMBAT, self):
 		return true
@@ -1102,7 +1175,7 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 		return true
 	if await _process_actor_turn_start(acting_actor):
 		_statuses.process_turn_end(acting_actor)
-		await _present_companion_death()
+		await _present_player_team_actor_down(acting_actor)
 		_update_combatants()
 		_turn_controller.complete_current_turn()
 		return false
@@ -1110,11 +1183,18 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 	if companion_data == null:
 		_turn_controller.complete_current_turn()
 		return false
+	# Combat Domain M5 — cada AI_ALLY tiene su propio CompanionRuntimeState,
+	# indexado por actor_id (nunca compartido entre aliados, ver handoff M5
+	# sección 13/14).
+	var ally_runtime: CompanionRuntimeState = _companion_runtimes.get(acting_actor.actor_id)
+	if ally_runtime == null:
+		_turn_controller.complete_current_turn()
+		return false
 	var acting_view: CombatCharacterView = acting_actor.visual_view
 	var plan: CompanionActionResolver.ActionPlan = CompanionActionResolver.build_plan(
 		acting_actor,
 		companion_data,
-		_companion_runtime,
+		ally_runtime,
 		selected_enemy_actor,
 		enemy_actors,
 		_statuses,
@@ -1147,9 +1227,16 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 		) != null
 		if burn_applied:
 			_emit_status_applied(action_id, acting_actor, target_actor, companion_data.ability_status_id)
-	acting_view.play_attack(
-		CombatChoreographyController.AGGRESSIVE_DURATION if plan.uses_ability else CombatChoreographyController.MELEE_DURATION
-	)
+	# Combat Domain M5 — un 2do-5to AI_ALLY sintético puede no tener
+	# visual_view (sin panel/nodo dedicado todavía, ver handoff M5 sección
+	# 23/24): choreography.approach()/impact_and_return() ya son
+	# null-safe (is_instance_valid() interno), pero las llamadas directas a
+	# métodos de CombatCharacterView no lo son — se guardan acá para que la
+	# resolución de daño/estado/eventos de más abajo siga firme sin vista.
+	if is_instance_valid(acting_view):
+		acting_view.play_attack(
+			CombatChoreographyController.AGGRESSIVE_DURATION if plan.uses_ability else CombatChoreographyController.MELEE_DURATION
+		)
 	await choreography.approach(
 		acting_view,
 		target_view,
@@ -1187,9 +1274,9 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 		CombatChoreographyController.EMPHASIZED_HIT_STOP_DURATION if plan.uses_ability else CombatChoreographyController.HIT_STOP_DURATION,
 	)
 	await _check_boss_phase_transition(action_id)
-	_companion_runtime.record_action()
+	ally_runtime.record_action()
 	_statuses.process_turn_end(acting_actor)
-	if acting_actor.is_alive():
+	if acting_actor.is_alive() and is_instance_valid(acting_view):
 		acting_view.play_idle()
 	if target_actor.is_alive():
 		target_view.play_idle()
@@ -1218,7 +1305,7 @@ func _wait_for_player_action() -> bool:
 		if not CombatTeamUtils.has_living_actor(player_actors):
 			await _finish_defeat()
 		else:
-			await _present_player_down()
+			await _present_player_team_actor_down(player_actor)
 			_update_combatants()
 			_refresh_action_bar()
 		return true
@@ -1694,10 +1781,7 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 		if not CombatTeamUtils.has_living_actor(player_actors):
 			await _finish_defeat()
 			return true
-		if target_actor == companion_actor:
-			await _present_companion_death()
-		else:
-			await _present_player_down()
+		await _present_player_team_actor_down(target_actor)
 		_update_combatants()
 		_refresh_action_bar()
 	if not attacking_actor.is_alive():
@@ -1748,15 +1832,37 @@ func _run_boss_summon_action(
 	if summon_phase == null or summon_phase.summon_data == null:
 		_boss_controller.mark_summon_completed()
 		return
+	# Combat Domain M5 — la capacidad real nunca puede superar
+	# CombatRules.MAX_TEAM_SIZE, sin importar qué diga el dato de contenido
+	# del boss (max_active_enemies es un límite adicional, más estricto o
+	# igual, nunca una forma de superar el techo canónico). Clampeado a 0
+	# (maxi) para que un Enemy Team ya lleno no produzca un total negativo.
+	var summon_capacity: int = mini(_boss_controller.data.max_active_enemies, CombatRules.MAX_TEAM_SIZE)
+	var summon_total: int = maxi(0, mini(
+		_boss_controller.get_pending_summon_count(),
+		summon_capacity - enemy_actors.size(),
+	))
+	if summon_total <= 0:
+		# Combat Domain M5 — Enemy Team ya en el tope: la invocación queda
+		# sin efecto. M4 exige que los eventos describan lo que
+		# REALMENTE pasó — acá no pasó nada, así que no se emite ni
+		# ActionEvent ni SummonEvent, y tampoco se corre la coreografía de
+		# invocación (nada que presentar). mark_summon_completed() igual se
+		# llama para no dejar la invocación pendiente reintentando cada
+		# turno (sin esto, la IA volvería a intentar el mismo summon
+		# indefinidamente — no es un rediseño de política de IA, es
+		# preservar la garantía existente de "sin deadlock de turno").
+		_boss_controller.mark_summon_completed()
+		ai_state.record_action(action)
+		return
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(action_id, attacking_actor, &"boss_summon", action.action_id, [] as Array[CombatActor]))
-	var available_slots: Array[int] = [0, 2]
-	var summon_total: int = mini(
-		_boss_controller.get_pending_summon_count(),
-		_boss_controller.data.max_active_enemies - enemy_actors.size(),
-	)
+	var occupied_slots: Array[int] = []
+	for occupying_actor: CombatActor in enemy_actors:
+		occupied_slots.append(occupying_actor.formation_slot)
+	var available_slots: Array[int] = CombatRules.find_available_formation_slots(occupied_slots, summon_total)
 	var summoned_actors: Array[CombatActor] = []
-	for summon_index: int in range(summon_total):
+	for summon_index: int in range(mini(summon_total, available_slots.size())):
 		var minion_actor: CombatActor = CombatActor.from_enemy(
 			StringName("minion_%d" % _next_minion_runtime_index),
 			summon_phase.summon_data,
@@ -1900,7 +2006,7 @@ func _resolve_warden_counter(target_boss: CombatActor) -> bool:
 		if not CombatTeamUtils.has_living_actor(player_actors):
 			await _finish_defeat()
 			return true
-		await _present_player_down()
+		await _present_player_team_actor_down(player_actor)
 		_update_combatants()
 		_refresh_action_bar()
 	return false
@@ -2044,50 +2150,39 @@ func _present_enemy_death(defeated_actor: CombatActor, absorb_to_player: bool = 
 	_update_enemy_slots()
 
 
-func _present_companion_death() -> void:
-	if companion_actor == null or companion_actor.death_presented:
+## Combat Domain M5 — reemplaza _present_companion_death()/_present_player_down()
+## (dos funciones escalares casi idénticas, una atada a companion_actor y
+## otra a player_actor/player_view). Aquella forma asumía "target_actor ==
+## companion_actor ? companion : protagonista", correcto solo mientras
+## player_actors tuviera a lo sumo 2 miembros posibles — con un 3er/4to/5to
+## AI_ALLY, ese else habría marcado death_presented en el actor EQUIVOCADO
+## (el protagonista, todavía vivo) y animado la vista equivocada, además de
+## dejar sin presentar la muerte real del aliado (handoff M5 sección 21/22).
+## Ahora opera exclusivamente sobre el actor que realmente murió — no hay
+## ninguna rama que compare contra companion_actor/player_actor.
+##
+## Un actor sin visual_view propio (3er+ aliado sintético sin nodo de
+## presentación dedicado, ver handoff M5 sección 23/24) no crashea: el
+## dominio ya se resolvió (death_presented=true, estados limpiados) antes
+## del chequeo de vista, así que la resolución de combate sigue firme aunque
+## no haya nada que animar.
+func _present_player_team_actor_down(actor: CombatActor) -> void:
+	if actor == null or actor.death_presented:
 		return
-	companion_actor.death_presented = true
-	_statuses.clear_all(companion_actor)
-	if not is_instance_valid(companion_view):
-		return
-	var duration: float = 0.0 if SettingsManager.reduce_motion else 0.38
-	AudioManager.play_event(AudioManager.AudioEvent.COMPANION_DEATH)
-	companion_view.play_death(duration)
-	if SettingsManager.reduce_motion:
-		companion_view.modulate = Color(0.45, 0.38, 0.38, 0.55)
-		return
-	var death_tween: Tween = create_tween().set_parallel(true)
-	death_tween.tween_property(companion_view, "modulate", Color(0.42, 0.3, 0.3, 0.42), duration)
-	death_tween.tween_property(companion_view, "scale", companion_view.scale * 0.94, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	await death_tween.finished
-
-
-## Combat Domain M2 — equivalente de _present_companion_death() para el
-## protagonista: se llama en vez de _finish_defeat() cuando el protagonista
-## llega a 0 HP pero un aliado del Player Team sigue con vida (sección 14
-## del handoff M2). No termina el combate ni revive — solo presenta el KO;
-## is_alive()/is_targetable() ya excluyen al protagonista de objetivos
-## futuros sin código nuevo (Team defeat sigue evaluándose en cada call
-## site correspondiente, no acá). Sin revive dentro del combate: si el
-## Player Team gana igual, _finish_victory() normaliza la vida a 1 recién
-## al terminar, nunca acá.
-func _present_player_down() -> void:
-	if player_actor.death_presented:
-		return
-	player_actor.death_presented = true
-	_statuses.clear_all(player_actor)
-	if not is_instance_valid(player_view):
+	actor.death_presented = true
+	_statuses.clear_all(actor)
+	var actor_view: CombatCharacterView = actor.visual_view
+	if not is_instance_valid(actor_view):
 		return
 	var duration: float = 0.0 if SettingsManager.reduce_motion else 0.38
 	AudioManager.play_event(AudioManager.AudioEvent.COMPANION_DEATH)
-	player_view.play_death(duration)
+	actor_view.play_death(duration)
 	if SettingsManager.reduce_motion:
-		player_view.modulate = Color(0.45, 0.38, 0.38, 0.55)
+		actor_view.modulate = Color(0.45, 0.38, 0.38, 0.55)
 		return
 	var death_tween: Tween = create_tween().set_parallel(true)
-	death_tween.tween_property(player_view, "modulate", Color(0.42, 0.3, 0.3, 0.42), duration)
-	death_tween.tween_property(player_view, "scale", player_view.scale * 0.94, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	death_tween.tween_property(actor_view, "modulate", Color(0.42, 0.3, 0.3, 0.42), duration)
+	death_tween.tween_property(actor_view, "scale", actor_view.scale * 0.94, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	await death_tween.finished
 
 
@@ -2235,12 +2330,17 @@ func _update_companion_hud() -> void:
 		_statuses.get_effective_attack(companion_actor, companion_actor.get_attack()),
 		_statuses.get_effective_defense(companion_actor, companion_actor.get_defense()),
 	]
-	if companion_actor.is_alive() and _companion_runtime != null:
+	# Combat Domain M5 — companion_panel/companion_view siguen siendo el HUD
+	# legacy de UN solo aliado (companion_actor, el primero); un 2do-5to
+	# AI_ALLY no tiene panel dedicado todavía (M6). Se busca su runtime por
+	# actor_id en vez del ex-campo singular _companion_runtime.
+	var companion_runtime: CompanionRuntimeState = _companion_runtimes.get(companion_actor.actor_id)
+	if companion_actor.is_alive() and companion_runtime != null:
 		var companion_data: CompanionData = companion_actor.source_data as CompanionData
 		if companion_data != null:
 			companion_stats_label.text += " · %s EN %d" % [
 				companion_data.ability_name.to_upper(),
-				_companion_runtime.actions_until_ability(companion_data),
+				companion_runtime.actions_until_ability(companion_data),
 			]
 	_refresh_status_badges(companion_status_row, companion_actor)
 
