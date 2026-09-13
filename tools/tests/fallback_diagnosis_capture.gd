@@ -25,7 +25,7 @@ func _ready() -> void:
 
 	await get_tree().process_frame
 	var enemy_actor: CombatActor = combat.get("enemy_actor")
-	var early_view: CombatCharacterView = enemy_actor.visual_view if enemy_actor != null else null
+	var early_view: CombatCharacterView = combat.call("_get_actor_view", enemy_actor) if enemy_actor != null else null
 	if early_view != null:
 		_early_size = early_view.size
 
@@ -50,8 +50,9 @@ func _ready() -> void:
 		"enemy_display_name": enemy_actor.display_name if enemy_actor != null else "null",
 	}
 
-	if enemy_actor != null and is_instance_valid(enemy_actor.visual_view):
-		var view: CombatCharacterView = enemy_actor.visual_view
+	var late_view: CombatCharacterView = combat.call("_get_actor_view", enemy_actor) if enemy_actor != null else null
+	if enemy_actor != null and is_instance_valid(late_view):
+		var view: CombatCharacterView = late_view
 		var visual_data: CharacterVisualData = enemy_actor.visual_data
 		report["view_size_early_frame1"] = _early_size
 		report["view_size_at_capture"] = view.size

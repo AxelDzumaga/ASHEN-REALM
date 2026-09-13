@@ -38,8 +38,9 @@ func _ready() -> void:
 	var enemy_report: Array = []
 	for actor: CombatActor in enemies:
 		var entry: Dictionary = {"name": actor.display_name}
-		if is_instance_valid(actor.visual_view):
-			var view: CombatCharacterView = actor.visual_view
+		var actor_view: CombatCharacterView = combat.call("_get_actor_view", actor)
+		if is_instance_valid(actor_view):
+			var view: CombatCharacterView = actor_view
 			entry["animated_mode"] = view.is_animated()
 			entry["static_art_visible"] = view.static_art.visible
 			entry["static_art_texture_present"] = view.static_art.texture != null

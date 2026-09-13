@@ -41,8 +41,9 @@ func _ready() -> void:
 		var has_broken_enemy: bool = false
 		for actor: CombatActor in enemies:
 			var entry: Dictionary = {"name": actor.display_name}
-			if is_instance_valid(actor.visual_view):
-				var view: CombatCharacterView = actor.visual_view
+			var actor_view: CombatCharacterView = combat.call("_get_actor_view", actor)
+			if is_instance_valid(actor_view):
+				var view: CombatCharacterView = actor_view
 				entry["fallback_presence_enabled"] = view.get("_fallback_presence_enabled")
 				entry["animated_mode"] = view.is_animated()
 				entry["static_art_visible"] = view.static_art.visible
