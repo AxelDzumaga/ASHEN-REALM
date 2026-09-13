@@ -33,6 +33,12 @@ func _ready() -> void:
 	await _test_boss_cap_no_sixth_actor()
 	await _test_5v5_team_defeat_both_sides()
 	await _test_no_crash_full_5v5_round()
+	await _test_player_formation_counts()
+	await _test_production_companion_slots()
+	await _test_hp_routing()
+	await _test_status_routing()
+	await _test_turn_highlight()
+	await _test_enemy_targeting()
 	print("[COMBAT_5V5_TEST] failures=%s" % JSON.stringify(_failures))
 	get_tree().quit(0 if _failures.is_empty() else 1)
 
@@ -222,25 +228,26 @@ func _test_companion_runtime_isolation() -> void:
 
 
 ## §21/§22/§42 — el bug auditado: un 3er+ Player Team actor muriendo no debe
-## marcar death_presented en otro actor, y una muerte real posterior del
-## protagonista debe seguir presentándose con normalidad.
+## marcar la muerte presentada de otro actor, y una muerte real posterior
+## del protagonista debe seguir presentándose con normalidad. Combat Domain
+## M6: death_presented ya no vive en CombatActor — se consulta vía
+## _is_death_presented()/Combat2D. Además, a diferencia de M5, en M6 CADA
+## Player Team actor recibe su propio PlayerCombatSlot/view (ver handoff M6
+## sección 8) — ya no hay un "aliado sin vista dedicada" en el flujo normal.
 func _test_player_down_routing() -> void:
 	var combat: Control = await _start_synthetic_combat(2, 0)
 	var player_actor: CombatActor = combat.get("player_actor")
 	var player_actors: Array[CombatActor] = combat.get("player_actors")
 	var ally1: CombatActor = player_actors[1]
 	var ally2: CombatActor = player_actors[2]
-	_check("routing_all_start_unpresented", not player_actor.death_presented and not ally1.death_presented and not ally2.death_presented)
-	# §23 — ally2 (2do aliado sintético) nunca recibe visual_view propio
-	# (solo el primer aliado hereda companion_view) — esto ejercita
-	# exactamente el camino "sin vista dedicada" sin crashear.
-	_check("routing_ally2_has_no_dedicated_view", ally2.visual_view == null)
+	_check("routing_all_start_unpresented", not bool(combat.call("_is_death_presented", player_actor)) and not bool(combat.call("_is_death_presented", ally1)) and not bool(combat.call("_is_death_presented", ally2)))
+	_check("routing_ally2_has_registered_view", combat.call("_get_actor_view", ally2) != null)
 	await combat.call("_present_player_team_actor_down", ally2)
-	_check("routing_ally2_death_presented", ally2.death_presented)
-	_check("routing_player_not_presented_after_ally2_death", not player_actor.death_presented)
-	_check("routing_ally1_not_presented_after_ally2_death", not ally1.death_presented)
+	_check("routing_ally2_death_presented", bool(combat.call("_is_death_presented", ally2)))
+	_check("routing_player_not_presented_after_ally2_death", not bool(combat.call("_is_death_presented", player_actor)))
+	_check("routing_ally1_not_presented_after_ally2_death", not bool(combat.call("_is_death_presented", ally1)))
 	await combat.call("_present_player_team_actor_down", player_actor)
-	_check("routing_player_death_still_presents_normally", player_actor.death_presented)
+	_check("routing_player_death_still_presents_normally", bool(combat.call("_is_death_presented", player_actor)))
 	await _end_combat(combat)
 
 
@@ -340,4 +347,162 @@ func _test_no_crash_full_5v5_round() -> void:
 	_check("no_crash_reached_next_player_input", int(combat.get("_phase")) == 1)
 	_check("no_crash_combat_not_resolved", not bool(combat.get("_result_resolved")))
 	_check("no_crash_events_were_emitted", not validation_events.is_empty())
+	await _end_combat(combat)
+
+
+## §8/§9/§34 del handoff M6 — la cantidad de PlayerCombatSlot SIEMPRE es
+## igual a player_actors.size(): 0 aliados -> 1 slot, 1 aliado -> 2 slots,
+## 4 aliados -> 5 slots. Nunca colapsa a un panel fijo por debajo de algún
+## conteo (corrección explícita a la sección 9 de la auditoría M6).
+func _test_player_formation_counts() -> void:
+	for ally_count: int in [0, 1, 4]:
+		var combat: Control = await _start_synthetic_combat(ally_count, 0)
+		var player_actors: Array = combat.get("player_actors")
+		var player_formation: Control = combat.get("player_formation")
+		var expected_slots: int = ally_count + 1
+		_check("formation_%d_actors_matches_player_actors" % expected_slots, player_actors.size() == expected_slots)
+		_check("formation_%d_slot_count_matches" % expected_slots, player_formation.get_child_count() == expected_slots)
+		var order_matches: bool = true
+		var all_views_registered: bool = true
+		var children: Array = player_formation.get_children()
+		for index: int in range(expected_slots):
+			if children[index].actor != player_actors[index]:
+				order_matches = false
+			if combat.call("_get_actor_view", player_actors[index]) == null:
+				all_views_registered = false
+		_check("formation_%d_order_matches_player_actors" % expected_slots, order_matches)
+		_check("formation_%d_every_actor_has_registered_view" % expected_slots, all_views_registered)
+		await _end_combat(combat)
+
+
+## §35 — caso de producción real (sin _ally_data_override): protagonista +
+## companion equipado debe producir exactamente 2 PlayerCombatSlot, cada
+## uno con su propio actor/nombre/HP/statuses/estado de muerte correctos.
+## Existe específicamente porque la redacción "colapsa a panel único con
+## <=1 aliado" de la auditoría M6 quedó corregida — acá se prueba que NO
+## colapsa.
+func _test_production_companion_slots() -> void:
+	RunManager.start_new_run(_next_seed())
+	var biome: BiomeData = BiomeCatalog.ASHEN_WASTES
+	RunManager.current_run.biome_data = biome
+	RunManager.current_run.biome_id = biome.id
+	RunManager.current_run.equipped_skill_ids = ActiveSkillCatalog.get_default_loadout()
+	RunManager.current_run.equipped_companion_id = CompanionCatalog.EMBER_HOUND_ID
+	var combat: Control = COMBAT_SCENE.instantiate()
+	combat.configure(biome, false, false)
+	add_child(combat)
+	await _wait_for_player_input(combat, 900)
+	var player_actors: Array[CombatActor] = combat.get("player_actors")
+	_check("production_companion_two_player_actors", player_actors.size() == 2)
+	var player_formation: Control = combat.get("player_formation")
+	_check("production_companion_two_slots", player_formation.get_child_count() == 2)
+	var all_bound_correctly: bool = true
+	for actor: CombatActor in player_actors:
+		var slot: PlayerCombatSlot = combat.call("_get_player_slot", actor)
+		if slot == null or slot.actor != actor:
+			all_bound_correctly = false
+		if combat.call("_get_actor_view", actor) == null:
+			all_bound_correctly = false
+	_check("production_companion_both_slots_correctly_bound", all_bound_correctly)
+	await _end_combat(combat)
+
+
+## §36 — dañar A2 (índice 2 de 5) solo debe reflejarse en el slot de A2;
+## el resto de los slots quedan atados a su propio actor.
+func _test_hp_routing() -> void:
+	var combat: Control = await _start_synthetic_combat(4, 0)
+	var player_actors: Array[CombatActor] = combat.get("player_actors")
+	var a2: CombatActor = player_actors[2]
+	var hp_before: Dictionary = {}
+	for actor: CombatActor in player_actors:
+		hp_before[actor.actor_id] = actor.get_current_hp()
+	a2.apply_damage(5)
+	combat.call("_update_player_slots")
+	var every_slot_matches_own_actor: bool = true
+	for actor: CombatActor in player_actors:
+		var slot: PlayerCombatSlot = combat.call("_get_player_slot", actor)
+		if int(slot.get("_health_bar").value) != actor.get_current_hp():
+			every_slot_matches_own_actor = false
+	_check("hp_routing_every_slot_matches_own_actor", every_slot_matches_own_actor)
+	var only_a2_hp_changed: bool = a2.get_current_hp() == hp_before[a2.actor_id] - 5
+	for actor: CombatActor in player_actors:
+		if actor != a2 and actor.get_current_hp() != hp_before[actor.actor_id]:
+			only_a2_hp_changed = false
+	_check("hp_routing_only_a2_hp_changed", only_a2_hp_changed)
+	await _end_combat(combat)
+
+
+## §37 — un status aplicado a A3 (índice 3 de 5) solo debe aparecer en el
+## status row del slot de A3; ningún otro slot lo muestra.
+func _test_status_routing() -> void:
+	var combat: Control = await _start_synthetic_combat(4, 0)
+	var player_actors: Array[CombatActor] = combat.get("player_actors")
+	var a3: CombatActor = player_actors[3]
+	var statuses: CombatStatusController = combat.get("_statuses")
+	statuses.apply_status(a3, &"guard", a3, 1, 2)
+	combat.call("_update_player_slots")
+	var a3_slot: PlayerCombatSlot = combat.call("_get_player_slot", a3)
+	var a3_status_row: HBoxContainer = a3_slot.get("_status_row")
+	_check("status_routing_a3_slot_shows_status", a3_status_row.get_child_count() > 0)
+	var no_other_slot_shows_it: bool = true
+	for actor: CombatActor in player_actors:
+		if actor == a3:
+			continue
+		var slot: PlayerCombatSlot = combat.call("_get_player_slot", actor)
+		var status_row: HBoxContainer = slot.get("_status_row")
+		if status_row.get_child_count() > 0:
+			no_other_slot_shows_it = false
+	_check("status_routing_no_other_slot_shows_it", no_other_slot_shows_it)
+	await _end_combat(combat)
+
+
+## §18/§19/§39 — resalte de turno activo conducido por las señales de
+## CombatTurnController, y ownership explícito de la action bar: un turno
+## de AI_ALLY debe dejar la action bar deshabilitada, un turno
+## PLAYER_CONTROLLED debe habilitarla. El primer turno de P0 (ronda 1) ya
+## pasó antes de poder conectar el listener (mismo motivo documentado en
+## _test_5v5_turn_sequence) — se valida a partir de los aliados.
+func _test_turn_highlight() -> void:
+	var combat: Control = await _start_synthetic_combat(4, 0)
+	var turn_controller: CombatTurnController = combat.get("_turn_controller")
+	var attack_button: Button = combat.get("attack_button")
+	var snapshots: Array[Dictionary] = []
+	turn_controller.actor_turn_started.connect(func(actor: CombatActor) -> void:
+		var slot: PlayerCombatSlot = combat.call("_get_player_slot", actor)
+		if slot != null:
+			snapshots.append({
+				"actor_id": actor.actor_id,
+				"active": bool(slot.get("_active")),
+				"action_bar_disabled": attack_button.disabled,
+			})
+	)
+	combat.call("_on_attack_pressed")
+	await _wait_for_player_input(combat, 900)
+	_check("turn_highlight_captured_ally_turns", not snapshots.is_empty())
+	var all_active_on_start: bool = true
+	var ai_ally_disables_action_bar: bool = true
+	for snapshot: Dictionary in snapshots:
+		if not snapshot["active"]:
+			all_active_on_start = false
+		if not snapshot["action_bar_disabled"]:
+			ai_ally_disables_action_bar = false
+	_check("turn_highlight_slot_marked_active_on_turn_start", all_active_on_start)
+	_check("turn_highlight_ai_ally_turn_disables_action_bar", ai_ally_disables_action_bar)
+	_check("turn_highlight_player_controlled_turn_enables_action_bar", not attack_button.disabled)
+	await _end_combat(combat)
+
+
+## §40 — los cinco EnemyCombatSlot siguen siendo funcionalmente
+## seleccionables: elegir E4 (el 5to) debe reflejarse en
+## selected_enemy_actor y en la resolución real de CombatTargetResolver.
+func _test_enemy_targeting() -> void:
+	var combat: Control = await _start_synthetic_combat(0, 4)
+	var enemy_actors: Array[CombatActor] = combat.get("enemy_actors")
+	var e4: CombatActor = enemy_actors[4]
+	combat.call("_on_enemy_target_requested", e4)
+	_check("targeting_selected_enemy_is_e4", combat.get("selected_enemy_actor") == e4)
+	var resolution: CombatTargetResolver.Resolution = combat.call(
+		"_resolve_player_target", ActiveSkillData.TargetType.SINGLE_ENEMY, e4,
+	)
+	_check("targeting_resolver_confirms_e4", resolution.ok() and resolution.targets == [e4])
 	await _end_combat(combat)
