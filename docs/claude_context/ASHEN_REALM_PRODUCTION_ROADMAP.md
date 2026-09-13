@@ -179,8 +179,7 @@ ASHEN_REALM_DECISIONS.md and the TECHNICAL_HANDOFF COMBAT
 section for the exact contract.
 
 M5 (N-actor / up to 5v5 capacity):
-IMPLEMENTED 2026-09-13, local branch
-feature/combat-domain-m5, NOT MERGED.
+MERGED 2026-09-13 (main @ 519f84e).
 Runtime/domain capacity only — production composition
 unchanged (1 protagonist + 0-1 equipped companion). Proven
 with synthetic test fixtures (up to 4 AI_ALLY, up to 5 total
@@ -204,8 +203,29 @@ loadout ownership stays protagonist-singular. See
 ASHEN_REALM_DECISIONS.md and the TECHNICAL_HANDOFF COMBAT
 section for the exact contract.
 
-Still ahead: M6 (final Combat2D adapter cleanup, including a
-real dynamic Player Team HUD for 3-5 actors) — not started.
+M6 (final Combat2D adapter cleanup):
+IMPLEMENTED 2026-09-13, local branch
+feature/combat-domain-m6, NOT MERGED.
+CombatActor.visual_view/set_visual_view/death_presented removed
+entirely — the domain holds no live 2D presentation state. A new
+PlayerFormation/PlayerCombatSlot (deliberately separate from
+EnemyCombatSlot) presents every Player Team actor generically;
+slot count always equals player_actors.size() (0 allies -> 1
+slot, 4 allies -> 5 slots, a 1-companion production combat -> 2
+slots) — the legacy fixed PlayerPanel/CompanionPanel nodes are
+now permanently hidden, never authoritative. Turn-active
+highlighting and action-bar ownership are driven directly by
+CombatTurnController's existing signals/controller_type, not by
+CombatPhase alone or by a duplicated CombatEvent. CombatEventStream,
+CombatTurnController, and CombatTargetResolver are all unchanged.
+No CombatPresentationAdapter/Queue, no SINGLE_ALLY UI, no multiple-
+PLAYER_CONTROLLED support were added. See ASHEN_REALM_DECISIONS.md
+and the TECHNICAL_HANDOFF COMBAT section for the exact contract.
+
+Still ahead: Combat3D, a Visual Vertical Slice pass, and simulator
+alignment — none started. The M1-M6 combat domain refactor is
+complete: Combat2D is now a presentation/input/choreography
+adapter over a domain a future Combat3D can reuse unchanged.
 
 ---
 

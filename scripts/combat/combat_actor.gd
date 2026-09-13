@@ -29,6 +29,15 @@ enum ControllerType {
 	SCRIPTED,
 }
 
+## Combat Domain M6 — CombatActor ya no guarda ninguna referencia viva de
+## escena (visual_view fue removido) ni estado de idempotencia de
+## presentación (death_presented fue removido). Ambos ahora viven en
+## Combat2D (_actor_views/_death_presented_by_actor_id), el único
+## consumidor real de esos datos — ver handoff M6. visual_data se queda:
+## es un Resource de contenido (igual que source_data), no una referencia
+## de escena, así que no es una fuga de dominio. CombatActor es
+## construible y usable sin ningún nodo/escena — condición necesaria para
+## que un futuro Combat3D reutilice este mismo dominio sin cambiar reglas.
 var actor_id: StringName
 var display_name: String
 var team: Team
@@ -36,10 +45,8 @@ var actor_type: ActorType
 var controller_type: ControllerType = ControllerType.AI_ENEMY
 var source_data: RefCounted
 var visual_data: CharacterVisualData
-var visual_view: CombatCharacterView
 var targetable: bool = true
 var formation_slot: int = 0
-var death_presented: bool = false
 var status_effects: Array[StatusEffectInstance] = []
 
 var _max_hp: int
@@ -124,10 +131,6 @@ static func from_companion(runtime_id: StringName, companion: CompanionData) -> 
 		companion.visual_data,
 		ControllerType.AI_ALLY,
 	)
-
-
-func set_visual_view(view: CombatCharacterView) -> void:
-	visual_view = view
 
 
 func get_current_hp() -> int:

@@ -67,7 +67,9 @@ func setup(slot_actor: CombatActor, accent: Color, hud_mode: HUDMode = HUDMode.F
 	var visual_accent: Color = actor.visual_data.accent if actor.visual_data != null else VisualTheme.DANGER
 	character_view.configure_fallback_presence(fallback_kind, visual_accent, accent)
 	character_view.setup_visual(actor.visual_data, fallback_text)
-	actor.set_visual_view(character_view)
+	# Combat Domain M6 — ya no escribe la vista en el actor (ese campo no
+	# existe más en CombatActor); combat.gd registra actor_id -> view en su
+	# propio _actor_views justo después de llamar a setup().
 	_hud.visible = _hud_mode != HUDMode.HIDDEN
 	# Keep combat focused on silhouettes and HP instead of card-like metadata.
 	_role_label.visible = false

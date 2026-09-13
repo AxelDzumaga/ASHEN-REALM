@@ -1166,8 +1166,7 @@ re-running the same seed) — not a regression introduced by
 this milestone.
 
 Combat Domain M5 (2026-09-13):
-STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
-(branch feature/combat-domain-m5).
+STATUS: IMPLEMENTED AND MERGED (main @ 519f84e).
 
 Capability definition (explicit product/architecture decision):
 M5 means the combat RUNTIME/DOMAIN can correctly schedule and
@@ -1342,12 +1341,143 @@ fixes nor worsens that pre-existing divergence. Alignment is
 recommended only after M5 and M6 stabilize the production
 N-actor path, as its own scoped effort — not attempted here.
 
+Combat Domain M6 (2026-09-13):
+STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
+(branch feature/combat-domain-m6).
+
+Goal: complete the functional Combat2D adapter so the combat
+domain no longer holds any live 2D presentation state, and
+Combat2D can present 1-5 Player Team actors vs 1-5 Enemy Team
+actors using the generic M1-M5 domain, with no gameplay/mechanics
+change.
+
+Domain purity — the two remaining presentation leaks identified
+by the M6 audit are gone: CombatActor.visual_view and
+CombatActor.set_visual_view() were removed entirely;
+CombatActor.death_presented was removed entirely. Both now live
+exclusively in Combat2D: _actor_views
+(Dictionary[StringName, CombatCharacterView]) and
+_death_presented_ids (Dictionary[StringName, bool]), with
+_register_actor_view()/_get_actor_view()/_unregister_actor_view()/
+_is_death_presented()/_mark_death_presented() as the only access
+points — CombatActor never writes to itself and nothing else
+writes into these dictionaries. CombatActor is now constructible
+and fully usable (HP mutation, statuses, is_alive/is_targetable)
+with zero scene/Node dependency, verified directly by
+combat_view_registry_test.gd via get_property_list() inspection
+(no visual_view/death_presented property exists) and has_method()
+(no set_visual_view method exists).
+
+Player Team presentation, genuinely generic: PlayerFormation
+(new Control container in combat.tscn, same shape as
+EnemyFormation) holds one PlayerCombatSlot (new class,
+scripts/combat/player_combat_slot.gd) per entry in player_actors,
+in array order — slot count is always exactly
+player_actors.size(): 0 allies → 1 slot, 1 ally → 2 slots, 4
+allies → 5 slots. This is a correction to the M6 audit's own
+"collapses to a single panel at ≤1 ally" wording — that is
+explicitly NOT what was built; a 1-companion production combat
+now produces exactly 2 PlayerCombatSlots, each independently
+bound, verified by combat_5v5_capacity_test.gd's
+_test_production_companion_slots. PlayerCombatSlot was
+deliberately NOT built by generalizing EnemyCombatSlot into a
+shared CombatActorSlot — EnemyCombatSlot carries concepts no
+Player Team actor needs (intent badge, tap-to-target selection,
+boss/minion HUDMode) that would have forced conditional-heavy
+code for no benefit. The legacy fixed nodes (PlayerPanel/
+CompanionPanel/PlayerCharacterView/CompanionCharacterView) are
+now permanently hidden in _apply_character_visuals() and never
+receive live data again — PlayerFormation is the single
+authority, confirmed by removing the one-time fallback-presence/
+stylebox setup calls that used to target those nodes. Weapon/
+armor equipment visuals remain exclusive to the protagonist's
+own slot.
+
+Turn-active highlighting: PlayerCombatSlot.set_active() is driven
+directly by CombatTurnController.actor_turn_started/
+actor_turn_ended (existing M1 lifecycle signals, connected once
+per encounter in _run_combat()) — not a duplicated CombatEvent.
+The enemy side does not get an equivalent highlight; the audit
+explicitly allowed skipping it since enemies act autonomously and
+nothing required the player to visually track "whose enemy turn
+this is."
+
+Action bar ownership made explicit: _refresh_action_bar()/
+_update_skill_ui() now additionally require
+_turn_controller.current_actor.controller_type ==
+PLAYER_CONTROLLED, on top of the existing CombatPhase.PLAYER_INPUT
+check (both are needed — phase distinguishes "awaiting input" from
+"resolving the already-chosen action"; controller_type makes
+ownership explicit rather than relying on phase as an indirect
+proxy). AI_ALLY/AI_ENEMY turns never enable player controls,
+verified directly by combat_5v5_capacity_test.gd's
+_test_turn_highlight.
+
+CombatEventStream unchanged — still synchronous, no history, no
+presentation queue. Event-presentation migration stayed
+deliberately minimal: only StatusEvent(TICK)'s existing M4
+migration remains; StatusEvent(APPLIED) and ReactionEvent were
+explicitly NOT migrated to presentation in M6 because doing so
+would require restructuring each action-resolution function's own
+inline feedback-string arrays — accepted as still-inline,
+semantically-emitted-but-visually-unconsumed for now. Every
+awaited choreography path (death, boss phase transition, summon,
+Warden's Rebuke) remains 100% direct/explicit in combat.gd, never
+behind a generic event listener — no async event-subscriber
+architecture was introduced, matching the explicit prohibition in
+this milestone's authorization.
+
+Not introduced (evaluated, found unjustified by the audit, still
+unjustified after implementation): CombatPresentationAdapter class
+extraction, CombatPresentationQueue, SINGLE_ALLY selection UI,
+CombatActorSlot generalization, multiple-PLAYER_CONTROLLED support.
+CombatSkillController was not touched.
+
+Tests added in M6: combat_view_registry_test.gd (18 checks, mostly
+no scene: CombatActor domain-purity assertions via
+get_property_list()/has_method(), plus a real-Combat2D view
+registry suite — register/lookup, unknown/null-actor safety,
+rebuild-replaces-stale-mapping with a queue_free() frame-timing
+note, and no-actor-has-two-active-mappings). Extended
+combat_5v5_capacity_test.gd (+15 checks, 65 total in that file):
+player-formation slot counts at 0/1/4 allies, the production
+1-companion 2-slot parity case, HP-routing and status-routing
+isolation across 5 real actors, turn-active-highlight plus
+action-bar-ownership verified via a live CombatTurnController
+signal listener, and 5-enemy-slot targeting confirmed through
+CombatTargetResolver. Full M1-M5 regression suite re-run
+sequentially with zero attributable failures; both pre-existing
+baselines (ashen_warden_phase3_curse_test,
+combined_refuge_runtime_test) confirmed unchanged. Three older,
+non-suite diagnostic scripts (fallback_diagnosis_capture*.gd,
+dated 2026-09-03) were updated to use the new view-registry lookup
+instead of the removed CombatActor.visual_view field so they still
+compile; their pre-existing headless screenshot-capture limitation
+(the dummy renderer returns a null Image) is unrelated to this
+milestone and was left alone, same policy as
+combined_refuge_runtime_test's known capture issue. Non-headless
+real-D3D12-renderer runs confirmed green for the 5v5 fixture,
+1-protagonist+companion production-style combat (including
+Warden's Rebuke), the M4 boss-phase/summon event-order fixture, and
+the full Map3D→Combat2D→Map3D return flow.
+
+Not touched in M6: CombatTurnController, CombatTargetResolver,
+CombatEventStream's schema, RunState, SAVE_VERSION (14),
+ACTIVE_RUN_VERSION (1), tools/simulation/full_run_simulation.gd.
+
+With M6 complete, Combat2D is now genuinely a presentation/input/
+choreography adapter over a generic combat domain — CombatActor
+carries no scene/view reference of any kind, and the same M1-M5
+domain (turn sequencing, team semantics, target resolution,
+capacity rules, structured events) is what a future Combat3D
+adapter would consume, unchanged.
+
 This remains the largest architectural risk
-for future Combat3D — M1/M2/M3/M4/M5 are extraction,
-generalization, action-resolution, event-reporting, and
-capacity-scaling work only; M6 (final Combat2D adapter cleanup,
-including a real dynamic Player Team HUD for 3-5 actors) is
-still ahead of Combat3D.
+for future Combat3D — M1 through M6 completes the domain
+extraction/generalization/event-reporting/capacity-scaling/
+presentation-adapter work; Combat3D itself, a Visual Vertical
+Slice pass, and simulator alignment are the next logic-adjacent
+milestones, none started.
 
 Do not duplicate Combat logic
 into a second full 3D implementation.

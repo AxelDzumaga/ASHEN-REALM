@@ -180,8 +180,8 @@ síncrono migrado sin await, sin duplicar el resto de la
 coreografía existente (animaciones/impactos siguen totalmente
 en combat.gd, sin pasar detrás de un listener genérico).
 
-COMBAT DOMAIN M5 (2026-09-13) — APPROVED E IMPLEMENTADO
-(local, branch feature/combat-domain-m5, no mergeado):
+COMBAT DOMAIN M5 (2026-09-13) — APPROVED, IMPLEMENTADO Y
+MERGEADO (main @ 519f84e):
 
 M5 significa CAPACIDAD DE RUNTIME/DOMINIO, no una feature
 de producto: el motor de combate puede resolver correctamente
@@ -264,8 +264,76 @@ ACTIVE_RUN_VERSION (1), tools/simulation/full_run_simulation.gd
 (su divergencia frente al dominio N-actor de producción queda
 documentada, alineación diferida a después de M5/M6).
 
-M6 (final Combat2D adapter cleanup, incluyendo un HUD dinámico
-real de hasta 5 miembros del Player Team) sigue sin implementar.
+COMBAT DOMAIN M6 (2026-09-13) — APPROVED E IMPLEMENTADO
+(local, branch feature/combat-domain-m6, no mergeado):
+
+Cleanup final del adaptador Combat2D: el dominio ya no contiene
+NINGUNA referencia viva de escena 2D. CombatActor.visual_view y
+CombatActor.set_visual_view() fueron removidos por completo;
+CombatActor.death_presented también fue removido. Ambos ahora
+viven exclusivamente en Combat2D: _actor_views
+(Dictionary[actor_id, CombatCharacterView]) y
+_death_presented_ids (Dictionary[actor_id, bool]), con helpers
+_register_actor_view()/_get_actor_view()/_unregister_actor_view()/
+_is_death_presented()/_mark_death_presented(). CombatActor es
+ahora construible y usable (HP, statuses, is_alive/is_targetable)
+sin ningún nodo de escena — condición necesaria para que un
+futuro Combat3D reutilice el mismo dominio sin cambiar reglas.
+
+Presentación del Player Team, de verdad genérica: PlayerFormation
+(nodo nuevo, mismo patrón que EnemyFormation) + PlayerCombatSlot
+(clase nueva, deliberadamente separada de EnemyCombatSlot — nunca
+generalizada a un CombatActorSlot común, porque EnemyCombatSlot
+lleva conceptos que ningún Player Team actor necesita: intent
+badge, tap-to-target, HUDMode de boss/minion). La cantidad de
+PlayerCombatSlot es SIEMPRE igual a player_actors.size() — 0
+aliados = 1 slot, 1 aliado = 2 slots, 4 aliados = 5 slots. Nunca
+colapsa a un panel fijo por debajo de ningún conteo: los nodos
+legacy (PlayerPanel/CompanionPanel/PlayerCharacterView/
+CompanionCharacterView) quedan permanentemente ocultos y nunca
+vuelven a recibir datos en vivo — PlayerFormation es la única
+autoridad. El equipment visual (arma/armadura) sigue siendo
+exclusivo del slot del protagonista.
+
+Resalte de turno activo: PlayerCombatSlot.set_active() conducido
+directamente por CombatTurnController.actor_turn_started/
+actor_turn_ended (señales de ciclo de vida ya existentes desde
+M1) — nunca un CombatEvent duplicado. Lado enemigo sin resalte
+(no se justificó para la aceptación funcional de M6 — los
+enemigos actúan solos).
+
+Ownership de la action bar hecho explícito: ya no se apoya solo
+en CombatPhase (proxy indirecto) — ahora confirma directamente
+que _turn_controller.current_actor.controller_type ==
+PLAYER_CONTROLLED, además de la fase. AI_ALLY/AI_ENEMY nunca
+habilitan controles de jugador.
+
+CombatEventStream no cambió: sigue siendo síncrono, sin historial,
+sin cola de presentación. La migración de presentación a eventos
+se mantuvo deliberadamente mínima (sección 25/26 del handoff M6):
+solo el StatusEvent(TICK) que M4 ya migraba: no se forzó
+StatusEvent(APPLIED) ni ReactionEvent a presentación nueva porque
+hacerlo exigía reestructurar los arrays de feedback específicos
+de cada acción — quedan emitidos semánticamente pero sin consumo
+visual, aceptado explícitamente. Las coreografías con await
+(muerte, fase de boss, invocación, Warden's Rebuke) siguen 100%
+directas/explícitas en combat.gd, nunca detrás de un listener
+genérico.
+
+SINGLE_ALLY sigue sin UI de selección — deferred, sin contenido
+que lo necesite todavía. No se introdujo CombatPresentationAdapter
+ni CombatPresentationQueue (evaluados y descartados por falta de
+evidencia que los justifique). Múltiples PLAYER_CONTROLLED sigue
+fuera de alcance — CombatSkillController no se tocó.
+
+No se tocó: CombatTurnController, CombatTargetResolver,
+CombatEventStream (schema), RunState, SAVE_VERSION (14),
+ACTIVE_RUN_VERSION (1), tools/simulation/full_run_simulation.gd.
+
+Con M6 completo, Combat2D es ahora genuinamente un adaptador de
+presentación/input/coreografía sobre un dominio de combate
+genérico (M1-M5) — el mismo dominio queda listo para que un
+futuro Combat3D lo consuma sin cambiar ninguna regla de combate.
 
 ---
 
