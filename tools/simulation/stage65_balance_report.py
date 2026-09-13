@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-import argparse, json
+import argparse, json, sys
 from collections import defaultdict, Counter
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import require_supported_schema  # noqa: E402
 
 NUM = ["final_hp","combat_turns","damage_dealt","damage_taken","energy_generated","energy_spent","energy_wasted_at_cap","energy_lost_on_combat_end","turns_at_100_energy","turns_with_skill_available_but_not_used","ember_slash_opportunities","second_wind_opportunities","guard_opportunities","ember_slash_uses","ember_slash_damage","ember_slash_kills","ember_slash_intents_prevented","second_wind_uses","healing_second_wind","burn_damage","burn_ticks","burn_ticks_lost_on_death","burn_max_stacks","boss_burn_active_turns","warden_rebuke_intents","warden_rebuke_counters","warden_rebuke_damage","boss_entry_hp","boss_damage_dealt"]
 
 def load(p):
-    with open(p, encoding="utf-8") as f: return [json.loads(x) for x in f if x.strip()]
+    with open(p, encoding="utf-8") as f: rows = [json.loads(x) for x in f if x.strip()]
+    require_supported_schema(rows, p)
+    return rows
 
 def summarize(rows):
     out={}

@@ -6,9 +6,13 @@ import argparse
 import csv
 import json
 import statistics
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import require_supported_schema  # noqa: E402
 
 
 METRICS = (
@@ -40,6 +44,7 @@ def load(path: Path) -> list[dict[str, Any]]:
                     rows.append(json.loads(line))
                 except json.JSONDecodeError as exc:
                     raise SystemExit(f"JSON inválido en {path}:{number}: {exc}") from exc
+    require_supported_schema(rows, path)
     return rows
 
 

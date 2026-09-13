@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json
+import argparse, json, sys
 from collections import Counter
 from pathlib import Path
 from statistics import mean
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import require_supported_schema  # noqa: E402
+
 def load(path):
-    return [json.loads(x) for x in Path(path).read_text(encoding="utf-8").splitlines() if x.strip()]
+    rows = [json.loads(x) for x in Path(path).read_text(encoding="utf-8").splitlines() if x.strip()]
+    require_supported_schema(rows, path)
+    return rows
 
 def avg(rows, key): return round(mean(float(r.get(key, 0)) for r in rows), 3) if rows else 0
 def merge(rows, key):
