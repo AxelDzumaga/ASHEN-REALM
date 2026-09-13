@@ -14,6 +14,7 @@ var _output_path: String = "res://build/stage62/runs.jsonl"
 var _mode: StringName = &"simulate"
 var _reward_rules: StringName = &"candidate"
 var _plan_sequence: int = 0
+var _warned_unknown_tile_types: Dictionary = {}
 var _experiment_label: String = "baseline_65"
 var _rarity_mode: StringName = &"renormalized"
 var _board_agency: bool = true
@@ -300,15 +301,28 @@ func _route_score(run: RunState, tile_type: int, routing: StringName) -> float:
 	return 0.0
 
 
+## Reliability fix — the old `_: return "empty"` default silently aliased
+## FORK (and any future unrecognized TileType) into the EMPTY route-metric
+## bucket, corrupting that category's counts with no signal at all. EMPTY
+## now has its own explicit arm; a genuinely unrecognized value gets a
+## distinct "unknown_<id>" key (never merged into an existing category)
+## plus a one-time warning (see _warned_unknown_tile_types) so a future new
+## TileType is visible instead of silently misclassified.
 func _route_tile_key(tile_type: int) -> String:
 	match tile_type:
+		BoardTileData.TileType.EMPTY: return "empty"
 		BoardTileData.TileType.COMBAT: return "combat"
 		BoardTileData.TileType.HEAL: return "heal"
 		BoardTileData.TileType.BOSS: return "boss"
 		BoardTileData.TileType.EVENT: return "event"
 		BoardTileData.TileType.TREASURE: return "treasure"
 		BoardTileData.TileType.ELITE: return "elite"
-		_: return "empty"
+		BoardTileData.TileType.FORK: return "fork"
+		_:
+			if not _warned_unknown_tile_types.has(tile_type):
+				_warned_unknown_tile_types[tile_type] = true
+				push_warning("Simulator: unrecognized BoardTileData.TileType value %d in route metrics — reporting as unknown_%d instead of silently folding into an existing category." % [tile_type, tile_type])
+			return "unknown_%d" % tile_type
 
 
 func _new_run_metrics(run: RunState, policy: StringName, seed: int) -> Dictionary:
@@ -1783,8 +1797,25 @@ func _run_tests() -> int:
 		failures.append("same_seed_same_policy_not_deterministic")
 	if first["board_hash"] != second["board_hash"]:
 		failures.append("board_not_deterministic")
-	if not BoardGenerator.validate(_board_for_seed(&"ashen_wastes", 620001), BiomeCatalog.get_or_default(&"ashen_wastes")):
-		failures.append("board_invariant_failed")
+	# Reliability fix — BoardGenerator.validate()'s 3rd argument (fork_index)
+	# excludes the reserved fork/branch window (RouteBranchData.BRANCH_LENGTH
+	# tiles) from the streak/count checks; production's own
+	# generate_for_run() always supplies it (board_generator.gd:114).
+	# Calling validate() without it (as this self-test used to) double-counts
+	# that window's placeholder tiles as spine content and false-fails any
+	# board that has a fork — which is every board, since FORK_COUNT is
+	# unconditional. RunState doesn't store fork_index separately, but the
+	# generated sequence is self-describing: the FORK tile marks its own
+	# position. Checked across a fixed sample, not just the one known seed,
+	# so this doesn't just re-hardcode a single board's fork index.
+	for board_seed: int in [620001, 1, 2, 3, 4, 5, 100, 999, 620062, 700010]:
+		var sample_tiles: Array[int] = _board_for_seed(&"ashen_wastes", board_seed)
+		var sample_fork_index: int = sample_tiles.find(BoardTileData.TileType.FORK)
+		if sample_fork_index < 0:
+			failures.append("board_missing_expected_fork_seed_%d" % board_seed)
+			continue
+		if not BoardGenerator.validate(sample_tiles, BiomeCatalog.get_or_default(&"ashen_wastes"), sample_fork_index):
+			failures.append("board_invariant_failed_seed_%d" % board_seed)
 	if int(first["xp"]) < 0 or int(first["ash"]) < 0:
 		failures.append("negative_progression")
 	if bool(first.get("deposit_written", true)):
