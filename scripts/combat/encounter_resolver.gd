@@ -1,7 +1,8 @@
 class_name EncounterResolver
 extends RefCounted
 
-const MAX_ENEMIES: int = 3
+## Combat Domain M5 — deriva de CombatRules.MAX_TEAM_SIZE.
+const MAX_ENEMIES: int = CombatRules.MAX_TEAM_SIZE
 const MIN_BUDGET: int = 3
 const MAX_BUDGET: int = 8
 const EMBER_SPAWN_ID: StringName = &"ember_spawn"

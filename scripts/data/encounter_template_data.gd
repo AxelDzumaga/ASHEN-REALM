@@ -7,7 +7,12 @@ enum DuplicatePolicy {
 }
 
 @export var id: StringName
-@export_range(1, 3, 1) var slots: int = 1
+## Combat Domain M5 — el literal 5 acá es un espejo manual de
+## CombatRules.MAX_TEAM_SIZE: @export_range exige argumentos constantes de
+## GDScript, no puede referenciar CombatRules directamente. La validación
+## real en is_eligible() SÍ usa CombatRules.MAX_TEAM_SIZE — este anotación
+## de editor nunca es la fuente de verdad en tiempo de ejecución.
+@export_range(1, 5, 1) var slots: int = 1
 @export var roles: Array[int] = []
 @export_range(0, 100, 1) var minimum_progress_percent: int = 0
 @export_range(0, 100, 1) var maximum_progress_percent: int = 100
@@ -22,7 +27,7 @@ func is_eligible(biome_id: StringName, progress_percent: int, budget: int) -> bo
 	return (
 		not id.is_empty()
 		and slots >= 1
-		and slots <= 3
+		and slots <= CombatRules.MAX_TEAM_SIZE
 		and roles.size() == slots
 		and progress_percent >= minimum_progress_percent
 		and progress_percent <= maximum_progress_percent
