@@ -159,8 +159,7 @@ layers are unchanged. See ASHEN_REALM_DECISIONS.md and the
 TECHNICAL_HANDOFF COMBAT section for the exact contract.
 
 M4 (structured combat events):
-IMPLEMENTED 2026-09-13, local branch
-feature/combat-domain-m4, NOT MERGED.
+MERGED 2026-09-13 (main @ 68a3936).
 CombatEventStream (one per encounter, no retained history)
 emits 8 presentation-independent event types synchronously —
 ActionEvent/DamageEvent/HealEvent/StatusEvent/ReactionEvent/
@@ -179,8 +178,34 @@ every other animation/choreography call site is unchanged. See
 ASHEN_REALM_DECISIONS.md and the TECHNICAL_HANDOFF COMBAT
 section for the exact contract.
 
-Still ahead: M5 (5v5 formation), M6 (final Combat2D adapter
-cleanup) — none started.
+M5 (N-actor / up to 5v5 capacity):
+IMPLEMENTED 2026-09-13, local branch
+feature/combat-domain-m5, NOT MERGED.
+Runtime/domain capacity only — production composition
+unchanged (1 protagonist + 0-1 equipped companion). Proven
+with synthetic test fixtures (up to 4 AI_ALLY, up to 5 total
+Enemy Team actors), never new production content.
+CombatRules.MAX_TEAM_SIZE = 5 is now the single authority
+consumed by Combat2D's enemy-slot cap, encounter-template/
+resolver generation caps, and boss max_active_enemies — three
+independent literal 3's before M5 are now one number in one
+place. CombatTurnController untouched, still fully N-generic;
+turn order stays array-insertion order, not formation_slot.
+Multiple AI allies now each get their own CompanionRuntimeState
+(a Dictionary keyed by actor_id replaces a single shared field)
+and an indexed actor_id ("companion_0".."companion_3"). Found
+and fixed a real correctness bug along the way (not just
+documented debt): death-presentation routing assumed at most 2
+Player Team actors and would have mis-attributed a 3rd+ ally's
+death to the protagonist; unified into one actor-generic
+function, regression-locked by a dedicated test. Multiple
+PLAYER_CONTROLLED heroes explicitly deferred — energy/skill
+loadout ownership stays protagonist-singular. See
+ASHEN_REALM_DECISIONS.md and the TECHNICAL_HANDOFF COMBAT
+section for the exact contract.
+
+Still ahead: M6 (final Combat2D adapter cleanup, including a
+real dynamic Player Team HUD for 3-5 actors) — not started.
 
 ---
 

@@ -1006,8 +1006,7 @@ ashen_warden_phase3_curse_test stayed byte-identical to the
 established baseline.
 
 Combat Domain M4 (2026-09-13):
-STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
-(branch feature/combat-domain-m4).
+STATUS: IMPLEMENTED AND MERGED (main @ 68a3936).
 
 CombatEventStream
 (scripts/combat/combat_event_stream.gd, one instance per
@@ -1166,11 +1165,189 @@ baseline (verified by temporarily stashing the M4 diff and
 re-running the same seed) — not a regression introduced by
 this milestone.
 
+Combat Domain M5 (2026-09-13):
+STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
+(branch feature/combat-domain-m5).
+
+Capability definition (explicit product/architecture decision):
+M5 means the combat RUNTIME/DOMAIN can correctly schedule and
+resolve up to 5 actors per team. It does NOT mean production
+can field 5 heroes, does NOT add persistent multi-ally roster
+state, and does NOT add multiple PLAYER_CONTROLLED heroes.
+Production composition is unchanged: 1 protagonist + 0-1
+equipped companion. Capacity is proven with synthetic
+CompanionData/CombatActor fixtures constructed by tests, never
+by authoring new production content.
+
+CombatRules (scripts/combat/combat_rules.gd, new):
+the single canonical authority for combat-domain product
+limits, deliberately separate from CombatTeamUtils (which
+stays scoped to team OPERATIONS — living_actors/
+has_living_actor/is_defeated/validate_team — not limits).
+MAX_TEAM_SIZE: int = 5 lives here. Content-schema
+@export_range annotations (EncounterTemplateData.slots,
+BossEncounterData.max_active_enemies) cannot reference this
+constant directly — GDScript requires literal compile-time
+values in @export_range arguments — so those annotations carry
+a literal 5 documented as a manual mirror; every runtime check
+(is_eligible(), _is_fair(), summon capacity) reads
+CombatRules.MAX_TEAM_SIZE instead of its own literal.
+CombatRules.find_available_formation_slots(occupied, count) is
+the generic formation-slot allocator that replaced the old
+hardcoded available_slots = [0, 2] in boss summon placement —
+deterministic ascending free-slot order, never duplicates,
+never exceeds 0..MAX_TEAM_SIZE-1, never returns more than
+`count` entries.
+
+Enemy capacity raised to 5, one authority: Combat2D.MAX_ENEMY_ACTORS,
+EncounterTemplateData.slots' range/is_eligible() check, and
+EncounterResolver.MAX_ENEMIES were three independent literal
+3's before M5 — now all three derive from
+CombatRules.MAX_TEAM_SIZE. BossEncounterData.max_active_enemies'
+range widened to (1,5) but its DEFAULT stays 3 — no authored
+boss's behavior changes unless a future/test boss explicitly
+asks for more. EnemyCombatSlot/EnemyFormation already had the
+right per-actor dynamic-container shape (unlike the player
+side) — raising the cap was a small, contained change with no
+new node types.
+
+Boss summon at team cap: summon_total is now clamped with
+maxi(0, ...) against min(boss's own max_active_enemies,
+CombatRules.MAX_TEAM_SIZE) minus current Enemy Team size. When
+that's 0, _run_boss_summon_action() returns having emitted
+NO ActionEvent and NO SummonEvent (M4 rule: events describe
+what actually happened — nothing happened here) and without
+running the summon choreography; mark_summon_completed() and
+ai_state.record_action() still fire so the boss doesn't retry
+the same blocked summon forever (no AI-policy redesign, just
+preserving the existing no-turn-deadlock guarantee).
+
+Player Team construction generalized: _initialize_actors()
+used to hand-build exactly player_actor + an optional single
+companion_actor. It now calls _build_ai_allies(_resolve_ally_data_list()),
+where _resolve_ally_data_list() returns production's existing
+0-or-1-CompanionData behavior unless a new test seam,
+_ally_data_override: Array[CompanionData], has been populated
+(a fixture can assign up to CombatRules.MAX_TEAM_SIZE - 1
+synthetic CompanionData before the combat scene's _ready() runs).
+_build_ai_allies() constructs one CombatActor per entry with an
+indexed id ("companion_0".."companion_3", replacing the old
+literal "companion_0"), formation_slot ally_index+1, and its
+own CompanionRuntimeState. companion_actor is kept as a
+compatibility alias pointing at the FIRST ally only (index 0) —
+it's still the sole actor the legacy single-companion HUD
+(companion_panel/companion_view) presents; index 0 is also the
+only ally that receives set_visual_view(companion_view). No
+companion_actor_2/3/4 aliases were added.
+
+Per-ally runtime state: the old singular _companion_runtime
+field is now _companion_runtimes: Dictionary[StringName, CompanionRuntimeState],
+keyed by actor_id. CompanionActionResolver was not changed —
+it already took runtime_state as an explicit parameter; only
+the caller-side lookup changed. Verified end-to-end (not just
+by inspection): two synthetic allies with independent
+ability_every_actions cadences each end a real round with their
+own actions_completed incremented exactly once, never leaking
+into each other.
+
+Death-presentation bug found AND fixed (not left as documented
+debt): _present_companion_death()/_present_player_down() were
+two nearly-identical scalar functions; the real call site
+(_run_enemy_turn) chose between them with
+`target_actor == companion_actor ? companion : protagonist`,
+correct only while Player Team had at most 2 possible members.
+With a 3rd+ AI_ALLY, that `else` branch would have marked
+death_presented on the STILL-ALIVE PROTAGONIST and animated the
+protagonist's own view — silently suppressing the protagonist's
+real death presentation later in the same combat, and never
+presenting the ally's actual death. Merged into one function,
+_present_player_team_actor_down(actor: CombatActor), which
+operates only on the actor passed in — no comparison against
+any reference actor anywhere. Regression-locked by a direct
+test: killing a 3rd ally sets only that ally's death_presented;
+the protagonist's own subsequent death still presents normally.
+
+No-view actor safety: a 2nd-5th synthetic AI_ALLY has no
+dedicated CombatCharacterView (that HUD work is explicitly M6,
+not M5) — direct CombatCharacterView method calls inside
+_run_companion_turn (play_attack/play_idle) are now guarded
+with is_instance_valid(); CombatChoreographyController's
+approach()/begin_static()/finish_static()/impact_and_return()
+and CombatVFXController's status_tick()/show_damage_number()
+were already null-safe internally. Domain resolution (damage,
+statuses, events, HP, turn advancement) proceeds identically
+whether or not the acting actor has a view — verified by a real
+Combat2D round with 4 viewless synthetic allies completing with
+zero crashes, headless and non-headless.
+
+Team composition validation (new, minimal — not a validation
+framework): CombatTeamUtils.validate_team(team, expected_team)
+returns a ValidationResult (valid: bool, errors: Array[String])
+checking team size vs. MAX_TEAM_SIZE, null actors, duplicate
+actor_id, duplicate/out-of-range formation_slot, and
+actor.team mismatch. Wired as a non-blocking push_error() safety
+net in combat.gd right after boss-encounter setup — a legitimate
+1-protagonist+companion-vs-N-enemies composition never triggers
+it (confirmed by the full regression suite running with zero
+new push_error output); it exists for "programmer corruption",
+not expected content mistakes, so it observes rather than blocks.
+
+Turn order: UNCHANGED, explicit decision — array insertion
+order remains authoritative. CombatTurnController itself was
+NOT touched at all in M5 (confirmed by a zero-diff check against
+the M4 baseline) and still has no knowledge of MAX_TEAM_SIZE or
+formation_slot — it was already fully N-actor-generic since M1.
+formation_slot's only role is placement/allocation (boss summon,
+enemy formation display), never turn sequencing.
+
+Multiple PLAYER_CONTROLLED heroes: explicitly deferred, not
+supported. CombatSkillController/combat energy/the action bar
+remain protagonist-singular by design — untouched in M5.
+
+Tests added in M5: combat_rules_test.gd (9 checks, no scene:
+MAX_TEAM_SIZE, find_available_formation_slots() determinism/
+no-duplicates/no-overflow/under-capacity behavior),
+combat_team_composition_validation_test.gd (10 checks, no
+scene: validate_team()'s size/null/duplicate-id/duplicate-slot/
+out-of-range-slot/wrong-team-enum rejections), and
+combat_5v5_capacity_test.gd (46 checks, real Combat2D via the
+new _ally_data_override seam plus synthetic enemy actors: exact
+5v5 turn order across one full round, a synthetic 5-target
+ALL_ENEMIES multi-target cast with one cost/cooldown and M4's
+1-ActionEvent-plus-5-DamageEvent grouping, companion-runtime
+cadence isolation between two real allies, the death-presentation
+routing regression, a real boss (Sunken Pyre/Ember Marsh) hitting
+its 5-actor cap and cleanly declining a 6th summon with no
+fabricated events, 5-actor team-defeat/victory boundary checks
+on both sides, and a full-round no-crash sanity pass). Full
+M1-M4 regression suite re-run sequentially with zero
+attributable failures; the two pre-existing baseline issues
+(ashen_warden_phase3_curse_test's basic-attack-observation gaps,
+combined_refuge_runtime_test's headless screenshot capture) were
+confirmed unchanged. Non-headless real-D3D12-renderer runs of
+both combat_5v5_capacity_test.gd and the existing 1-protagonist-
+plus-companion combat_team_defeat_test.gd passed identically to
+headless.
+
+Not touched in M5: CombatTurnController, CombatTargetResolver,
+CombatEventStream and the 8 M4 event types (no schema change —
+Array[CombatActor] fields were already unbounded), RunState,
+SAVE_VERSION (14), ACTIVE_RUN_VERSION (1), and
+tools/simulation/full_run_simulation.gd. The simulator remains
+its own independent, hand-rolled Dictionary-based reimplementation
+with a singular player/companion model — it does not use
+CombatTurnController/CombatTeamUtils/CombatTargetResolver/
+CombatEventStream at all, so M5's N-actor domain work neither
+fixes nor worsens that pre-existing divergence. Alignment is
+recommended only after M5 and M6 stabilize the production
+N-actor path, as its own scoped effort — not attempted here.
+
 This remains the largest architectural risk
-for future Combat3D — M1/M2/M3/M4 are extraction,
-generalization, action-resolution, and event-reporting work
-only; M5 (5v5 formation), M6 (final Combat2D adapter cleanup)
-are still ahead of Combat3D.
+for future Combat3D — M1/M2/M3/M4/M5 are extraction,
+generalization, action-resolution, event-reporting, and
+capacity-scaling work only; M6 (final Combat2D adapter cleanup,
+including a real dynamic Player Team HUD for 3-5 actors) is
+still ahead of Combat3D.
 
 Do not duplicate Combat logic
 into a second full 3D implementation.
