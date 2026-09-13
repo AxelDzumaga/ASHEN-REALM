@@ -130,28 +130,39 @@ for sequencing. Cooldown-tied-to-basic-attack bug
 found during the extraction and fixed.
 
 M2 (generic team/controller cleanup):
-IMPLEMENTED 2026-09-12, local branch
-feature/combat-domain-m2, NOT MERGED.
-CombatActor.controller_type (PLAYER_CONTROLLED/
-AI_ALLY/AI_ENEMY/SCRIPTED) replaces identity-based
-dispatch. CombatTeamUtils is the single team-alive/
-team-defeated definition. Approved gameplay change:
-Player Team defeat now requires the WHOLE team down
-(protagonist KO with a living ally no longer ends
-combat); a protagonist-saved-by-ally victory
-normalizes HP to exactly 1 before returning to
-Map3D. Companion HP persistence and per-actor skill/
-energy generalization remain explicit, documented
-debt — not touched. Existing Combat2D behavior
-preserved (regression suite + non-headless
-real-renderer smoke, zero attributable failures).
-See ASHEN_REALM_DECISIONS.md and the
-TECHNICAL_HANDOFF COMBAT section for the exact
-contract.
+MERGED 2026-09-12 (main). CombatActor.controller_type
+(PLAYER_CONTROLLED/AI_ALLY/AI_ENEMY/SCRIPTED) replaces
+identity-based dispatch. CombatTeamUtils is the single
+team-alive/team-defeated definition. Approved gameplay
+change: Player Team defeat now requires the WHOLE team
+down; a protagonist-saved-by-ally victory normalizes HP
+to exactly 1 before returning to Map3D.
 
-Still ahead: M3 (action resolution extraction), M4
-(structured combat events), M5 (5v5 formation) —
-none started.
+M3 (action/target resolution):
+IMPLEMENTED 2026-09-12, local branch
+feature/combat-domain-m3, NOT MERGED.
+CombatTargetResolver gives all 5 ActiveSkillData.TargetType
+values (SELF/SINGLE_ENEMY/SINGLE_ALLY/ALL_ENEMIES/
+ALL_ALLIES) real domain semantics instead of the three
+non-SELF/SINGLE_ENEMY types silently no-op'ing; no new
+skill content authored, the new types are proven with
+synthetic test fixtures only. Player basic-attack/skill
+target resolution now happens before cost/cooldown
+commitment (matching the DECIDE-then-RESOLVE shape AI
+actions already had), and no longer silently retargets a
+stale committed target to a different enemy. Existing
+single-target skill behavior (100% of current authored
+content) left byte-identical — verified via
+ashen_warden_phase3_curse_test matching the established
+baseline exactly. No ActionIntent framework or M4 event
+stream introduced; CombatMath and the protagonist-only
+Boons/Equipment/Synergy layers are unchanged. See
+ASHEN_REALM_DECISIONS.md and the TECHNICAL_HANDOFF COMBAT
+section for the exact contract.
+
+Still ahead: M4 (structured combat events), M5 (5v5
+formation), M6 (final Combat2D adapter cleanup) — none
+started.
 
 ---
 

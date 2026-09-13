@@ -112,7 +112,13 @@ var _result_resolved: bool = false
 var _turn_controller: CombatTurnController
 var _phase: CombatPhase = CombatPhase.INTRO
 var _pending_player_action: PlayerAction = PlayerAction.NONE
+## Combat Domain M3 — _committed_target_actor sigue siendo el target
+## primario (targets[0]) para no tocar los ~15 usos existentes (telemetría,
+## _run_player_basic_action, _execute_active_skill single-target sin
+## cambios de comportamiento); _committed_targets es la fuente real para
+## ALL_ENEMIES/ALL_ALLIES.
 var _committed_target_actor: CombatActor
+var _committed_targets: Array[CombatActor] = []
 var _committed_skill: ActiveSkillController
 var _last_ember_active: bool = false
 var _active_effect_signature: String = ""
@@ -957,7 +963,18 @@ func _run_player_turn() -> bool:
 					if not await TutorialManager.request_and_wait(TutorialCatalog.ENERGY_GAIN, TutorialManager.CONTEXT_COMBAT, self):
 						return true
 			PlayerAction.ACTIVE_SKILL:
-				if await _execute_active_skill(_committed_skill, _committed_target_actor):
+				# Combat Domain M3: el camino single-target (SELF/SINGLE_ENEMY,
+				# todo el contenido autorado hoy) sigue llamando exactamente a
+				# _execute_active_skill() sin tocar ni una línea — paridad de
+				# comportamiento garantizada. ALL_ENEMIES/ALL_ALLIES (sin
+				# contenido autorado, ver handoff M3) usan un camino nuevo y
+				# separado en vez de forzar el existente a ser "un loop de uno".
+				var combat_ended_from_skill: bool = false
+				if _committed_targets.size() > 1:
+					combat_ended_from_skill = await _execute_active_skill_multi_target(_committed_skill, _committed_targets)
+				else:
+					combat_ended_from_skill = await _execute_active_skill(_committed_skill, _committed_target_actor)
+				if combat_ended_from_skill:
 					return true
 				# Combat Domain M1 fix: el cooldown de las DEMÁS skills debe
 				# avanzar en este turno del jugador aunque no haya elegido
@@ -972,6 +989,7 @@ func _run_player_turn() -> bool:
 	_statuses.process_turn_end(player_actor)
 	_pending_player_action = PlayerAction.NONE
 	_committed_target_actor = null
+	_committed_targets = []
 	_committed_skill = null
 	_turn_controller.complete_current_turn()
 	return false
@@ -1139,6 +1157,7 @@ func _wait_for_player_action() -> bool:
 	_phase = CombatPhase.PLAYER_INPUT
 	_pending_player_action = PlayerAction.NONE
 	_committed_target_actor = null
+	_committed_targets = []
 	_committed_skill = null
 	_set_turn("TU TURNO", VisualTheme.EMBER_BRIGHT)
 	action_label.text = "Elegí una acción."
@@ -1160,10 +1179,17 @@ func _has_mixed_enemy_roles() -> bool:
 	return roles.size() > 1
 
 
-func _commit_player_action(action: PlayerAction, captured_target: CombatActor) -> void:
+## Combat Domain M3 — captured_targets ya viene resuelto y validado por
+## CombatTargetResolver (SELF/SINGLE_ENEMY/SINGLE_ALLY: un elemento;
+## ALL_ENEMIES/ALL_ALLIES: uno por actor vivo del equipo). captured_target
+## (singular, usado por telemetría más abajo sin cambios) es el primero —
+## para acciones de un solo target es literalmente el mismo actor de antes.
+func _commit_player_action(action: PlayerAction, captured_targets: Array[CombatActor]) -> void:
 	if _phase != CombatPhase.PLAYER_INPUT or _result_resolved:
 		return
+	var captured_target: CombatActor = captured_targets[0] if not captured_targets.is_empty() else null
 	_pending_player_action = action
+	_committed_targets = captured_targets
 	_committed_target_actor = captured_target
 	_telemetry_turn_count += 1
 	if action == PlayerAction.ACTIVE_SKILL and _committed_skill != null:
@@ -1195,10 +1221,17 @@ func _commit_player_action(action: PlayerAction, captured_target: CombatActor) -
 func _run_player_basic_action(captured_target: CombatActor) -> bool:
 	var target_actor: CombatActor = captured_target
 	if not _is_valid_enemy_target(target_actor):
-		target_actor = refresh_primary_enemy_actor()
-	if target_actor == null:
-		await _finish_victory(null)
-		return true
+		# Combat Domain M3 (handoff sección 7): ya no se reapunta en
+		# silencio a otro enemigo acá. El target ya fue validado por
+		# CombatTargetResolver antes de comprometer el turno en
+		# _on_attack_pressed() — este chequeo es puramente defensivo y no
+		# debería dispararse nunca en la arquitectura actual (no hay ningún
+		# await entre esa validación y esta llamada). Si de todas formas
+		# ocurriera, el ataque no se ejecuta: cero mutación, el turno se
+		# completa sin daño en vez de atacar a un enemigo distinto al que
+		# el jugador eligió.
+		push_error("Combat: basic attack target became invalid between commit and resolve")
+		return false
 	var target_view: CombatCharacterView = target_actor.visual_view
 	_set_turn("TURNO DEL JUGADOR", VisualTheme.EMBER_BRIGHT)
 	var target_was_burning: bool = target_actor.has_status(&"burn")
@@ -2078,13 +2111,26 @@ func _update_companion_hud() -> void:
 	_refresh_status_badges(companion_status_row, companion_actor)
 
 
+## Combat Domain M3 — único punto de resolución de target del jugador
+## (sección 10 del handoff M3): player_actors/enemy_actors son la
+## autoridad de equipo, nunca ActorType. explicit_target es lo único que
+## Combat2D todavía decide por su cuenta (el enemigo actualmente
+## seleccionado) — el resolver solo lo valida, nunca lo reemplaza.
+func _resolve_player_target(
+	target_type: ActiveSkillData.TargetType, explicit_target: CombatActor = null,
+) -> CombatTargetResolver.Resolution:
+	return CombatTargetResolver.resolve(target_type, player_actor, player_actors, enemy_actors, explicit_target)
+
+
 func _on_attack_pressed() -> void:
 	if _phase != CombatPhase.PLAYER_INPUT or _result_resolved:
 		return
-	var captured_target: CombatActor = refresh_primary_enemy_actor()
-	if captured_target == null:
+	var resolution: CombatTargetResolver.Resolution = _resolve_player_target(
+		ActiveSkillData.TargetType.SINGLE_ENEMY, refresh_primary_enemy_actor(),
+	)
+	if not resolution.ok():
 		return
-	_commit_player_action(PlayerAction.BASIC_ATTACK, captured_target)
+	_commit_player_action(PlayerAction.BASIC_ATTACK, resolution.targets)
 
 
 func _on_skill_requested(skill_controller: ActiveSkillController) -> void:
@@ -2093,24 +2139,27 @@ func _on_skill_requested(skill_controller: ActiveSkillController) -> void:
 	if not player_actor.is_alive() or not has_alive_enemies():
 		return
 	_show_skill_detail(skill_controller)
-	var captured_target: CombatActor
 	if skill_controller == null or skill_controller not in _skill_loadout.skills:
 		return
-	match skill_controller.skill.target_type:
-		ActiveSkillData.TargetType.SELF:
-			captured_target = player_actor
-		ActiveSkillData.TargetType.SINGLE_ENEMY:
-			captured_target = refresh_primary_enemy_actor()
-			if captured_target == null:
-				return
-		_:
-			return
+	var explicit_target: CombatActor = null
+	if skill_controller.skill.target_type == ActiveSkillData.TargetType.SINGLE_ENEMY:
+		explicit_target = refresh_primary_enemy_actor()
+	# SINGLE_ALLY: Combat2D todavía no tiene UI de selección de aliado (ver
+	# handoff M3 sección 6) — explicit_target queda null a propósito;
+	# TARGET_SELECTION_REQUIRED es la respuesta correcta y esperada, no un
+	# bug, hasta que esa UI exista. No se elige "el primer aliado vivo"
+	# en su lugar.
+	var resolution: CombatTargetResolver.Resolution = _resolve_player_target(
+		skill_controller.skill.target_type, explicit_target,
+	)
+	if not resolution.ok():
+		return
 	if not _skill_loadout.try_use(skill_controller):
 		_refresh_action_bar()
 		return
 	_focused_skill = skill_controller
 	_committed_skill = skill_controller
-	_commit_player_action(PlayerAction.ACTIVE_SKILL, captured_target)
+	_commit_player_action(PlayerAction.ACTIVE_SKILL, resolution.targets)
 
 
 func debug_trigger_visual_skill(skill_id: StringName) -> void:
@@ -2138,7 +2187,7 @@ func debug_trigger_visual_attack() -> void:
 		return
 	var target: CombatActor = refresh_primary_enemy_actor()
 	if target != null:
-		_commit_player_action(PlayerAction.BASIC_ATTACK, target)
+		_commit_player_action(PlayerAction.BASIC_ATTACK, [target])
 
 
 func _execute_active_skill(skill_controller: ActiveSkillController, captured_target: CombatActor) -> bool:
@@ -2236,6 +2285,64 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 	return false
 
 
+## Combat Domain M3 — camino de ejecución para ALL_ENEMIES/ALL_ALLIES
+## (handoff sección 20). Ningún contenido autorado usa estos TargetTypes
+## todavía (solo ember_slash/ashen_guard/second_wind existen, todos
+## SELF/SINGLE_ENEMY) — este camino existe para que el dominio los respalde
+## por completo, verificado con fixtures sintéticos, sin inventar loadouts
+## reales. Reutiliza exactamente el mismo cálculo por target que el camino
+## single-target (ActiveSkillController.calculate_skill_damage /
+## SkillAugmentResolver.effective_heal_percent / CombatActor.heal /
+## CombatStatusController.apply_status) — no inventa semántica nueva para
+## la combinación skill_type × TargetType, solo la aplica una vez por
+## actor resuelto. _execute_active_skill() (single-target) queda intacto:
+## este es un camino aditivo separado, no un reemplazo.
+func _execute_active_skill_multi_target(skill_controller: ActiveSkillController, captured_targets: Array[CombatActor]) -> bool:
+	var active_skill: ActiveSkillData = skill_controller.skill
+	_set_turn(player_actor.display_name.to_upper(), VisualTheme.EMBER_BRIGHT)
+	var affected_count: int = 0
+	match active_skill.skill_type:
+		ActiveSkillData.SkillType.DAMAGE:
+			for target: CombatActor in captured_targets:
+				if not target.is_alive():
+					continue
+				var damage: int = skill_controller.calculate_skill_damage(
+					_statuses.get_effective_attack(player_actor, _boons.get_effective_attack()),
+					_get_effective_actor_defense(target),
+					target.get_current_hp(),
+					target.get_max_hp(),
+				)
+				target.apply_damage(_statuses.get_effective_incoming_damage(target, damage))
+				affected_count += 1
+		ActiveSkillData.SkillType.HEAL:
+			for target: CombatActor in captured_targets:
+				if not target.is_alive():
+					continue
+				var heal_percent: float = SkillAugmentResolver.effective_heal_percent(active_skill, RunManager.current_run)
+				var heal_amount: int = maxi(1, floori(float(target.get_max_hp()) * heal_percent))
+				target.heal(CombatStatusController.get_effective_healing(target, heal_amount))
+				affected_count += 1
+		ActiveSkillData.SkillType.DEFENSE:
+			for target: CombatActor in captured_targets:
+				if not target.is_alive():
+					continue
+				_statuses.apply_status(target, &"guard", player_actor, 1, 1)
+				affected_count += 1
+	action_label.text = "%s\n%d OBJETIVOS AFECTADOS" % [active_skill.display_name.to_upper(), affected_count]
+	_animate_action_feedback(VisualTheme.EMBER_BRIGHT)
+	_update_combatants()
+	await _check_boss_phase_transition()
+	if not has_alive_enemies():
+		await _finish_victory(null)
+		return true
+	for target: CombatActor in captured_targets:
+		if target.team == CombatActor.Team.ENEMY and not target.is_alive():
+			await _present_enemy_death(target)
+	refresh_primary_enemy_actor()
+	_update_combatants()
+	return false
+
+
 func _update_skill_ui() -> void:
 	if _skill_loadout == null:
 		return
@@ -2295,6 +2402,7 @@ func _refresh_action_bar() -> void:
 func _lock_action_input() -> void:
 	_pending_player_action = PlayerAction.NONE
 	_committed_target_actor = null
+	_committed_targets = []
 	_committed_skill = null
 	_refresh_action_bar()
 
