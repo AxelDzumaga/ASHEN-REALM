@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/tests/combat_event_order_test.gd" id="1"]
+
+[node name="CombatEventOrderTest" type="Node"]
+script = ExtResource("1")
