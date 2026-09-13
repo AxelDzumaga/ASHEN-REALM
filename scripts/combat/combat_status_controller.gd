@@ -20,9 +20,37 @@ class TickResult:
 	var status: StatusEffectInstance
 	var damage: int = 0
 	var healing: int = 0
+	## Combat Domain M4 — snapshots tomados en process_turn_start() en el
+	## momento exacto de cada aplicación, para que combat.gd pueda construir
+	## un StatusEvent(kind=TICK) sin volver a leer get_current_hp() después
+	## (que ya reflejaría ticks posteriores del mismo turno).
+	var hp_before: int = 0
+	var hp_after: int = 0
 
 	func _init(effect: StatusEffectInstance) -> void:
 		status = effect
+
+
+## Combat Domain M4 — información mínima de la última reacción resuelta por
+## apply_status(), para que combat.gd pueda construir un ReactionEvent sin
+## recalcular ni duplicar la lógica de reacción (mismo patrón ya usado en
+## este proyecto: ActiveSkillController.last_guard_reduction,
+## BoonController.was_inferno_triggered(), etc. — un flag de "último
+## resultado" consultado por el llamador inmediatamente después de invocar
+## el método que lo produjo). No cambia reglas de reacción, stacks, daño,
+## duración ni RNG — solo anota los mismos dos chequeos que apply_status()
+## ya hacía (WET+CHILLED, WET+SHOCK).
+class LastReactionInfo:
+	extends RefCounted
+	var occurred: bool = false
+	var reaction_id: StringName = &""
+	var source_actor: CombatActor
+	var target_actor: CombatActor
+	var triggering_status_id: StringName = &""
+	var resulting_status_id: StringName = &""
+	var bonus_stacks: int = 0
+
+var last_reaction: LastReactionInfo = LastReactionInfo.new()
 
 
 func apply_status(
@@ -33,6 +61,10 @@ func apply_status(
 	duration_override: int = -1,
 	chain_candidates: Array[CombatActor] = [],
 ) -> StatusEffectInstance:
+	# Combat Domain M4 — se resetea al principio de cada llamada para que un
+	# consultante que revisa last_reaction justo después de ESTA llamada
+	# nunca vea el resultado de una llamada anterior no relacionada.
+	last_reaction = LastReactionInfo.new()
 	if target_actor == null or not target_actor.is_alive():
 		return null
 	var status_data: StatusEffectData = StatusEffectCatalog.get_by_id(status_id)
@@ -44,6 +76,14 @@ func apply_status(
 	stacks += int(stack_bonuses.get(String(status_id), 0))
 	if status_id == &"chilled" and target_was_wet:
 		stacks += WET_FROST_BONUS_STACKS
+		last_reaction = LastReactionInfo.new()
+		last_reaction.occurred = true
+		last_reaction.reaction_id = &"wet_frost_bonus"
+		last_reaction.source_actor = source_actor
+		last_reaction.target_actor = target_actor
+		last_reaction.triggering_status_id = &"wet"
+		last_reaction.resulting_status_id = &"chilled"
+		last_reaction.bonus_stacks = WET_FROST_BONUS_STACKS
 	var resolved_duration: int = duration_override
 	var duration_bonus: int = int(duration_bonuses.get(String(status_id), 0))
 	if duration_bonus != 0:
@@ -82,6 +122,18 @@ func _chain_shock(source_actor: CombatActor, candidates: Array[CombatActor]) -> 
 		if candidate == null or not candidate.is_alive() or candidate.has_status(&"shock"):
 			continue
 		apply_status(candidate, &"shock", source_actor, 1, -1, [])
+		# Combat Domain M4 — se pisa last_reaction DESPUÉS de la llamada
+		# recursiva a propósito: esa llamada ya reseteó/pudo setear su
+		# propio last_reaction en base al estado del candidato, y acá se
+		# reemplaza por el hecho real que le importa a quien llamó al
+		# apply_status(&"shock", ...) de más afuera — el salto en cadena.
+		last_reaction = LastReactionInfo.new()
+		last_reaction.occurred = true
+		last_reaction.reaction_id = &"wet_shock_chain"
+		last_reaction.source_actor = source_actor
+		last_reaction.target_actor = candidate
+		last_reaction.triggering_status_id = &"wet"
+		last_reaction.resulting_status_id = &"shock"
 		return
 
 
@@ -119,6 +171,7 @@ func process_turn_start(actor: CombatActor) -> Array[TickResult]:
 		if instance.data.trigger != StatusEffectData.Trigger.TURN_START:
 			continue
 		var result: TickResult = TickResult.new(instance)
+		result.hp_before = actor.get_current_hp()
 		if instance.data.status_id == &"regen":
 			if actor.is_alive():
 				result.healing = actor.heal(get_effective_healing(actor, instance.data.magnitude_per_stack * instance.stacks))
@@ -131,6 +184,7 @@ func process_turn_start(actor: CombatActor) -> Array[TickResult]:
 			var scale: float = maxf(0.0, float(scales.get(String(instance.data.status_id), 1.0)))
 			var tick_damage: int = maxi(0, roundi(float(instance.data.magnitude_per_stack * instance.stacks) * scale))
 			result.damage = actor.apply_damage(get_effective_incoming_damage(actor, tick_damage))
+		result.hp_after = actor.get_current_hp()
 		results.append(result)
 		if not actor.is_alive():
 			break

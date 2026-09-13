@@ -110,6 +110,11 @@ var _focused_skill: ActiveSkillController
 var _skill_buttons: Array[CombatSkillButton] = []
 var _result_resolved: bool = false
 var _turn_controller: CombatTurnController
+var _event_stream: CombatEventStream
+## Combat Domain M4 — última relación de afinidad resuelta por
+## _resolve_elemental_damage(), del mismo patrón "último resultado" usado
+## en todo el proyecto (ver CombatStatusController.last_reaction).
+var _last_affinity_relation: StringName = &""
 var _phase: CombatPhase = CombatPhase.INTRO
 var _pending_player_action: PlayerAction = PlayerAction.NONE
 ## Combat Domain M3 — _committed_target_actor sigue siendo el target
@@ -454,6 +459,10 @@ func _get_effective_actor_defense(actor: CombatActor) -> int:
 ## elemento en ninguno de los dos lados, AffinityResolver devuelve el mismo
 ## daño sin cambios. Ver scripts/combat/affinity_resolver.gd.
 func _resolve_elemental_damage(base_damage: int, attacker: CombatActor, target: CombatActor) -> int:
+	# Combat Domain M4 — se resetea acá para que un llamador que no evalúa
+	# afinidad (attacker/target null) vea explícitamente "sin evaluar" en
+	# vez del resultado de una llamada anterior no relacionada.
+	_last_affinity_relation = &""
 	if attacker == null or target == null:
 		return base_damage
 	var damage_type: StringName = _attacker_damage_type(attacker)
@@ -464,7 +473,64 @@ func _resolve_elemental_damage(base_damage: int, attacker: CombatActor, target: 
 	var immunity_tags: Array[StringName] = target_enemy_data.immunity_tags if target_enemy_data != null else no_tags
 	if target_enemy_data == null and target.actor_type == CombatActor.ActorType.PLAYER:
 		resistance_tags = _player_equipment_resistance_tags()
-	return int(AffinityResolver.resolve_damage_preview(base_damage, damage_type, resistance_tags, weakness_tags, immunity_tags)["damage"])
+	# Combat Domain M4 — relation sale del MISMO dictionary que ya devuelve
+	# el daño, nunca de una segunda llamada a resolve_damage_preview().
+	var preview: Dictionary = AffinityResolver.resolve_damage_preview(base_damage, damage_type, resistance_tags, weakness_tags, immunity_tags)
+	_last_affinity_relation = preview["relation"]
+	return int(preview["damage"])
+
+
+## Combat Domain M4 — helper compartido: emite ReactionEvent si la última
+## llamada a _statuses.apply_status() resolvió una reacción (handoff M4
+## sección 17). Nunca recalcula la reacción — solo lee
+## CombatStatusController.last_reaction, que apply_status() ya deja
+## seteado con el resultado real.
+func _emit_reaction_if_any(action_id: int) -> void:
+	if not _statuses.last_reaction.occurred:
+		return
+	var reaction: CombatStatusController.LastReactionInfo = _statuses.last_reaction
+	_event_stream.emit_event(ReactionEvent.new(
+		action_id,
+		reaction.source_actor,
+		reaction.target_actor,
+		reaction.reaction_id,
+		reaction.triggering_status_id,
+		reaction.resulting_status_id,
+		reaction.bonus_stacks,
+	))
+
+
+## Combat Domain M4 — emite StatusEvent(APPLIED) leyendo el estado ya
+## mutado por _statuses.apply_status() (stacks/duración reales resultantes,
+## nunca los pedidos) y, si corresponde, el ReactionEvent que esa misma
+## llamada haya resuelto.
+func _emit_status_applied(action_id: int, source_actor: CombatActor, target_actor: CombatActor, status_id: StringName) -> void:
+	var instance: StatusEffectInstance = target_actor.get_status(status_id)
+	if instance != null:
+		_event_stream.emit_event(StatusEvent.new(
+			action_id, StatusEvent.Kind.APPLIED, source_actor, target_actor, status_id, instance.stacks, instance.remaining_duration,
+		))
+	_emit_reaction_if_any(action_id)
+
+
+## Combat Domain M4 — emite DamageEvent + DeathEvent (si corresponde) para
+## una aplicación de daño ya resuelta. caused_death sale de
+## DamageEvent._init() (hp_before > 0 y hp_after <= 0), nunca de una
+## bandera de presentación — ver handoff M4 sección 18.
+func _emit_damage(
+	action_id: int,
+	source_actor: CombatActor,
+	target_actor: CombatActor,
+	amount: int,
+	hp_before: int,
+	hp_after: int,
+	is_critical: bool = false,
+	affinity_relation: StringName = &"",
+) -> void:
+	var damage_event: DamageEvent = DamageEvent.new(action_id, source_actor, target_actor, amount, hp_before, hp_after, is_critical, affinity_relation)
+	_event_stream.emit_event(damage_event)
+	if damage_event.caused_death:
+		_event_stream.emit_event(DeathEvent.new(action_id, target_actor, source_actor))
 
 
 ## Equipment 2.0 Fase 1 — resistencia elemental del jugador vía CHEST/HEAD/
@@ -900,6 +966,13 @@ func _run_combat() -> void:
 	_turn_controller.team_block_started.connect(_on_turn_block_started)
 	_turn_controller.start(player_actors, enemy_actors)
 
+	# Combat Domain M4 — un CombatEventStream por encuentro, igual ciclo de
+	# vida que _turn_controller. El handler es enteramente síncrono (nunca
+	# usa await) para que emit_event() nunca invierta el orden de la
+	# coreografía ya existente (ver handoff M4 sección 28/29).
+	_event_stream = CombatEventStream.new()
+	_event_stream.event_emitted.connect(_on_combat_event)
+
 	while not _turn_controller.is_stopped():
 		var acting_actor: CombatActor = _turn_controller.current_actor
 		if acting_actor == null:
@@ -934,6 +1007,22 @@ func _on_turn_block_started(team: CombatTurnController.TeamBlock) -> void:
 	if team == CombatTurnController.TeamBlock.ENEMY:
 		_phase = CombatPhase.ENEMY_ACTION
 		_refresh_action_bar()
+
+
+## Combat Domain M4 — adaptador mínimo (handoff sección 29, Opción B): un
+## único handler enteramente síncrono, conectado una vez por encuentro.
+## Solo migra UN caso de presentación ya seguro de mover (el número
+## flotante de un tick de estado, un call site único y sin ramas
+## entrelazadas) — el resto de la presentación (labels, badges, audio,
+## coreografía con await) sigue exactamente donde estaba, inline en cada
+## función de resolución, sin duplicarse acá. Nunca await razona acá: si
+## algún día hiciera falta, sería trabajo de M6, no de este handler.
+func _on_combat_event(event: RefCounted) -> void:
+	if event is StatusEvent and event.kind == StatusEvent.Kind.TICK:
+		var is_damage: bool = event.tick_damage > 0
+		var amount: int = event.tick_damage if is_damage else event.tick_healing
+		var actor_view: CombatCharacterView = event.target_actor.visual_view
+		vfx.show_damage_number(actor_view, amount, false, not is_damage, VisualTheme.DANGER if is_damage else VisualTheme.HEAL)
 
 
 ## Frontera de turno del jugador (sección 8 del handoff M1): el controller
@@ -1037,8 +1126,17 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 	var target_actor: CombatActor = plan.target
 	var target_view: CombatCharacterView = target_actor.visual_view
 	var action_name: String = companion_data.ability_name if plan.uses_ability else "ATAQUE"
+	var action_id: int = _event_stream.next_action_id()
+	_event_stream.emit_event(ActionEvent.new(
+		action_id, acting_actor,
+		&"companion_ability" if plan.uses_ability else &"companion_attack",
+		companion_data.ability_id if plan.uses_ability else &"",
+		[target_actor],
+	))
 	_set_turn(acting_actor.display_name.to_upper(), Color("ed7b32"))
+	var companion_hp_before: int = target_actor.get_current_hp()
 	target_actor.apply_damage(_statuses.get_effective_incoming_damage(target_actor, plan.damage))
+	_emit_damage(action_id, acting_actor, target_actor, plan.damage, companion_hp_before, target_actor.get_current_hp())
 	var burn_applied: bool = false
 	if plan.uses_ability and target_actor.is_alive() and not companion_data.ability_status_id.is_empty():
 		burn_applied = _statuses.apply_status(
@@ -1047,6 +1145,8 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 			acting_actor,
 			companion_data.ability_status_stacks,
 		) != null
+		if burn_applied:
+			_emit_status_applied(action_id, acting_actor, target_actor, companion_data.ability_status_id)
 	acting_view.play_attack(
 		CombatChoreographyController.AGGRESSIVE_DURATION if plan.uses_ability else CombatChoreographyController.MELEE_DURATION
 	)
@@ -1086,7 +1186,7 @@ func _run_companion_turn(acting_actor: CombatActor) -> bool:
 	await choreography.impact_and_return(
 		CombatChoreographyController.EMPHASIZED_HIT_STOP_DURATION if plan.uses_ability else CombatChoreographyController.HIT_STOP_DURATION,
 	)
-	await _check_boss_phase_transition()
+	await _check_boss_phase_transition(action_id)
 	_companion_runtime.record_action()
 	_statuses.process_turn_end(acting_actor)
 	if acting_actor.is_alive():
@@ -1232,28 +1332,41 @@ func _run_player_basic_action(captured_target: CombatActor) -> bool:
 		# el jugador eligió.
 		push_error("Combat: basic attack target became invalid between commit and resolve")
 		return false
+	# Combat Domain M4 — un action_id por resolución de acción; todo lo que
+	# esta función emite (daño principal, Burning Strike, statuses,
+	# reacciones) comparte este mismo id.
+	var action_id: int = _event_stream.next_action_id()
+	_event_stream.emit_event(ActionEvent.new(action_id, player_actor, &"basic_attack", &"", [target_actor]))
 	var target_view: CombatCharacterView = target_actor.visual_view
 	_set_turn("TURNO DEL JUGADOR", VisualTheme.EMBER_BRIGHT)
 	var target_was_burning: bool = target_actor.has_status(&"burn")
 	var effective_attack: int = _statuses.get_effective_attack(player_actor, _boons.before_player_attack())
 	var target_defense: int = _get_effective_actor_defense(target_actor)
+	var hp_before_main_hit: int = target_actor.get_current_hp()
 	var player_damage: int = _resolve_elemental_damage(CombatMath.calculate_damage(effective_attack, target_defense), player_actor, target_actor)
+	var main_hit_affinity: StringName = _last_affinity_relation
 	player_damage = EquipmentEffectResolver.apply_basic_attack_damage(player_damage, RunManager.current_run)
 	var critical_hit: bool = EquipmentEffectResolver.roll_critical(RunManager.current_run, _equipment_rng)
 	if critical_hit:
 		player_damage = EquipmentEffectResolver.apply_critical_damage(player_damage, RunManager.current_run)
 	target_actor.apply_damage(_statuses.get_effective_incoming_damage(target_actor, player_damage))
+	_emit_damage(action_id, player_actor, target_actor, player_damage, hp_before_main_hit, target_actor.get_current_hp(), critical_hit, main_hit_affinity)
 	var equipment_statuses: Array[StringName] = EquipmentEffectResolver.apply_basic_hit_statuses(
 		RunManager.current_run, player_actor, target_actor, _statuses, _equipment_runtime,
 	)
+	for equipment_status_id: StringName in equipment_statuses:
+		_emit_status_applied(action_id, player_actor, target_actor, equipment_status_id)
 	var burning_damage: int = _boons.after_player_attack()
 	if burning_damage > 0:
+		var hp_before_burning_strike: int = target_actor.get_current_hp()
 		target_actor.apply_damage(_statuses.get_effective_incoming_damage(target_actor, burning_damage))
+		_emit_damage(action_id, player_actor, target_actor, burning_damage, hp_before_burning_strike, target_actor.get_current_hp())
 		if target_actor.is_alive():
 			var burn_stacks: int = 1
 			if SynergyResolver.is_active(&"inferno_rhythm", RunManager.current_run):
 				burn_stacks += 1
 			_statuses.apply_status(target_actor, &"burn", player_actor, burn_stacks)
+			_emit_status_applied(action_id, player_actor, target_actor, &"burn")
 	var player_feedback: Array[String] = []
 	var synergy_energy: int = 0
 	if critical_hit:
@@ -1307,7 +1420,7 @@ func _run_player_basic_action(captured_target: CombatActor) -> bool:
 	await choreography.impact_and_return(
 		CombatChoreographyController.EMPHASIZED_HIT_STOP_DURATION if critical_hit else CombatChoreographyController.HIT_STOP_DURATION,
 	)
-	await _check_boss_phase_transition()
+	await _check_boss_phase_transition(action_id)
 	player_view.play_idle()
 	if target_actor.is_alive():
 		target_view.play_idle()
@@ -1416,6 +1529,8 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 	var target_actor: CombatActor = decision.target
 	var target_view: CombatCharacterView = target_actor.visual_view
 	var target_is_player: bool = target_actor == player_actor
+	var action_id: int = _event_stream.next_action_id()
+	_event_stream.emit_event(ActionEvent.new(action_id, attacking_actor, &"enemy_action", decision.action.action_id, [target_actor]))
 	_set_turn("%s · %s" % [attacking_actor.display_name.to_upper(), decision.action.display_name.to_upper()], VisualTheme.DANGER)
 	var attacking_view: CombatCharacterView = attacking_actor.visual_view
 	var last_ember_before_hit: bool = _last_ember_active
@@ -1443,7 +1558,9 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 		if guard_controller != null:
 			enemy_damage = guard_controller.apply_guard_to_damage(enemy_damage)
 			_statuses.consume_hit_status(player_actor, &"guard")
+	var enemy_hit_hp_before: int = target_actor.get_current_hp()
 	target_actor.apply_damage(_statuses.get_effective_incoming_damage(target_actor, enemy_damage))
+	_emit_damage(action_id, attacking_actor, target_actor, enemy_damage, enemy_hit_hp_before, target_actor.get_current_hp())
 	if target_is_player:
 		_skill_loadout.on_damage_received(enemy_damage)
 		synergy_healing = SynergyEffectResolver.on_guard_consumed(
@@ -1464,7 +1581,9 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 		counter_damage = guard_controller.consume_counter_guard_damage() if guard_controller != null else 0
 	var retaliation_damage: int = reprisal_damage + counter_damage
 	if retaliation_damage > 0:
+		var retaliation_hp_before: int = attacking_actor.get_current_hp()
 		attacking_actor.apply_damage(_statuses.get_effective_incoming_damage(attacking_actor, retaliation_damage))
+		_emit_damage(action_id, target_actor, attacking_actor, retaliation_damage, retaliation_hp_before, attacking_actor.get_current_hp())
 	var feedback: Array[String] = []
 	var status_applied: bool = false
 	if decision.action.action_type == EnemyAIEnums.ActionType.ATTACK_STATUS and target_actor.is_alive():
@@ -1475,6 +1594,8 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 			decision.action.status_stacks,
 			decision.action.status_duration,
 		) != null
+		if status_applied:
+			_emit_status_applied(action_id, attacking_actor, target_actor, decision.action.status_id)
 	if status_applied:
 		feedback.append(_enemy_status_feedback(decision.action.status_id))
 	if target_is_player and _boons.get_last_cinder_reduction() > 0:
@@ -1548,7 +1669,7 @@ func _run_enemy_turn(attacking_actor: CombatActor) -> bool:
 		if decision.action.presentation_type == EnemyAIEnums.PresentationType.HEAVY
 		else CombatChoreographyController.HIT_STOP_DURATION,
 	)
-	await _check_boss_phase_transition()
+	await _check_boss_phase_transition(action_id)
 	if target_is_player and status_applied:
 		if not await TutorialManager.request_and_wait(TutorialCatalog.STATUS_EFFECTS, TutorialManager.CONTEXT_COMBAT, self):
 			return true
@@ -1627,6 +1748,8 @@ func _run_boss_summon_action(
 	if summon_phase == null or summon_phase.summon_data == null:
 		_boss_controller.mark_summon_completed()
 		return
+	var action_id: int = _event_stream.next_action_id()
+	_event_stream.emit_event(ActionEvent.new(action_id, attacking_actor, &"boss_summon", action.action_id, [] as Array[CombatActor]))
 	var available_slots: Array[int] = [0, 2]
 	var summon_total: int = mini(
 		_boss_controller.get_pending_summon_count(),
@@ -1644,6 +1767,7 @@ func _run_boss_summon_action(
 		enemy_actors.append(minion_actor)
 		_enemy_ai_states[minion_actor.actor_id] = EnemyAIRuntimeState.new()
 		summoned_actors.append(minion_actor)
+	_event_stream.emit_event(SummonEvent.new(action_id, attacking_actor, summoned_actors))
 	_boss_controller.mark_summon_completed()
 	_activate_boss_formation()
 	var boss_view: CombatCharacterView = attacking_actor.visual_view
@@ -1667,7 +1791,7 @@ func _run_boss_summon_action(
 		return
 
 
-func _check_boss_phase_transition() -> void:
+func _check_boss_phase_transition(action_id: int = CombatEventStream.NO_ACTION_ID) -> void:
 	if _boss_controller == null or _result_resolved:
 		return
 	var transition: BossEncounterController.TransitionResult = _boss_controller.check_phase_transition()
@@ -1675,6 +1799,9 @@ func _check_boss_phase_transition() -> void:
 		return
 	var current_phase: BossPhaseData = transition.current_phase
 	var transitioned_boss: CombatActor = _boss_controller.get_boss_actor()
+	_event_stream.emit_event(BossPhaseEvent.new(
+		action_id, transitioned_boss, transition.previous_phase, transition.current_phase, transition.crossed_phases,
+	))
 	_invalidate_enemy_intent(transitioned_boss, &"phase_changed")
 	_plan_enemy_intent(transitioned_boss)
 	_refresh_intent_ui()
@@ -1700,6 +1827,11 @@ func _resolve_warden_counter(target_boss: CombatActor) -> bool:
 	var counter_multiplier: float = _boss_controller.consume_counter_multiplier(target_boss)
 	if counter_multiplier <= 0.0 or not player_actor.is_alive():
 		return false
+	# Combat Domain M4 — Warden's Rebuke recibe SIEMPRE su propio action_id
+	# nuevo, nunca el del ataque básico que lo disparó: es una acción causal
+	# distinta (el boss respondiendo), no un efecto secundario de esa acción.
+	var action_id: int = _event_stream.next_action_id()
+	_event_stream.emit_event(ActionEvent.new(action_id, target_boss, &"boss_counter", &"", [player_actor]))
 	var boss_view: CombatCharacterView = target_boss.visual_view
 	var last_ember_before_counter: bool = _last_ember_active
 	var base_attack: int = maxi(1, roundi(float(target_boss.get_attack()) * _boss_controller.get_attack_multiplier()))
@@ -1718,7 +1850,9 @@ func _resolve_warden_counter(target_boss: CombatActor) -> bool:
 	if guard_controller != null:
 		counter_damage = guard_controller.apply_guard_to_damage(counter_damage)
 		_statuses.consume_hit_status(player_actor, &"guard")
+	var counter_hp_before: int = player_actor.get_current_hp()
 	player_actor.apply_damage(_statuses.get_effective_incoming_damage(player_actor, counter_damage))
+	_emit_damage(action_id, target_boss, player_actor, counter_damage, counter_hp_before, player_actor.get_current_hp())
 	_skill_loadout.on_damage_received(counter_damage)
 	var stored_energy: int = 0
 	var discarded_counter_guard: int = 0
@@ -2197,11 +2331,21 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 	var skill_target: CombatActor = captured_target
 	var synergy_energy: int = 0
 	_set_turn(player_actor.display_name.to_upper(), VisualTheme.EMBER_BRIGHT)
+	if active_skill.skill_type == ActiveSkillData.SkillType.DAMAGE and skill_target == null:
+		# Misma rama teóricamente-inalcanzable de M3 (sección 7 del handoff
+		# M3) — el target ya se valida antes de comprometer el turno.
+		# "Ninguna acción real ocurrió" -> no se emite ActionEvent
+		# (handoff M4 sección 33/34).
+		await _finish_victory(null)
+		return true
+	# Combat Domain M4 — un solo action_id para cualquiera de las tres ramas
+	# de abajo (DAMAGE/DEFENSE/HEAL son mutuamente excluyentes: como máximo
+	# una corre por llamada). skill_target ya es player_actor para
+	# skills SELF (CombatTargetResolver ya lo resolvió así en M3).
+	var action_id: int = _event_stream.next_action_id()
+	_event_stream.emit_event(ActionEvent.new(action_id, player_actor, &"active_skill", active_skill.id, [skill_target]))
 	match active_skill.skill_type:
 		ActiveSkillData.SkillType.DAMAGE:
-			if skill_target == null:
-				await _finish_victory(null)
-				return true
 			var skill_target_view: CombatCharacterView = skill_target.visual_view
 			var execution_applied: bool = SkillAugmentResolver.execution_multiplier(
 				RunManager.current_run, skill_target.get_current_hp(), skill_target.get_max_hp(),
@@ -2218,7 +2362,12 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 				synergy_energy += SynergyEffectResolver.on_critical_hit(
 					RunManager.current_run, _synergy_runtime, _skill_loadout,
 				)
+			var hp_before_skill_hit: int = skill_target.get_current_hp()
 			skill_target.apply_damage(_statuses.get_effective_incoming_damage(skill_target, skill_damage))
+			# Skills no pasan por _resolve_elemental_damage hoy (asimetría
+			# preexistente ya documentada en el handoff M3) — affinity_relation
+			# queda "" (sin evaluar), no se inventa una.
+			_emit_damage(action_id, player_actor, skill_target, skill_damage, hp_before_skill_hit, skill_target.get_current_hp(), skill_critical)
 			player_view.play_named_animation(&"ember_slash", CombatChoreographyController.AGGRESSIVE_DURATION)
 			await choreography.approach(
 				player_view,
@@ -2244,6 +2393,7 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 				skill_target_view.play_idle()
 		ActiveSkillData.SkillType.DEFENSE:
 			_statuses.apply_status(player_actor, &"guard", player_actor, 1, 1)
+			_emit_status_applied(action_id, player_actor, player_actor, &"guard")
 			await choreography.begin_static(player_view)
 			_set_action_badge(&"ashen_guard", active_skill.display_name.to_upper(), AshenBadge.Variant.NEUTRAL)
 			AudioManager.play_event(AudioManager.AudioEvent.GUARD_ACTIVATE)
@@ -2255,6 +2405,20 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 			await choreography.finish_static()
 			player_view.play_idle()
 		ActiveSkillData.SkillType.HEAL:
+			# Combat Domain M4 — la curación ya se aplicó dentro de
+			# ActiveSkillController.activate() (llamado desde try_use() en
+			# _on_skill_requested(), antes de esta función); last_heal_amount
+			# YA es el monto real aplicado (post-clamp a vida máxima, post-
+			# Decay) devuelto por RunState.heal(). hp_before se deriva
+			# aritméticamente del delta ya conocido, no de recalcular la
+			# curación. requested_amount = actual_amount acá porque el monto
+			# pre-clamp no queda expuesto fuera de activate() y no vale la
+			# pena duplicar esa fórmula solo para un campo informativo.
+			var heal_hp_after: int = player_actor.get_current_hp()
+			_event_stream.emit_event(HealEvent.new(
+				action_id, player_actor, player_actor, skill_controller.last_heal_amount,
+				skill_controller.last_heal_amount, heal_hp_after - skill_controller.last_heal_amount, heal_hp_after,
+			))
 			await choreography.begin_static(player_view)
 			_set_action_badge(&"second_wind", active_skill.display_name.to_upper(), AshenBadge.Variant.HEAL)
 			AudioManager.play_event(AudioManager.AudioEvent.HEAL)
@@ -2274,7 +2438,7 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 	if synergy_energy > 0:
 		action_label.text += "\nSINERGIA · +%d BRASA" % synergy_energy
 		vfx.show_secondary("SINERGIA · +%d BRASA" % synergy_energy, VisualTheme.EMBER_BRIGHT)
-	await _check_boss_phase_transition()
+	await _check_boss_phase_transition(action_id)
 	if skill_target != null and not skill_target.is_alive():
 		if _is_defeated_boss(skill_target) or not has_alive_enemies():
 			await _finish_victory(skill_target)
@@ -2301,6 +2465,8 @@ func _execute_active_skill_multi_target(skill_controller: ActiveSkillController,
 	var active_skill: ActiveSkillData = skill_controller.skill
 	_set_turn(player_actor.display_name.to_upper(), VisualTheme.EMBER_BRIGHT)
 	var affected_count: int = 0
+	var action_id: int = _event_stream.next_action_id()
+	_event_stream.emit_event(ActionEvent.new(action_id, player_actor, &"active_skill", active_skill.id, captured_targets))
 	match active_skill.skill_type:
 		ActiveSkillData.SkillType.DAMAGE:
 			for target: CombatActor in captured_targets:
@@ -2312,7 +2478,9 @@ func _execute_active_skill_multi_target(skill_controller: ActiveSkillController,
 					target.get_current_hp(),
 					target.get_max_hp(),
 				)
+				var hp_before_multi_hit: int = target.get_current_hp()
 				target.apply_damage(_statuses.get_effective_incoming_damage(target, damage))
+				_emit_damage(action_id, player_actor, target, damage, hp_before_multi_hit, target.get_current_hp())
 				affected_count += 1
 		ActiveSkillData.SkillType.HEAL:
 			for target: CombatActor in captured_targets:
@@ -2320,18 +2488,24 @@ func _execute_active_skill_multi_target(skill_controller: ActiveSkillController,
 					continue
 				var heal_percent: float = SkillAugmentResolver.effective_heal_percent(active_skill, RunManager.current_run)
 				var heal_amount: int = maxi(1, floori(float(target.get_max_hp()) * heal_percent))
-				target.heal(CombatStatusController.get_effective_healing(target, heal_amount))
+				var hp_before_multi_heal: int = target.get_current_hp()
+				var actual_multi_heal: int = target.heal(CombatStatusController.get_effective_healing(target, heal_amount))
+				_event_stream.emit_event(HealEvent.new(
+					action_id, player_actor, target, heal_amount, actual_multi_heal,
+					hp_before_multi_heal, target.get_current_hp(),
+				))
 				affected_count += 1
 		ActiveSkillData.SkillType.DEFENSE:
 			for target: CombatActor in captured_targets:
 				if not target.is_alive():
 					continue
 				_statuses.apply_status(target, &"guard", player_actor, 1, 1)
+				_emit_status_applied(action_id, player_actor, target, &"guard")
 				affected_count += 1
 	action_label.text = "%s\n%d OBJETIVOS AFECTADOS" % [active_skill.display_name.to_upper(), affected_count]
 	_animate_action_feedback(VisualTheme.EMBER_BRIGHT)
 	_update_combatants()
-	await _check_boss_phase_transition()
+	await _check_boss_phase_transition(action_id)
 	if not has_alive_enemies():
 		await _finish_victory(null)
 		return true
@@ -2509,7 +2683,21 @@ func _process_actor_turn_start(actor: CombatActor) -> bool:
 			-7.0 if not is_damage else 0.0,
 		)
 		vfx.status_tick(actor_view, is_damage)
-		vfx.show_damage_number(actor_view, amount, false, not is_damage, VisualTheme.DANGER if is_damage else VisualTheme.HEAL)
+		# Combat Domain M4: el número flotante de este tick ahora lo dibuja
+		# _on_combat_event() a partir del StatusEvent de abajo — ver esa
+		# función para por qué justo este call site es seguro de migrar
+		# (sin ramas entrelazadas, sin await posterior que dependa de él).
+		_event_stream.emit_event(StatusEvent.new(
+			CombatEventStream.NO_ACTION_ID,
+			StatusEvent.Kind.TICK,
+			result.status.get_source_actor() as CombatActor,
+			actor,
+			result.status.data.status_id,
+			result.status.stacks,
+			result.status.remaining_duration,
+			result.damage,
+			result.healing,
+		))
 		if is_instance_valid(actor_view) and is_damage:
 			actor_view.play_hit(0.18)
 		_update_combatants()
@@ -2517,9 +2705,10 @@ func _process_actor_turn_start(actor: CombatActor) -> bool:
 		if is_instance_valid(actor_view) and actor.is_alive():
 			actor_view.play_idle()
 		if not actor.is_alive():
+			_event_stream.emit_event(DeathEvent.new(CombatEventStream.NO_ACTION_ID, actor, result.status.get_source_actor() as CombatActor))
 			return true
 		if _boss_controller != null and _boss_controller.owns_actor(actor):
-			await _check_boss_phase_transition()
+			await _check_boss_phase_transition(CombatEventStream.NO_ACTION_ID)
 	return not actor.is_alive()
 
 

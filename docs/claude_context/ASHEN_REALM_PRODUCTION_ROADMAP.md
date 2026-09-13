@@ -139,8 +139,7 @@ down; a protagonist-saved-by-ally victory normalizes HP
 to exactly 1 before returning to Map3D.
 
 M3 (action/target resolution):
-IMPLEMENTED 2026-09-12, local branch
-feature/combat-domain-m3, NOT MERGED.
+MERGED 2026-09-12 (main @ 19c6ca0).
 CombatTargetResolver gives all 5 ActiveSkillData.TargetType
 values (SELF/SINGLE_ENEMY/SINGLE_ALLY/ALL_ENEMIES/
 ALL_ALLIES) real domain semantics instead of the three
@@ -154,15 +153,34 @@ stale committed target to a different enemy. Existing
 single-target skill behavior (100% of current authored
 content) left byte-identical — verified via
 ashen_warden_phase3_curse_test matching the established
-baseline exactly. No ActionIntent framework or M4 event
-stream introduced; CombatMath and the protagonist-only
-Boons/Equipment/Synergy layers are unchanged. See
+baseline exactly. No ActionIntent framework introduced;
+CombatMath and the protagonist-only Boons/Equipment/Synergy
+layers are unchanged. See ASHEN_REALM_DECISIONS.md and the
+TECHNICAL_HANDOFF COMBAT section for the exact contract.
+
+M4 (structured combat events):
+IMPLEMENTED 2026-09-13, local branch
+feature/combat-domain-m4, NOT MERGED.
+CombatEventStream (one per encounter, no retained history)
+emits 8 presentation-independent event types synchronously —
+ActionEvent/DamageEvent/HealEvent/StatusEvent/ReactionEvent/
+DeathEvent/BossPhaseEvent/SummonEvent — reporting what already
+happened without recalculating any formula (damage, healing,
+reactions all reuse the exact already-computed values). No
+VictoryEvent/DefeatEvent/EnergyChangedEvent/CooldownChangedEvent
+were added — CombatTurnController and combat_won/combat_lost
+remain the sole lifecycle/terminal authorities, unchanged.
+DeathEvent uses the hp_before>0/hp_after<=0 transition, not the
+death_presented presentation flag. Warden's Rebuke gets its own
+new action_id, never the triggering basic attack's. A single
+minimal Combat2D listener (_on_combat_event) migrated one
+inline status-tick damage-number call behind event_emitted;
+every other animation/choreography call site is unchanged. See
 ASHEN_REALM_DECISIONS.md and the TECHNICAL_HANDOFF COMBAT
 section for the exact contract.
 
-Still ahead: M4 (structured combat events), M5 (5v5
-formation), M6 (final Combat2D adapter cleanup) — none
-started.
+Still ahead: M5 (5v5 formation), M6 (final Combat2D adapter
+cleanup) — none started.
 
 ---
 
