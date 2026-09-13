@@ -59,19 +59,45 @@ Orden actual confirmado y preservado:
 PLAYER -> COMPANION (si vivo/presente) -> ENEMY 1..N -> próxima ronda.
 Sin Speed, sin iniciativa, sin turn meter — orden estable únicamente.
 
-Defeat semantics siguen atadas al protagonista
-(no al Player Team completo) — la migración a
-derrota a nivel de equipo queda diferida a M2,
-no se combinó con esta extracción.
-
 Cooldown bug confirmado y corregido en M1:
 el cooldown de skills solo avanzaba en turnos de ataque
 básico, nunca al usar otra skill. Ahora avanza en cada
 turno del jugador sin importar la acción elegida.
 
-M2 (team/controller taxonomy), M3 (action resolution),
-M4 (structured combat events), M5 (5v5 formation)
-siguen sin implementar — M1 fue solo extracción.
+COMBAT DOMAIN M2 (2026-09-12) — APPROVED E IMPLEMENTADO
+(local, branch feature/combat-domain-m2, no mergeado):
+
+CombatActor.controller_type (PLAYER_CONTROLLED / AI_ALLY /
+AI_ENEMY / SCRIPTED) reemplaza la comparación de identidad
+contra player_actor/companion_actor como forma de decidir
+quién controla a un actor. ActorType/Team no cambiaron de
+significado.
+
+CAMBIO DE SEMÁNTICA DE GAMEPLAY APROBADO — DERROTA A NIVEL
+DE EQUIPO:
+Antes: protagonista en 0 HP = derrota inmediata, sin
+importar si el compañero seguía vivo.
+Ahora: DERROTA solo cuando NINGÚN actor del Player Team
+sigue con vida. Protagonista KO + aliado vivo -> el combate
+CONTINÚA automáticamente con el aliado; el protagonista
+queda fuera de combate (no revive, no vuelve a actuar ese
+combate) pero deja de ser objetivo por las reglas de
+is_alive()/is_targetable() ya existentes.
+
+ANTI-SOFTLOCK APROBADO:
+si el Player Team gana el combate con el protagonista en
+0 HP, se normaliza a exactamente 1 HP antes de volver a
+Map3D (nunca vida completa, nunca un porcentaje, nunca en
+una derrota real). Sin revive dentro del combate.
+
+Compañero sigue sin persistir HP entre combates — deuda
+explícita, no se toca en M2.
+CombatSkillController/energía de combate siguen siendo
+singulares del protagonista — deuda explícita, no se toca
+en M2 (ninguna segunda skill de héroe planeada todavía).
+
+M3 (action resolution), M4 (structured combat events),
+M5 (5v5 formation) siguen sin implementar.
 
 ---
 

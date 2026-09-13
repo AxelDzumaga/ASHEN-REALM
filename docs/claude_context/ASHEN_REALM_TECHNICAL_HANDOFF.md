@@ -703,7 +703,7 @@ was approximately 2360 lines
 in the 2026-09-07 audit.
 
 Combat Domain M1 (2026-09-12):
-STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED.
+STATUS: MERGED (main @ d306abb).
 
 Turn authority:
 CombatTurnController
@@ -731,11 +731,9 @@ supported enemy count. No 5v5, no formation UI, no
 summon/revive architecture changes.
 
 Team defeat semantics:
-UNCHANGED / DEFERRED TO M2. Defeat is still keyed
-specifically to player_actor (the protagonist), not the
-whole Player Team — companion death never ends combat.
-Victory was already team-level (no living Enemy Team
-actor) before M1, so no change there.
+CHANGED IN M2 — see the Combat Domain M2 block below.
+As of M1 alone, defeat was still keyed specifically to
+player_actor; M2 moved it to whole-Player-Team.
 
 Cooldown semantics (bug found and fixed in M1):
 Before M1, CombatSkillController.on_basic_attack_completed()
@@ -785,12 +783,114 @@ passed: defeat, boss victory with full reward accounting,
 replay, and no duplicate unlock announcement all verified
 end-to-end through the new turn controller.
 
+Combat Domain M2 (2026-09-12):
+STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
+(branch feature/combat-domain-m2).
+
+Controller ownership:
+CombatActor.controller_type (PLAYER_CONTROLLED / AI_ALLY /
+AI_ENEMY / SCRIPTED — SCRIPTED is an approved enum seed,
+nothing uses it), assigned once at construction
+(from_player/from_companion/from_enemy), separate from
+Team (which side) and ActorType (what the actor is
+narratively/mechanically). Transient only, never
+serialized. combat.gd's main dispatch loop now matches on
+controller_type instead of comparing acting_actor's
+identity against the player_actor/companion_actor
+scalars — this is what lets a KO'd protagonist stop
+blocking the round without the dispatch needing to know
+"who the protagonist is."
+
+Team model:
+Array[CombatActor] player_actors / enemy_actors remain the
+team representation (no CombatTeam wrapper object — no
+evidence of team-level metadata justified one).
+CombatTeamUtils (scripts/combat/combat_team_utils.gd) is
+the single definition of living_actors() / has_living_actor()
+/ is_defeated() for either team, replacing three
+near-duplicate loops that used to live in combat.gd
+(two of which subtly differed: is_targetable() vs
+is_alive() — behaviorally identical today, since
+CombatActor.targetable only ever turns off together with
+is_alive(), never back on).
+
+Defeat semantics (approved gameplay change):
+OLD: protagonist HP <= 0 -> immediate defeat, regardless
+of companion state.
+NEW: Player Team defeat only when CombatTeamUtils.
+has_living_actor(player_actors) is false. Protagonist KO
+with a living ally no longer ends combat — the ally keeps
+acting automatically (CombatTurnController already skipped
+dead actors before M2; only combat.gd's termination POLICY
+changed, not the controller). All 4 real _finish_defeat()
+call sites in combat.gd were switched to this one check
+(_wait_for_player_action, two sites in _run_enemy_turn,
+_resolve_warden_counter/Warden's Rebuke). A downed-but-
+team-alive protagonist gets a new _present_player_down()
+presentation (mirrors _present_companion_death()) instead
+of the old immediate _finish_defeat() call; is_alive()/
+is_targetable() already exclude it from being targeted
+again with zero new code.
+
+Anti-softlock HP normalization:
+If the Player Team wins a combat while the protagonist is
+at 0 HP (an ally landed the final blow), _finish_victory()
+sets it to exactly 1 HP via the existing authoritative
+CombatActor.set_current_hp() setter (which already writes
+through to RunState.current_health live) before the run
+returns to Map3D. Never full HP, never a percentage, and
+never touched at all if the protagonist's HP was already
+> 0 at victory, or on an actual defeat (full team wipe —
+that code path never calls this). No new Active Run field:
+the existing post-combat checkpoint just persists whatever
+current_health already is.
+
+Companion HP persistence:
+STILL NONE — unchanged, explicitly out of scope for M2.
+Companion always starts a combat at full HP
+(CombatActor.from_companion), same as before M1/M2.
+
+CombatSkillController / combat energy:
+STILL protagonist-singular — approved debt, not touched in
+M2. No per-actor skill controllers, no team energy pool.
+Documented explicitly so a future second PLAYER_CONTROLLED
+hero doesn't get built without first generalizing this.
+
+Formation order:
+CombatTurnController still orders by array insertion order,
+not formation_slot — unchanged from M1, no evidence
+justified changing it in M2.
+
+Dormant TargetTypes (M3 debt, audited not touched):
+ActiveSkillData.TargetType already declares SELF,
+SINGLE_ENEMY, ALL_ENEMIES, SINGLE_ALLY, ALL_ALLIES, but
+combat.gd's _on_skill_requested() only implements SELF and
+SINGLE_ENEMY — any skill authored with the other three
+would silently no-op. M3 owns fixing this.
+
+Tests added in M2:
+tools/tests/combat_actor_controller_type_test.gd
+(constructor -> controller_type mapping, no scene),
+tools/tests/combat_team_utils_test.gd (living/dead/mixed/
+empty/null-actor teams, no scene), and
+tools/tests/combat_team_defeat_test.gd (real Combat2D:
+companion-dies-combat-continues, protagonist-KO-ally-
+continues with no deadlock and a disabled action bar,
+ally-saved victory normalizing to 1 HP with RunState
+agreement, full-team-death defeat with NO normalization,
+no-companion defeat, HP-unchanged on a normal victory, and
+Warden's Rebuke killing the protagonist with a living ally
+not ending combat). All existing M1 tests + a broad
+existing regression set re-run with zero attributable
+failures; non-headless real-D3D12-renderer validation
+passed for both the new team-defeat scenarios and the
+existing Map3D return-flow smoke.
+
 This remains the largest architectural risk
-for future Combat3D — M1 is extraction only;
-M2 (team/controller taxonomy cleanup),
-M3 (action resolution extraction),
-M4 (structured combat events),
-M5 (5v5 formation) are still ahead of Combat3D.
+for future Combat3D — M1/M2 are extraction and
+generalization only; M3 (action resolution extraction),
+M4 (structured combat events), M5 (5v5 formation) are still
+ahead of Combat3D.
 
 Do not duplicate Combat logic
 into a second full 3D implementation.

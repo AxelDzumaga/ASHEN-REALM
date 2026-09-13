@@ -122,22 +122,36 @@ existing Combat2D behavior preserved
 and regression-tested.
 
 M1 (turn sequencing extraction only):
-IMPLEMENTED 2026-09-12, local branch
-feature/combat-domain-m1, NOT MERGED.
+MERGED 2026-09-12 (main).
 CombatTurnController is the round/team-block/
 actor-turn authority; combat.gd no longer runs
 its own manual while-loop or per-enemy for-loop
 for sequencing. Cooldown-tied-to-basic-attack bug
-found during the extraction and fixed. Existing
-Combat2D behavior preserved (regression suite +
-non-headless real-renderer smoke, zero attributable
-failures). See ASHEN_REALM_DECISIONS.md and the
+found during the extraction and fixed.
+
+M2 (generic team/controller cleanup):
+IMPLEMENTED 2026-09-12, local branch
+feature/combat-domain-m2, NOT MERGED.
+CombatActor.controller_type (PLAYER_CONTROLLED/
+AI_ALLY/AI_ENEMY/SCRIPTED) replaces identity-based
+dispatch. CombatTeamUtils is the single team-alive/
+team-defeated definition. Approved gameplay change:
+Player Team defeat now requires the WHOLE team down
+(protagonist KO with a living ally no longer ends
+combat); a protagonist-saved-by-ally victory
+normalizes HP to exactly 1 before returning to
+Map3D. Companion HP persistence and per-actor skill/
+energy generalization remain explicit, documented
+debt — not touched. Existing Combat2D behavior
+preserved (regression suite + non-headless
+real-renderer smoke, zero attributable failures).
+See ASHEN_REALM_DECISIONS.md and the
 TECHNICAL_HANDOFF COMBAT section for the exact
 contract.
 
-Still ahead: M2 (team/controller taxonomy cleanup),
-M3 (action resolution extraction), M4 (structured
-combat events), M5 (5v5 formation) — none started.
+Still ahead: M3 (action resolution extraction), M4
+(structured combat events), M5 (5v5 formation) —
+none started.
 
 ---
 
