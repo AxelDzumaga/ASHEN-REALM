@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 import random
 import statistics
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import require_supported_schema  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNS_PATH = ROOT / "build/stage68/agency/runs.jsonl"
@@ -25,7 +28,9 @@ SALVAGE = {0: 10, 1: 20, 2: 35}
 
 def load_runs() -> list[dict]:
     with RUNS_PATH.open("r", encoding="utf-8") as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+        rows = [json.loads(line) for line in handle if line.strip()]
+    require_supported_schema(rows, RUNS_PATH)
+    return rows
 
 
 def percentile(values: list[int], ratio: float) -> float | None:

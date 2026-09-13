@@ -228,7 +228,7 @@ now a presentation/input/choreography adapter over a domain a
 future Combat3D can reuse unchanged.
 
 Simulator Alignment A (tools/simulation/full_run_simulation.gd):
-COMPLETE. Turn sequencing (CombatTurnController), target
+COMPLETE, MERGED to main. Turn sequencing (CombatTurnController), target
 validation (CombatTargetResolver), and team-based terminal
 semantics (CombatTeamUtils, ally-saved 1 HP normalization
 mirroring combat.gd's _finish_victory) now reuse the real
@@ -240,6 +240,17 @@ duplicated action-resolution recipe between combat.gd and
 _execute_player_action/_run_enemy_action) is explicitly deferred,
 not started — see the same README section for the exact remaining
 seam.
+
+Simulator Reliability: COMPLETE. Two pre-existing tooling defects
+fixed — the self-test's false-positive board_invariant_failed
+(missing fork_index) and full_run_report.py's KeyError: 7 on
+TileType.FORK (plus the same stale-mirror pattern's silent
+_route_tile_key() empty-aliasing, and no report script validating
+its input schema). Neither affected production BoardGenerator,
+gameplay, or simulation outcomes — confirmed by determinism and by
+Simulator Alignment A's parity suite staying green throughout.
+SCHEMA_VERSION stays 7; simulator JSON output shape unchanged. See
+tools/simulation/README.md's "Simulator Reliability" section.
 
 ---
 

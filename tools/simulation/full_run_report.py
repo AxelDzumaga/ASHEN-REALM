@@ -7,18 +7,46 @@ import csv
 import json
 import math
 import statistics
+import sys
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import SUPPORTED_SCHEMA, require_supported_schema  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
-TILE_NAMES = {0: "EMPTY", 1: "HEAL", 2: "BOSS", 3: "COMBAT", 4: "EVENT", 5: "TREASURE", 6: "ELITE"}
+# Mirrors scripts/data/board_tile_data.gd's BoardTileData.TileType — Python
+# cannot import a GDScript enum directly, so this hand-maintained map is the
+# tradeoff (Simulator Reliability audit, kept as Option B: no simulator
+# output shape change, no schema bump). tile_name() below is what makes a
+# *future* new TileType value fail safe instead of KeyError-crashing every
+# report the way TileType.FORK=7 did before this fix — update this dict
+# when BoardTileData.TileType gains a value, but a missed update now
+# degrades gracefully instead of crashing.
+TILE_NAMES = {0: "EMPTY", 1: "HEAL", 2: "BOSS", 3: "COMBAT", 4: "EVENT", 5: "TREASURE", 6: "ELITE", 7: "FORK"}
+_WARNED_UNKNOWN_TILE_IDS: set[int] = set()
 PERMANENT_COSTS = {
     "vitality": [30 * level for level in range(1, 11)],
     "might": [40 * level for level in range(1, 11)],
     "guard": [40 * level for level in range(1, 11)],
 }
+
+
+def tile_name(tile_id: int) -> str:
+    """Canonical name for a TileType id; never crashes and never silently
+    folds an unrecognized id into an existing category (a real bug found
+    during the reliability audit — a hand-written GDScript-side match
+    statement used to alias any unmatched tile type into "empty")."""
+    name = TILE_NAMES.get(tile_id)
+    if name is not None:
+        return name
+    if tile_id not in _WARNED_UNKNOWN_TILE_IDS:
+        _WARNED_UNKNOWN_TILE_IDS.add(tile_id)
+        print(f"WARNING: unrecognized TileType id {tile_id} in report input — reporting as UNKNOWN_{tile_id}. "
+              f"Update TILE_NAMES in {Path(__file__).name} if this is a real new tile type.", file=sys.stderr)
+    return f"UNKNOWN_{tile_id}"
 
 
 def mean(values: Iterable[float]) -> float:
@@ -96,8 +124,8 @@ def board_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         sample = [row for row in rows if row["biome"] == biome]
         generated, visited = Counter(), Counter()
         for row in sample:
-            generated.update({TILE_NAMES[int(key)]: int(value) for key, value in row["generated_tile_counts"].items()})
-            visited.update({TILE_NAMES[int(key)]: int(value) for key, value in row["visited_tile_counts"].items()})
+            generated.update({tile_name(int(key)): int(value) for key, value in row["generated_tile_counts"].items()})
+            visited.update({tile_name(int(key)): int(value) for key, value in row["visited_tile_counts"].items()})
         result[biome] = {
             "runs": len(sample),
             "mean_generated": {key: round(value / len(sample), 4) for key, value in sorted(generated.items())},
@@ -396,6 +424,7 @@ def main() -> int:
     rows = load_runs(args.input)
     if not rows:
         raise SystemExit("No hay runs para agregar")
+    require_supported_schema(rows, args.input)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     groups = group_summary(rows)
     curves = curve_summary(rows)

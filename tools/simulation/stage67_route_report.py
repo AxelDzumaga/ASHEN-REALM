@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import require_supported_schema  # noqa: E402
+
 
 def load(path: Path) -> list[dict]:
     with path.open("r", encoding="utf-8") as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+        rows = [json.loads(line) for line in handle if line.strip()]
+    require_supported_schema(rows, path)
+    return rows
 
 
 def avg(rows: list[dict], key: str) -> float:

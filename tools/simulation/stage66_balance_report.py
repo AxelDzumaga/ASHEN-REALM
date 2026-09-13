@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-import argparse, json
+import argparse, json, sys
 from collections import Counter, defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import require_supported_schema  # noqa: E402
 
 KEYS = ["combat_turns","damage_dealt","damage_taken","enemies_killed_before_intent","energy_generated","energy_spent","energy_wasted_at_cap","energy_lost_on_combat_end","energy_carried_between_combats","combat_start_energy","combat_starts_with_second_wind_energy","ember_slash_uses","second_wind_uses","healing_second_wind","first_ember_slash_turn","burn_damage","boss_burn_damage","burn_applications","burn_stack_sum","burn_stack_samples","burn_max_stacks","burn_ticks","burn_ticks_lost_on_death","burn_active_enemy_turns","boss_burn_active_turns"]
 
 def load(path):
-    with open(path, encoding="utf-8") as f: return [json.loads(x) for x in f if x.strip()]
+    with open(path, encoding="utf-8") as f: rows = [json.loads(x) for x in f if x.strip()]
+    require_supported_schema(rows, path)
+    return rows
 
 def avg(rs, key): return sum(float(r.get(key,0)) for r in rs)/len(rs) if rs else 0
 def summary(rs):

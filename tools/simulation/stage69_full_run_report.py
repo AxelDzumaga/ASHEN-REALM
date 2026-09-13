@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_common import require_supported_schema  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "build/stage69/full_run"
@@ -21,7 +24,9 @@ FOCUS_SKILLS = {"ember": "ember_slash", "vigil": "ashen_guard", "renewal": "seco
 def load(arm: str) -> list[dict]:
     path = BASE / arm / "runs.jsonl"
     with path.open("r", encoding="utf-8") as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+        rows = [json.loads(line) for line in handle if line.strip()]
+    require_supported_schema(rows, path)
+    return rows
 
 
 def summarize(rows: list[dict]) -> dict:

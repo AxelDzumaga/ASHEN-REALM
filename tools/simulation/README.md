@@ -121,6 +121,49 @@ Inferno Rhythm).
 - Win rate condicionado por upgrade/equipment es correlación descriptiva, no causalidad.
 - La cohorte nunca entra a combate con arma equipada ni `equipment_crit_chance > 0` (`_cohort_gear_assumption_holds()`, comprobado por autotest) — el simulador no modela afinidad elemental (`AffinityResolver`) ni crítico de equipo. Es matemáticamente neutro solo mientras eso siga siendo cierto; si un futuro cohort equipa gear a mitad de run, ese guard debe fallar en vez de invalidar el balance en silencio.
 
+## Simulator Reliability
+
+Dos defectos de tooling pre-existentes (ninguno afectaba producción ni las
+decisiones/resultados de la simulación) quedaron corregidos:
+
+- **`--mode=test` reportaba `board_invariant_failed` en todo tablero
+  generado.** `BoardGenerator.validate()` necesita el `fork_index` real
+  (excluye la ventana reservada de fork/branch del conteo de tipos); el
+  self-test llamaba a `validate()` sin ese argumento. Corregido —
+  `_run_tests()` ahora deriva `fork_index` de la misma secuencia generada
+  (`tiles.find(BoardTileData.TileType.FORK)`) para una muestra fija de
+  seeds, no solo la seed conocida. `BoardGenerator`/`generate_for_run()` no
+  cambiaron: su propia validación interna siempre fue correcta.
+- **`full_run_report.py` crasheaba con `KeyError: 7` en casi cualquier
+  batch real.** `TILE_NAMES` (mapeo Python del enum `BoardTileData.TileType`
+  de GDScript) nunca incluyó `FORK=7`. Corregido: `TILE_NAMES` ahora cubre
+  `FORK`, y `tile_name()` reemplaza el lookup directo — un valor futuro no
+  reconocido se reporta como `UNKNOWN_<id>` (nunca crashea, nunca se
+  mezcla con una categoría real) con una advertencia por stderr (una sola
+  vez por id, no una por fila). El formato de salida del simulador
+  (`generated_tile_counts`/`visited_tile_counts`, claves numéricas en
+  string) **no cambió** — `SCHEMA_VERSION` sigue en 7 a propósito, para no
+  romper consumidores externos/ad-hoc del contrato actual.
+- **`_route_tile_key()` mezclaba silenciosamente FORK (y cualquier tipo
+  futuro no reconocido) en la categoría `"empty"`** de
+  `route_chosen_tile_types`/`route_avoided_tile_types` — confirmado que
+  esto sí ocurría en datos reales (~12-15% de las runs de una muestra de
+  400). Corregido: FORK tiene su propio arm (`"fork"`), y cualquier valor
+  no reconocido produce `"unknown_<id>"` en vez de aliasearse a `"empty"`.
+- **Ningún script de reporte validaba `row["schema"]`.** Los 7 scripts
+  (`full_run_report.py` y `stage64`-`stage69`) ahora llaman a
+  `require_supported_schema()` (helper compartido mínimo,
+  `tools/simulation/report_common.py`) apenas cargan las filas — un
+  mismatch de schema ahora falla con un mensaje claro en vez de un
+  traceback arbitrario más adelante.
+
+Ninguna de estas correcciones cambia RNG, decisiones, daño, o cualquier
+resultado de la simulación — confirmado por determinismo
+(`result_hash`/`board_hash` idénticos antes/después del fix) y por la
+suite de parity de Alignment A (`simulator_domain_parity_test.gd`, sigue
+en verde). Ver `tools/tests/simulator_reliability_test.gd` y
+`tools/simulation/report_common_test.py` para las fixtures de regresión.
+
 ## Simulator Alignment A (Combat Domain post-M1-M6)
 
 Turn sequencing, target validation, and team-based terminal semantics now
