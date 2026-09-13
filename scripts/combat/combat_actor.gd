@@ -15,10 +15,25 @@ enum ActorType {
 	MINION,
 }
 
+## Combat Domain M2 — QUIÉN decide la acción de este actor, separado de
+## ActorType (QUÉ es el actor) y de Team (de qué lado pelea). Antes de M2,
+## combat.gd inferís esto comparando identidad de objeto contra los
+## escalares player_actor/companion_actor; ahora es un dato propio del
+## actor, asignado una sola vez en construcción (from_player/from_companion/
+## from_enemy), igual que team/actor_type. SCRIPTED existe como semilla de
+## enum aprobada para contenido futuro — ningún actor actual lo usa.
+enum ControllerType {
+	PLAYER_CONTROLLED,
+	AI_ALLY,
+	AI_ENEMY,
+	SCRIPTED,
+}
+
 var actor_id: StringName
 var display_name: String
 var team: Team
 var actor_type: ActorType
+var controller_type: ControllerType = ControllerType.AI_ENEMY
 var source_data: RefCounted
 var visual_data: CharacterVisualData
 var visual_view: CombatCharacterView
@@ -45,11 +60,13 @@ func _init(
 	defense_value: int,
 	origin: RefCounted = null,
 	visual: CharacterVisualData = null,
+	control: ControllerType = ControllerType.AI_ENEMY,
 ) -> void:
 	actor_id = runtime_id
 	display_name = actor_name
 	team = actor_team
 	actor_type = kind
+	controller_type = control
 	source_data = origin
 	visual_data = visual
 	_max_hp = maxi(1, maximum_hp)
@@ -71,6 +88,7 @@ static func from_player(runtime_id: StringName, run: RunState, visual: Character
 		run.defense,
 		run,
 		visual,
+		ControllerType.PLAYER_CONTROLLED,
 	)
 	actor._run_state = run
 	return actor
@@ -88,6 +106,7 @@ static func from_enemy(runtime_id: StringName, enemy: EnemyData, kind: ActorType
 		enemy.defense,
 		enemy,
 		enemy.visual,
+		ControllerType.AI_ENEMY,
 	)
 
 
@@ -103,6 +122,7 @@ static func from_companion(runtime_id: StringName, companion: CompanionData) -> 
 		companion.defense,
 		companion,
 		companion.visual_data,
+		ControllerType.AI_ALLY,
 	)
 
 
