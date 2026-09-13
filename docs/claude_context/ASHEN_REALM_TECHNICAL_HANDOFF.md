@@ -1465,6 +1465,20 @@ Not touched in M6: CombatTurnController, CombatTargetResolver,
 CombatEventStream's schema, RunState, SAVE_VERSION (14),
 ACTIVE_RUN_VERSION (1), tools/simulation/full_run_simulation.gd.
 
+Post-merge-gate fix (found during the M6 finalize/merge architecture
+review, same merge): _run_player_basic_action, _resolve_warden_counter,
+_execute_active_skill, and _finish_defeat were still calling the legacy
+permanently-hidden %PlayerCharacterView directly instead of resolving the
+protagonist's actual view via _get_actor_view(player_actor) — the visible
+PlayerCombatSlot view never played the protagonist's own attack/hit/
+skill/death animations. No headless test caught it (HP/status/death-state
+data is actor-owned, unaffected). Fixed and verified with a new
+non-headless real-D3D12-renderer smoke (tools/tests/
+combat_domain_render_smoke.gd) that asserts the registry-resolved view
+animates and the legacy node never does, across protagonist-only,
+protagonist+companion, synthetic 5v5, boss, boss summon/phase, and
+Warden counter.
+
 With M6 complete, Combat2D is now genuinely a presentation/input/
 choreography adapter over a generic combat domain — CombatActor
 carries no scene/view reference of any kind, and the same M1-M5
