@@ -286,7 +286,7 @@ func _ready() -> void:
 		AudioManager.play_sfx(AudioManager.Sfx.COMBAT_ENTER)
 	_apply_character_visuals()
 	_update_target_highlights()
-	vfx.setup(player_view, enemy_view, enemy_actor.display_name, _is_elite, _is_boss)
+	vfx.setup(_get_actor_view(player_actor), enemy_view, enemy_actor.display_name, _is_elite, _is_boss)
 	_update_combatants()
 	_update_skill_ui()
 	_run_combat()
@@ -1542,6 +1542,7 @@ func _run_player_basic_action(captured_target: CombatActor) -> bool:
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(action_id, player_actor, &"basic_attack", &"", [target_actor]))
 	var target_view: CombatCharacterView = _get_actor_view(target_actor)
+	var player_actor_view: CombatCharacterView = _get_actor_view(player_actor)
 	_set_turn("TURNO DEL JUGADOR", VisualTheme.EMBER_BRIGHT)
 	var target_was_burning: bool = target_actor.has_status(&"burn")
 	var effective_attack: int = _statuses.get_effective_attack(player_actor, _boons.before_player_attack())
@@ -1590,9 +1591,9 @@ func _run_player_basic_action(captured_target: CombatActor) -> bool:
 		player_feedback.append("SINERGIA · +%d BRASA" % synergy_energy)
 	if _boons.was_inferno_triggered():
 		player_feedback.append("INFERNO RHYTHM · +2 Relentless")
-	player_view.play_attack(CombatChoreographyController.MELEE_DURATION)
+	player_actor_view.play_attack(CombatChoreographyController.MELEE_DURATION)
 	await choreography.approach(
-		player_view,
+		player_actor_view,
 		target_view,
 		player_actor.actor_type,
 		CombatChoreographyController.MotionStyle.MELEE,
@@ -1625,7 +1626,7 @@ func _run_player_basic_action(captured_target: CombatActor) -> bool:
 		CombatChoreographyController.EMPHASIZED_HIT_STOP_DURATION if critical_hit else CombatChoreographyController.HIT_STOP_DURATION,
 	)
 	await _check_boss_phase_transition(action_id)
-	player_view.play_idle()
+	player_actor_view.play_idle()
 	if target_actor.is_alive():
 		target_view.play_idle()
 		if _boss_controller != null and _boss_controller.can_counter_basic(target_actor):
@@ -2057,6 +2058,7 @@ func _resolve_warden_counter(target_boss: CombatActor) -> bool:
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(action_id, target_boss, &"boss_counter", &"", [player_actor]))
 	var boss_view: CombatCharacterView = _get_actor_view(target_boss)
+	var player_actor_view: CombatCharacterView = _get_actor_view(player_actor)
 	var last_ember_before_counter: bool = _last_ember_active
 	var base_attack: int = maxi(1, roundi(float(target_boss.get_attack()) * _boss_controller.get_attack_multiplier()))
 	var effective_attack: int = _statuses.get_effective_attack(target_boss, base_attack)
@@ -2105,14 +2107,14 @@ func _resolve_warden_counter(target_boss: CombatActor) -> bool:
 	boss_view.play_attack(0.24)
 	await choreography.begin_static(boss_view)
 	AudioManager.play_event(AudioManager.AudioEvent.BOSS_REBUKE)
-	player_view.play_hit(0.24)
-	vfx.enemy_attack_target_from(boss_view, player_view, "CONTRAATAQUE", false)
+	player_actor_view.play_hit(0.24)
+	vfx.enemy_attack_target_from(boss_view, player_actor_view, "CONTRAATAQUE", false)
 	_update_combatants()
 	await choreography.finish_static()
 	if target_boss.is_alive():
 		boss_view.play_idle()
 	if player_actor.is_alive():
-		player_view.play_idle()
+		player_actor_view.play_idle()
 	_last_ember_active = _boons.is_last_ember_active()
 	if _last_ember_active != last_ember_before_counter:
 		vfx.show_last_ember(_last_ember_active)
@@ -2335,7 +2337,9 @@ func _finish_defeat() -> void:
 	action_label.text = "Derrota. El Reino reclama a otro viajero."
 	_set_action_badge(&"death", "DERROTA", AshenBadge.Variant.DANGER)
 	var death_duration: float = vfx.get_player_death_duration()
-	player_view.play_death(death_duration)
+	var player_actor_view: CombatCharacterView = _get_actor_view(player_actor)
+	if is_instance_valid(player_actor_view):
+		player_actor_view.play_death(death_duration)
 	await vfx.player_death()
 	AudioManager.play_event(AudioManager.AudioEvent.DEFEAT)
 	await _wait(maxf(0.0, RESULT_DELAY - death_duration))
@@ -2526,6 +2530,7 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 	# skills SELF (CombatTargetResolver ya lo resolvió así en M3).
 	var action_id: int = _event_stream.next_action_id()
 	_event_stream.emit_event(ActionEvent.new(action_id, player_actor, &"active_skill", active_skill.id, [skill_target]))
+	var player_actor_view: CombatCharacterView = _get_actor_view(player_actor)
 	match active_skill.skill_type:
 		ActiveSkillData.SkillType.DAMAGE:
 			var skill_target_view: CombatCharacterView = _get_actor_view(skill_target)
@@ -2550,9 +2555,9 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 			# preexistente ya documentada en el handoff M3) — affinity_relation
 			# queda "" (sin evaluar), no se inventa una.
 			_emit_damage(action_id, player_actor, skill_target, skill_damage, hp_before_skill_hit, skill_target.get_current_hp(), skill_critical)
-			player_view.play_named_animation(&"ember_slash", CombatChoreographyController.AGGRESSIVE_DURATION)
+			player_actor_view.play_named_animation(&"ember_slash", CombatChoreographyController.AGGRESSIVE_DURATION)
 			await choreography.approach(
-				player_view,
+				player_actor_view,
 				skill_target_view,
 				player_actor.actor_type,
 				CombatChoreographyController.MotionStyle.AGGRESSIVE,
@@ -2570,13 +2575,13 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 			await choreography.impact_and_return(
 				CombatChoreographyController.EMPHASIZED_HIT_STOP_DURATION if skill_critical else CombatChoreographyController.HIT_STOP_DURATION,
 			)
-			player_view.play_idle()
+			player_actor_view.play_idle()
 			if skill_target.is_alive():
 				skill_target_view.play_idle()
 		ActiveSkillData.SkillType.DEFENSE:
 			_statuses.apply_status(player_actor, &"guard", player_actor, 1, 1)
 			_emit_status_applied(action_id, player_actor, player_actor, &"guard")
-			await choreography.begin_static(player_view)
+			await choreography.begin_static(player_actor_view)
 			_set_action_badge(&"ashen_guard", active_skill.display_name.to_upper(), AshenBadge.Variant.NEUTRAL)
 			AudioManager.play_event(AudioManager.AudioEvent.GUARD_ACTIVATE)
 			var guard_percent: int = roundi(SkillAugmentResolver.effective_guard_reduction(active_skill, RunManager.current_run) * 100.0)
@@ -2585,7 +2590,7 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 			_update_combatants()
 			await vfx.guard_activation()
 			await choreography.finish_static()
-			player_view.play_idle()
+			player_actor_view.play_idle()
 		ActiveSkillData.SkillType.HEAL:
 			# Combat Domain M4 — la curación ya se aplicó dentro de
 			# ActiveSkillController.activate() (llamado desde try_use() en
@@ -2601,7 +2606,7 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 				action_id, player_actor, player_actor, skill_controller.last_heal_amount,
 				skill_controller.last_heal_amount, heal_hp_after - skill_controller.last_heal_amount, heal_hp_after,
 			))
-			await choreography.begin_static(player_view)
+			await choreography.begin_static(player_actor_view)
 			_set_action_badge(&"second_wind", active_skill.display_name.to_upper(), AshenBadge.Variant.HEAL)
 			AudioManager.play_event(AudioManager.AudioEvent.HEAL)
 			action_label.text = "SECOND WIND\n+%d VIDA" % skill_controller.last_heal_amount
@@ -2609,7 +2614,7 @@ func _execute_active_skill(skill_controller: ActiveSkillController, captured_tar
 			_update_combatants()
 			await vfx.heal(skill_controller.last_heal_amount, skill_controller.get_temporary_defense_bonus())
 			await choreography.finish_static()
-			player_view.play_idle()
+			player_actor_view.play_idle()
 			var last_ember_after_heal: bool = _boons.is_last_ember_active()
 			if last_ember_after_heal != _last_ember_active:
 				_last_ember_active = last_ember_after_heal
