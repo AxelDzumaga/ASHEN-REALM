@@ -264,8 +264,10 @@ ACTIVE_RUN_VERSION (1), tools/simulation/full_run_simulation.gd
 (su divergencia frente al dominio N-actor de producción queda
 documentada, alineación diferida a después de M5/M6).
 
-COMBAT DOMAIN M6 (2026-09-13) — APPROVED E IMPLEMENTADO
-(local, branch feature/combat-domain-m6, no mergeado):
+COMBAT DOMAIN M6 (2026-09-13) — APPROVED, IMPLEMENTADO Y MERGEADO
+(main @ `3572c976217be5c417cf3836eb4c2c53d1f544b3`). Doc corregido
+2026-09-14 — esta línea decía antes "local, no mergeado", desactualizada
+desde que el merge ocurrió más adelante en el mismo tramo de trabajo:
 
 Cleanup final del adaptador Combat2D: el dominio ya no contiene
 NINGUNA referencia viva de escena 2D. CombatActor.visual_view y
