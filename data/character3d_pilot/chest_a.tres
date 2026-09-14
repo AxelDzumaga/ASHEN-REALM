@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EquipmentVisual3DData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/character3d/equipment_visual_3d_data.gd" id="1_visual"]
+
+[resource]
+script = ExtResource("1_visual")
+visual_id = &"chest_a"
+slot = 2
+scene_path = "res://assets/characters/ashen_wanderer_3d/mannequin_chest_a.glb"
+hides_base_mesh = &"Torso"
