@@ -1,2 +1,5 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
+
+# Character3D pilot (Tier 5) — glTF binary assets, never text-normalized.
+*.glb binary
