@@ -78,6 +78,17 @@ blocker, but they have not been scheduled yet.
 
 # TIER 2 — ORIENTATION / UX SPIKE
 
+CLOSED 2026-09-14: PORTRAIT confirmed, no spike needed. `project.godot`
+already commits to portrait (`window/handheld/orientation=1`, viewport
+720x1280) and every current screen (Map3D, Combat2D, menus) is already
+built against it — no evidence of an active unresolved landscape/hybrid
+consideration exists in code or docs. Only reopen this decision if
+Combat3D's own HUD/camera composition demonstrates a real technical
+legibility/composition problem once built (Tier 6), validated inside that
+prototype rather than as a separate pre-spike.
+
+Historical framing kept for context (superseded by the above):
+
 Decide:
 
 Portrait
@@ -204,8 +215,10 @@ ASHEN_REALM_DECISIONS.md and the TECHNICAL_HANDOFF COMBAT
 section for the exact contract.
 
 M6 (final Combat2D adapter cleanup):
-IMPLEMENTED 2026-09-13, local branch
-feature/combat-domain-m6, NOT MERGED.
+IMPLEMENTED AND MERGED (main @ `3572c976217be5c417cf3836eb4c2c53d1f544b3`).
+Doc corrected 2026-09-14 — this line previously read "local branch
+feature/combat-domain-m6, NOT MERGED", stale since the merge landed later
+the same development arc.
 CombatActor.visual_view/set_visual_view/death_presented removed
 entirely — the domain holds no live 2D presentation state. A new
 PlayerFormation/PlayerCombatSlot (deliberately separate from

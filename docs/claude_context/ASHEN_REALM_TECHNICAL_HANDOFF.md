@@ -63,7 +63,9 @@ Runtime test profile isolation exists.
 ## PROFILE SYSTEM (character slots)
 
 STATUS (2026-09-10, branch `feature/profile-system`):
-IMPLEMENTED, TESTED, NOT MERGED. Local commits only, not pushed
+IMPLEMENTED, TESTED, MERGED (main @ `ae0e8709dc037f355b1fe4274dba9b737053faf9`).
+Doc corrected 2026-09-14 — this line previously read "NOT MERGED", stale
+since the merge landed later the same development arc
 (explicitly withheld pending a separate engineering report/review — see
 `ASHEN_REALM_DECISIONS.md` workflow).
 
@@ -151,7 +153,9 @@ not this one.
 ## ACTIVE RUN PERSISTENCE (expedition resume)
 
 STATUS (2026-09-10, branch `feature/active-run-persistence`):
-IMPLEMENTED, TESTED, NOT MERGED. Local commits only, not pushed.
+IMPLEMENTED, TESTED, MERGED (main @ `dd8a25721b45fa0107734a7e09fafe5af9eeca84`).
+Doc corrected 2026-09-14 — this line previously read "NOT MERGED", stale
+since the merge landed later the same development arc.
 
 Encounter Checkpoint Resume: APPROVED / IMPLEMENTED. Mid-combat exact
 resume: NOT IMPLEMENTED (deliberately — see design rationale below).
@@ -596,7 +600,9 @@ merged to `main` as of this session. See
 ## CORE LOOP / FINAL REWARD
 
 STATUS (2026-09-10, branch `feature/core-loop-final-rewards`):
-IMPLEMENTED, TESTED, NOT MERGED. Local commits only, not pushed.
+IMPLEMENTED, TESTED, MERGED (main @ `e2b24bb8fa2653030cf790737a125571791084f4`).
+Doc corrected 2026-09-14 — this line previously read "NOT MERGED", stale
+since the merge landed later the same development arc.
 
 EMBER MARSH GATE: `warden_defeated` (BOSS_DEFEATED, target
 `ashen_warden`) — was `first_expedition` (TOTAL_RUNS, i.e. any
@@ -1342,8 +1348,11 @@ recommended only after M5 and M6 stabilize the production
 N-actor path, as its own scoped effort — not attempted here.
 
 Combat Domain M6 (2026-09-13):
-STATUS: IMPLEMENTED, LOCAL ONLY, NOT MERGED
-(branch feature/combat-domain-m6).
+STATUS: IMPLEMENTED, MERGED (main @ `3572c976217be5c417cf3836eb4c2c53d1f544b3`).
+Doc corrected 2026-09-14 — this line previously read "LOCAL ONLY, NOT
+MERGED" (branch feature/combat-domain-m6), stale since the merge landed
+later the same development arc; the "Post-merge-gate fix" paragraph further
+down this same section already presupposed the merge had happened.
 
 Goal: complete the functional Combat2D adapter so the combat
 domain no longer holds any live 2D presentation state, and
